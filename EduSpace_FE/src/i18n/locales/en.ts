@@ -175,7 +175,13 @@ export const en = {
                 step2Title: "2. Book Instantly",
                 step2Desc: "Select your preferred date and time. Pay securely via credit card or local bank.",
                 step3Title: "3. Teach & Succeed",
-                step3Desc: "Arrive at your space, deliver an amazing class, and focus on what matters most."
+                step3Desc: "Arrive at your space, deliver a great class, and focus on what matters most.",
+                hostStep1Title: "1. List Your Space",
+                hostStep1Desc: "List your facility, upload attractive photos, and set your hourly rental rates.",
+                hostStep2Title: "2. Get Verified",
+                hostStep2Desc: "EduSpace experts will quickly review and verify your space to ensure quality standards.",
+                hostStep3Title: "3. Get Paid",
+                hostStep3Desc: "Our system automatically syncs schedules and deposits earnings directly to your account after each session."
             },
             topRated: {
                 title: "Top Rated Spaces",

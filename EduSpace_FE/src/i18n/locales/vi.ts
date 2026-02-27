@@ -175,7 +175,13 @@ export const vi = {
                 step2Title: "2. Đặt Ngay",
                 step2Desc: "Chọn ngày giờ ưa thích. Thanh toán an toàn qua thẻ tín dụng hoặc ngân hàng nội địa.",
                 step3Title: "3. Giảng Dạy & Thành Công",
-                step3Desc: "Đến không gian của bạn, mang đến buổi học tuyệt vời, và tập trung vào điều quan trọng nhất."
+                step3Desc: "Đến không gian của bạn, mang đến buổi học tuyệt vời, và tập trung vào điều quan trọng nhất.",
+                hostStep1Title: "1. Đăng Ký Phòng",
+                hostStep1Desc: "Liệt kê cơ sở vật chất của bạn, tải lên hình ảnh hấp dẫn và thiết lập mức giá thuê theo giờ.",
+                hostStep2Title: "2. Chờ Xác Nhận",
+                hostStep2Desc: "Đội ngũ chuyên gia của EduSpace sẽ đánh giá và xác thực nhanh chóng để đảm bảo chất lượng.",
+                hostStep3Title: "3. Nhận Thanh Toán",
+                hostStep3Desc: "Hệ thống tự động đồng bộ lịch và gửi doanh thu thẳng vào tài khoản của bạn sau mỗi buổi."
             },
             topRated: {
                 title: "Không Gian Được Đánh Giá Cao",
