@@ -5,8 +5,8 @@ export const SPACE_DETAILS_DATA: Record<number, SpaceDetails> = {
   1: {
     id: 1,
     name: 'Premium Seminar Room - District 1',
-    location: 'District 1, HCMC',
-    address: '123 Le Loi Street, Ben Thanh Ward, District 1 - HCMC',
+    location: 'Quận 1, TP.HCM',
+    address: 'Toà nhà Bitexco Financial Tower, số 2 Hải Triều, Bến Nghé, Quận 1, Thành phố Hồ Chí Minh, Việt Nam',
     rating: 4.8,
     reviewCount: 124,
     capacity: 50,

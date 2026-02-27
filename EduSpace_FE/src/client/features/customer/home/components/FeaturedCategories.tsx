@@ -1,9 +1,11 @@
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { FEATURED_CATEGORIES } from '../data/mockData';
 
 export function FeaturedCategories() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
   // Map category IDs to translation keys
   const categoryTranslations: Record<number, { name: string; description: string }> = {
@@ -16,10 +18,13 @@ export function FeaturedCategories() {
     <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
       <div className="flex justify-between items-center mb-8">
         <h2 className="text-3xl">{t('customer.home.categories.title')}</h2>
-        <a href="#" className="text-red-500 hover:text-red-600 flex items-center gap-1">
+        <button
+          onClick={() => navigate('/search')}
+          className="text-red-500 hover:text-red-600 flex items-center gap-1 font-semibold transition-colors"
+        >
           {t('customer.home.categories.viewAll')}
-          <ArrowRight className="w-4 h-4" />
-        </a>
+          <ArrowRight className="w-4 h-4 ml-1 hover:translate-x-1 transition-transform" />
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -28,6 +33,7 @@ export function FeaturedCategories() {
           return (
             <div
               key={category.id}
+              onClick={() => navigate('/search')}
               className="relative rounded-2xl overflow-hidden group cursor-pointer"
             >
               <img

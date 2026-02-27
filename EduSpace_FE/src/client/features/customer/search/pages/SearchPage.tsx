@@ -58,6 +58,13 @@ export function SearchPage() {
 
           {/* Results Area */}
           <div className="flex-1">
+            {/* Header */}
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-black text-gray-900">
+                {spaces.length} kết quả tìm được
+              </h2>
+            </div>
+
             {/* Active Filters Summary */}
             {(selectedDistrict !== 'all' || selectedTimeStart) && (
               <div className="flex flex-wrap gap-2 mb-6 animate-in fade-in duration-300">

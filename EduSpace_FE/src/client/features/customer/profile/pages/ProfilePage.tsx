@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { User, Lock, Bell, CreditCard, Loader2 } from 'lucide-react';
+import { User, Lock, Bell, CreditCard, Loader2, FileText } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { CustomerLayout } from '../../../../layouts/CustomerLayout';
 import { ProfileHeader, PersonalInfoTab, SecurityTab, NotificationsTab, PaymentMethodsTab } from '../components';
 import { NOTIFICATION_SETTINGS, PAYMENT_METHODS } from '../data/mockData';
@@ -8,6 +9,7 @@ import { useProfile } from '../hooks/useProfile';
 
 export function ProfilePage() {
   const { profile, loading, updateProfile } = useProfile();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('personal');
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(NOTIFICATION_SETTINGS);
 
@@ -60,6 +62,14 @@ export function ProfilePage() {
                   );
                 })}
               </div>
+
+              <button
+                onClick={() => navigate('/transactions')}
+                className="w-full flex items-center gap-4 px-6 py-4 mt-3 rounded-2xl transition-all duration-300 font-black text-sm uppercase tracking-widest bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-100"
+              >
+                <FileText className="w-5 h-5 text-indigo-500" />
+                Lịch sử Giao dịch
+              </button>
 
               <div className="bg-gradient-to-br from-red-500 to-orange-600 p-8 rounded-[32px] text-white shadow-xl shadow-red-100 overflow-hidden relative group">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700" />

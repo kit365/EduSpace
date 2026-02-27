@@ -1,11 +1,22 @@
-import { Camera, CheckCircle } from 'lucide-react';
+import { Camera, CheckCircle, GraduationCap, Building2, UserCircle2, Mic, Code2 } from 'lucide-react';
 import { UserProfile } from '../types';
+import { UserRole } from '../../../../../types/user';
 
 interface ProfileHeaderProps {
   profile: UserProfile;
 }
 
 export function ProfileHeader({ profile }: ProfileHeaderProps) {
+  const getRoleBadge = (role: UserRole) => {
+    switch (role) {
+      case 'renter': return <span className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-black uppercase tracking-wider border border-blue-100"><GraduationCap className="w-3.5 h-3.5" /> Học sinh / Sinh viên</span>;
+      case 'host': return <span className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-black uppercase tracking-wider border border-amber-100"><Building2 className="w-3.5 h-3.5" /> Hoster</span>;
+      case 'staff': return <span className="flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-black uppercase tracking-wider border border-green-100"><UserCircle2 className="w-3.5 h-3.5" /> Nhân viên</span>;
+      case 'admin': return <span className="flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-700 rounded-full text-xs font-black uppercase tracking-wider border border-red-100"><Code2 className="w-3.5 h-3.5" /> Admin</span>;
+      default: return null;
+    }
+  };
+
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-8">
       <div className="flex items-start gap-6">
@@ -23,14 +34,15 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
 
         {/* Profile Info */}
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-3 mb-2 flex-wrap">
             <h1 className="text-3xl font-bold">{profile.name}</h1>
             {profile.verified && (
               <CheckCircle className="w-6 h-6 text-blue-500" />
             )}
+            {getRoleBadge(profile.role)}
           </div>
           <p className="text-gray-600 mb-4">{profile.bio}</p>
-          
+
           <div className="flex items-center gap-6 text-sm">
             <div>
               <span className="text-gray-600">Member since</span>

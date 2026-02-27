@@ -85,11 +85,6 @@ function SpaceCard({ space, viewMode, onClick }: SpaceCardProps) {
           className={`object-cover group-hover:scale-105 transition duration-300 ${viewMode === 'list' ? 'w-full h-full' : 'w-full h-64'
             }`}
         />
-        {space.verified && (
-          <div className="absolute top-3 left-3 bg-red-500 text-white px-3 py-1 rounded text-xs">
-            {t('common.verifiedSpace')}
-          </div>
-        )}
         {space.instantBook && (
           <div className="absolute top-3 left-3 bg-red-500 text-white px-3 py-1 rounded text-xs">
             INSTANT BOOK

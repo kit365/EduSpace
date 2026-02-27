@@ -5,14 +5,13 @@ import { ArrowLeft, QrCode, MessageCircle, Calendar, Clock, MapPin, Users, Credi
 import { formatCurrency } from '../../../../../utils';
 import { BOOKINGS } from '../data/mockData';
 import { Booking } from '../types';
+import { ReviewModal } from '../components/ReviewModal';
 
 export function BookingDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const [copied, setCopied] = useState(false);
     const [showReview, setShowReview] = useState(false);
-    const [rating, setRating] = useState(0);
-    const [comment, setComment] = useState('');
     const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
     const booking: Booking | undefined = BOOKINGS.find((b: Booking) => b.id === Number(id));
@@ -34,8 +33,10 @@ export function BookingDetailPage() {
         setTimeout(() => setCopied(false), 2000);
     };
 
-    const handleSubmitReview = () => {
-        if (!rating || !comment.trim()) return;
+    const handleSubmitReview = (rating: number, comment: string) => {
+        if (!rating) return;
+        // API call to submit review would go here
+        console.log("Submitted review:", { rating, comment });
         setReviewSubmitted(true);
         setShowReview(false);
     };
@@ -149,45 +150,20 @@ export function BookingDetailPage() {
                             {/* FR-10: Review Form */}
                             {booking.status === 'completed' && !reviewSubmitted && (
                                 <div className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm">
-                                    {!showReview ? (
-                                        <div className="text-center py-4">
-                                            <Star className="w-10 h-10 text-amber-400 mx-auto mb-3" />
-                                            <h3 className="font-black text-gray-900 mb-2">Đánh giá trải nghiệm</h3>
-                                            <p className="text-sm text-gray-400 font-medium mb-4">Chia sẻ cảm nhận để giúp cải thiện dịch vụ</p>
-                                            <button onClick={() => setShowReview(true)} className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-8 py-3 rounded-2xl font-black shadow-lg shadow-amber-200 active:scale-95 transition-all">
-                                                Viết đánh giá
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <div>
-                                            <h3 className="font-black text-gray-900 mb-4">Đánh giá Host & Phòng</h3>
-                                            {/* Star Rating */}
-                                            <div className="flex items-center gap-2 mb-6">
-                                                <span className="text-sm font-bold text-gray-500 mr-2">Chất lượng:</span>
-                                                {[1, 2, 3, 4, 5].map(star => (
-                                                    <button key={star} onClick={() => setRating(star)} className="transition-all hover:scale-125">
-                                                        <Star className={`w-8 h-8 ${star <= rating ? 'fill-amber-400 text-amber-400' : 'text-gray-200'} transition-colors`} />
-                                                    </button>
-                                                ))}
-                                                {rating > 0 && <span className="text-sm font-black text-amber-500 ml-2">{rating}/5</span>}
-                                            </div>
-                                            {/* Comment */}
-                                            <textarea
-                                                value={comment}
-                                                onChange={(e) => setComment(e.target.value)}
-                                                placeholder="Chia sẻ cảm nhận của bạn về không gian, tiện ích, Host..."
-                                                className="w-full h-28 px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 transition-all text-sm font-medium resize-none"
-                                            />
-                                            <div className="flex gap-3 mt-4">
-                                                <button onClick={handleSubmitReview} disabled={!rating || !comment.trim()} className="flex-1 bg-gray-900 text-white py-3 rounded-xl font-black disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all">
-                                                    Gửi đánh giá
-                                                </button>
-                                                <button onClick={() => setShowReview(false)} className="px-6 py-3 border border-gray-200 rounded-xl font-bold text-gray-500 hover:bg-gray-50 transition-all">
-                                                    Huỷ
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
+                                    <div className="text-center py-4">
+                                        <Star className="w-10 h-10 text-amber-400 mx-auto mb-3" />
+                                        <h3 className="font-black text-gray-900 mb-2">Đánh giá trải nghiệm</h3>
+                                        <p className="text-sm text-gray-400 font-medium mb-4">Chia sẻ cảm nhận để giúp cải thiện dịch vụ</p>
+                                        <button onClick={() => setShowReview(true)} className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-8 py-3 rounded-2xl font-black shadow-lg shadow-amber-200 active:scale-95 transition-all">
+                                            Viết đánh giá
+                                        </button>
+                                    </div>
+                                    <ReviewModal
+                                        open={showReview}
+                                        onOpenChange={setShowReview}
+                                        onSubmit={handleSubmitReview}
+                                        spaceName={booking.spaceName}
+                                    />
                                 </div>
                             )}
                             {reviewSubmitted && (

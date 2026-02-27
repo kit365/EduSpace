@@ -88,9 +88,6 @@ function SpaceCard({ space, onClick }: SpaceCardProps) {
       <div className="p-8">
         <div className="flex items-center gap-2 mb-3">
           <span className="text-xs font-black text-gray-400 uppercase tracking-widest">{space.location}</span>
-          {space.verified && (
-            <span className="text-blue-500 text-[10px] font-black uppercase bg-blue-50 px-2 py-0.5 rounded-md tracking-wider">{t('customer.home.topRated.verified')}</span>
-          )}
         </div>
         <h3 className="text-lg font-black text-gray-900 mb-4 group-hover:text-red-500 transition-colors leading-tight h-12 line-clamp-2">
           {space.name}

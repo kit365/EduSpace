@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MapPin, Share2, Heart, Loader2, ArrowLeft } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -9,6 +10,11 @@ export function SpaceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
+
+  // Ensure page scrolls to top on navigation/mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [id]);
 
   const spaceId = id ? parseInt(id) : 1;
   const { data: space, loading, error } = useSpaceDetails(spaceId);
@@ -73,8 +79,8 @@ export function SpaceDetailPage() {
           <h1 className="text-5xl font-black text-gray-900 mb-4 tracking-tight leading-none">{space.name}</h1>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100">
-              <MapPin className="w-4 h-4 text-red-500" />
-              <span className="text-sm font-black text-gray-500 uppercase tracking-tighter">{space.location}</span>
+              <MapPin className="w-4 h-4 text-red-500 shrink-0" />
+              <span className="text-sm font-black text-gray-500 uppercase tracking-tighter line-clamp-1">{space.address || space.location}</span>
             </div>
             {space.verified && (
               <div className="bg-blue-500 text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-blue-200">
@@ -119,7 +125,7 @@ export function SpaceDetailPage() {
         {/* Secondary Info */}
         <div className="mt-20 pt-20 border-t border-slate-50">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-20">
-            <SpaceLocation />
+            <SpaceLocation address={space.address || space.location} />
             <SpaceReviews rating={space.rating} reviews={space.reviews} />
           </div>
         </div>

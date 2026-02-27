@@ -1,29 +1,44 @@
 import { useTranslation } from 'react-i18next';
 import { MapPin } from 'lucide-react';
 
-export function SpaceLocation() {
+interface SpaceLocationProps {
+  address: string;
+}
+
+export function SpaceLocation({ address }: SpaceLocationProps) {
   const { t } = useTranslation();
+
+  // Create the embed URL using the address
+  const encodedAddress = encodeURIComponent(address);
+  // We use standard Google Maps embed URL
+  const mapUrl = `https://maps.google.com/maps?q=${encodedAddress}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
 
   return (
     <div className="mb-8">
       <h2 className="text-xl font-semibold mb-4">{t('customer.spaceDetail.location')}</h2>
-      <div className="bg-gray-200 h-64 rounded-xl flex items-center justify-center relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-300 to-gray-400">
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-            <div className="bg-red-500 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
-              <MapPin className="w-5 h-5" />
-              <span className="font-semibold">EduSpace District 1</span>
+      <div className="bg-gray-100 h-[400px] rounded-2xl overflow-hidden shadow-sm border border-gray-100 relative group">
+        <iframe
+          src={mapUrl}
+          width="100%"
+          height="100%"
+          style={{ border: 0 }}
+          allowFullScreen={false}
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+          className="grayscale-[30%] contrast-125 opacity-90 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700"
+        />
+
+        {/* Decorative Overlay for better UI integration */}
+        <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-md px-4 py-3 rounded-xl shadow-lg border border-white/50 animate-in fade-in slide-in-from-top-4 duration-700">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center">
+              <MapPin className="w-4 h-4 text-red-500" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-0.5">Địa chỉ</p>
+              <p className="text-sm font-bold text-gray-900 line-clamp-2 max-w-[250px]">{address}</p>
             </div>
           </div>
-          {/* Decorative map lines */}
-          <svg className="absolute inset-0 w-full h-full opacity-20">
-            <line x1="0" y1="50%" x2="100%" y2="50%" stroke="white" strokeWidth="2" />
-            <line x1="50%" y1="0" x2="50%" y2="100%" stroke="white" strokeWidth="2" />
-            <line x1="0" y1="30%" x2="100%" y2="30%" stroke="white" strokeWidth="1" />
-            <line x1="0" y1="70%" x2="100%" y2="70%" stroke="white" strokeWidth="1" />
-            <line x1="30%" y1="0" x2="30%" y2="100%" stroke="white" strokeWidth="1" />
-            <line x1="70%" y1="0" x2="70%" y2="100%" stroke="white" strokeWidth="1" />
-          </svg>
         </div>
       </div>
     </div>
