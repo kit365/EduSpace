@@ -16,6 +16,7 @@ export interface BookingRequest {
   status: 'pending' | 'approved' | 'rejected' | 'checked_in' | 'completed';
   paymentStatus: 'unpaid' | 'escrow' | 'partially_paid' | 'fully_paid';
   bookingCode?: string;
+  branchId?: number;
 }
 
 export interface DashboardStats {
@@ -41,6 +42,7 @@ export interface CalendarEvent {
   startTime?: string;
   endTime?: string;
   guestName?: string;
+  branchId?: number;
 }
 
 export interface HostFinanceSummary {
@@ -89,6 +91,7 @@ export interface BlockedSlot {
   startTime: string;
   endTime: string;
   reason: string;
+  branchId?: number;
 }
 
 // ─── FR-15: Room Status ────────────────────────────────────────
@@ -108,6 +111,7 @@ export interface RoomStatusInfo {
   lastUpdated: string;
   updatedBy: string;
   note?: string;
+  branchId?: number;
 }
 
 // ─── FR-05: Ads Packages ──────────────────────────────────────
@@ -134,4 +138,14 @@ export interface AdsSubscription {
   startDate: string;
   endDate: string;
   status: 'active' | 'expired' | 'pending_payment';
+}
+
+// ─── ROOM TYPES ────────────────────────────────────────────────
+export interface RoomType {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  status: 'active' | 'inactive';
+  basePrice: number;
 }

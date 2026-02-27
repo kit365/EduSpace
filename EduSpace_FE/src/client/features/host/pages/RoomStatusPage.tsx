@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { CheckCircle, Users, Sparkles, Wrench, RefreshCw } from 'lucide-react';
 import { RentalLayout } from '../../../layouts/RentalLayout';
 import { ROOM_STATUSES } from '../data/mockData';
 import { RoomStatusInfo, RoomStatus } from '../types';
+import { useBranch } from '../context/BranchContext';
 
 const STATUS_CONFIG: Record<RoomStatus, { label: string; labelVi: string; icon: React.ReactNode; color: string; bg: string; border: string }> = {
     available: { label: 'Available', labelVi: 'Sẵn sàng', icon: <CheckCircle className="w-5 h-5" />, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200' },
@@ -14,6 +15,7 @@ const STATUS_CONFIG: Record<RoomStatus, { label: string; labelVi: string; icon: 
 const ALL_STATUSES: RoomStatus[] = ['available', 'occupied', 'cleaning', 'maintenance'];
 
 export function RoomStatusPage() {
+    const { selectedBranch } = useBranch();
     const [rooms, setRooms] = useState<RoomStatusInfo[]>(ROOM_STATUSES);
     const [filter, setFilter] = useState<RoomStatus | 'all'>('all');
 
@@ -21,14 +23,22 @@ export function RoomStatusPage() {
         setRooms(prev => prev.map(r => r.spaceId === spaceId ? { ...r, status: newStatus, lastUpdated: new Date().toISOString(), updatedBy: 'Bạn' } : r));
     };
 
-    const filtered = filter === 'all' ? rooms : rooms.filter(r => r.status === filter);
+    useEffect(() => {
+        setRooms(ROOM_STATUSES);
+    }, [selectedBranch]); // Re-sync when branch changes to pick up fresh mock data (useful for HMR)
+
+    const branchFilteredRooms = selectedBranch
+        ? rooms.filter(r => r.branchId === selectedBranch.id)
+        : rooms;
+
+    const filtered = filter === 'all' ? branchFilteredRooms : branchFilteredRooms.filter(r => r.status === filter);
 
     const counts = {
-        all: rooms.length,
-        available: rooms.filter(r => r.status === 'available').length,
-        occupied: rooms.filter(r => r.status === 'occupied').length,
-        cleaning: rooms.filter(r => r.status === 'cleaning').length,
-        maintenance: rooms.filter(r => r.status === 'maintenance').length,
+        all: branchFilteredRooms.length,
+        available: branchFilteredRooms.filter(r => r.status === 'available').length,
+        occupied: branchFilteredRooms.filter(r => r.status === 'occupied').length,
+        cleaning: branchFilteredRooms.filter(r => r.status === 'cleaning').length,
+        maintenance: branchFilteredRooms.filter(r => r.status === 'maintenance').length,
     };
 
     return (

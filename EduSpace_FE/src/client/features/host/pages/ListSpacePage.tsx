@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
     Building2,
@@ -24,6 +24,9 @@ import {
 } from 'lucide-react';
 import { CustomerLayout } from '../../../layouts/CustomerLayout';
 import { hostService } from '../services/hostService';
+import { useBranch } from '../context/BranchContext';
+import { MOCK_BRANCHES } from '../data/mockBranches';
+import { MOCK_ROOM_TYPES, MOCK_HOST_SPACES } from '../data/mockData';
 
 interface RoomSlot {
     id: string;
@@ -34,6 +37,7 @@ interface RoomSlot {
 }
 
 interface SpaceFormData {
+    branchId: number | null;
     facilityName: string;
     roomType: string;
     title: string;
@@ -57,12 +61,16 @@ const DEFAULT_SLOTS: RoomSlot[] = [
 export function ListSpacePage() {
     const { t } = useTranslation();
     const navigate = useNavigate();
+    const { id } = useParams();
+    const isEdit = Boolean(id);
+    const { selectedBranch } = useBranch();
     const [step, setStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const totalSteps = 5;
 
     const [formData, setFormData] = useState<SpaceFormData>({
+        branchId: selectedBranch ? selectedBranch.id : null,
         facilityName: '',
         roomType: '',
         title: '',
@@ -76,6 +84,36 @@ export function ListSpacePage() {
         amenities: [],
         images: []
     });
+
+    useEffect(() => {
+        if (isEdit && id) {
+            const spaceId = parseInt(id);
+            const space = MOCK_HOST_SPACES.find(s => s.id === spaceId);
+            if (space) {
+                // Map mock data to form data
+                // Note: price in mock is "250.000đ/giờ", we need a number
+                const numericPrice = parseInt(space.price.replace(/\D/g, ''));
+
+                setFormData({
+                    branchId: space.branchId,
+                    facilityName: space.name,
+                    roomType: space.type,
+                    title: space.name,
+                    address: '', // Mock data doesn't have address
+                    capacity: space.capacity,
+                    size: 30, // Mock data doesn't have size
+                    floor: 1,
+                    basePrice: numericPrice,
+                    weekendSurcharge: 10,
+                    availabilitySlots: DEFAULT_SLOTS,
+                    amenities: [],
+                    images: [space.image]
+                });
+            }
+        } else if (selectedBranch) {
+            setFormData(prev => ({ ...prev, branchId: selectedBranch.id }));
+        }
+    }, [id, isEdit, selectedBranch]);
 
     const nextStep = () => {
         if (step < totalSteps) setStep(prev => prev + 1);
@@ -161,9 +199,11 @@ export function ListSpacePage() {
                     {/* Progress Header */}
                     <div className="mb-14 text-center animate-in fade-in slide-in-from-top-4 duration-500">
                         <div className="inline-flex items-center gap-2 bg-white border border-red-100 text-red-600 px-6 py-2 rounded-full text-xs font-black uppercase tracking-[0.2em] mb-4 shadow-sm">
-                            <Zap className="w-4 h-4" /> {t('host.listSpace.onboarding')}
+                            <Zap className="w-4 h-4" /> {isEdit ? "CẬP NHẬT TIN ĐĂNG" : t('host.listSpace.onboarding')}
                         </div>
-                        <h1 className="text-3xl font-black text-gray-900 tracking-tight">{t('host.listSpace.title')}</h1>
+                        <h1 className="text-3xl font-black text-gray-900 tracking-tight">
+                            {isEdit ? `Chỉnh sửa: ${formData.facilityName}` : t('host.listSpace.title')}
+                        </h1>
                     </div>
 
                     <div className="flex gap-12">
@@ -211,6 +251,25 @@ export function ListSpacePage() {
                                             </div>
 
                                             <div className="grid grid-cols-2 gap-8">
+                                                <div className="space-y-4 col-span-2 md:col-span-1">
+                                                    <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Thuộc Chi Nhánh</label>
+                                                    <div className="relative">
+                                                        <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                                        <select
+                                                            value={formData.branchId || ''}
+                                                            onChange={(e) => handleUpdate('branchId', Number(e.target.value))}
+                                                            className="w-full pl-12 pr-4 py-3 bg-gray-50 rounded-xl border border-gray-200 focus:border-red-500 focus:ring-2 focus:ring-red-200 transition-all font-medium text-gray-900 appearance-none"
+                                                        >
+                                                            <option value="" disabled>Chọn chi nhánh...</option>
+                                                            {MOCK_BRANCHES.map(b => (
+                                                                <option key={b.id} value={b.id}>{b.name}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-8">
                                                 <div className="space-y-4">
                                                     <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">{t('host.listSpace.basics.facilityName')}</label>
                                                     <div className="relative">
@@ -232,10 +291,9 @@ export function ListSpacePage() {
                                                         className="w-full px-4 py-3 bg-gray-50 rounded-xl border border-gray-200 focus:border-red-500 focus:ring-2 focus:ring-red-200 transition-all font-medium text-gray-900 appearance-none"
                                                     >
                                                         <option value="">{t('host.listSpace.basics.chooseCategory')}</option>
-                                                        <option value="Classroom">Classroom</option>
-                                                        <option value="Lab">Technology Lab</option>
-                                                        <option value="Meeting">Meeting Suite</option>
-                                                        <option value="Hall">Event Hall</option>
+                                                        {MOCK_ROOM_TYPES.map(rt => (
+                                                            <option key={rt.id} value={rt.name}>{rt.name}</option>
+                                                        ))}
                                                     </select>
                                                 </div>
                                             </div>
@@ -487,7 +545,7 @@ export function ListSpacePage() {
                                         )}
                                         <button
                                             onClick={nextStep}
-                                            disabled={step === 1 && (!formData.facilityName || !formData.roomType)}
+                                            disabled={step === 1 && (!formData.facilityName || !formData.roomType || !formData.branchId)}
                                             className="bg-red-500 text-white px-8 py-3 rounded-xl font-bold text-sm hover:bg-red-600 transition-all shadow-lg shadow-red-100 flex items-center gap-2 active:scale-95 disabled:grayscale disabled:opacity-40"
                                         >
                                             {step === totalSteps ? t('common.publish') : t('common.saveAndContinue')}

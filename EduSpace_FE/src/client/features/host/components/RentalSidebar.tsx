@@ -1,4 +1,4 @@
-import { LayoutGrid, List, Calendar, DollarSign, Settings, LogOut, Shield, Users, ClipboardCheck, Clock, Megaphone, Building2 } from 'lucide-react';
+import { LayoutGrid, List, Calendar, DollarSign, Settings, LogOut, Shield, Users, ClipboardCheck, Clock, Megaphone, Building2, LayoutList } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 
 export function RentalSidebar() {
@@ -7,6 +7,7 @@ export function RentalSidebar() {
     const mainMenu = [
         { path: '/rental/dashboard', label: 'Dashboard', icon: LayoutGrid },
         { path: '/rental/spaces', label: 'Phòng của tôi', icon: List },
+        { path: '/rental/room-types', label: 'Loại phòng', icon: LayoutList },
         { path: '/rental/room-status', label: 'Trạng thái phòng', icon: Building2 },
         { path: '/rental/schedule', label: 'Lịch & Giờ', icon: Clock },
         { path: '/rental/calendar', label: 'Lịch đặt phòng', icon: Calendar },
@@ -72,12 +73,15 @@ export function RentalSidebar() {
 
             {/* User Section */}
             <div className="p-4 border-t border-gray-100 bg-gray-50/50">
-                <div className="flex items-center gap-3 mb-4 p-3 rounded-xl bg-white border border-gray-100 shadow-sm">
+                <div
+                    onClick={() => navigate('/rental/profile')}
+                    className="flex items-center gap-3 mb-4 p-3 rounded-xl bg-white border border-gray-100 shadow-sm cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all group"
+                >
                     <div className="w-10 h-10 bg-gradient-to-br from-gray-800 to-black rounded-lg flex items-center justify-center text-white font-black shadow-md">
                         BN
                     </div>
                     <div className="flex-1 min-w-0">
-                        <div className="font-bold text-gray-900 truncate">Bích Ngọc</div>
+                        <div className="font-bold text-gray-900 truncate group-hover:text-red-500 transition-colors">Bích Ngọc</div>
                         <div className="text-xs text-green-500 font-bold flex items-center gap-1">
                             <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
                             Host · Verified
@@ -86,7 +90,10 @@ export function RentalSidebar() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                    <button className="flex items-center justify-center gap-2 p-2 rounded-lg text-xs font-bold text-gray-500 hover:bg-white hover:shadow-sm border border-transparent hover:border-gray-100 transition-all">
+                    <button
+                        onClick={() => navigate('/rental/settings')}
+                        className="flex items-center justify-center gap-2 p-2 rounded-lg text-xs font-bold text-gray-500 hover:bg-white hover:shadow-sm border border-transparent hover:border-gray-100 transition-all"
+                    >
                         <Settings className="w-4 h-4" /> Cài đặt
                     </button>
                     <button onClick={() => navigate('/auth')} className="flex items-center justify-center gap-2 p-2 rounded-lg text-xs font-bold text-red-500 hover:bg-red-50 border border-transparent transition-all">

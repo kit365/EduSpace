@@ -3,6 +3,7 @@ import { Clock, CalendarOff, Plus, Trash2, Save, AlertCircle } from 'lucide-reac
 import { RentalLayout } from '../../../layouts/RentalLayout';
 import { DEFAULT_OPERATING_HOURS, BLOCKED_SLOTS } from '../data/mockData';
 import { OperatingHour, BlockedSlot, DayOfWeek } from '../types';
+import { useBranch } from '../context/BranchContext';
 
 const DAY_LABELS: Record<DayOfWeek, string> = {
     monday: 'Thứ 2', tuesday: 'Thứ 3', wednesday: 'Thứ 4',
@@ -10,8 +11,15 @@ const DAY_LABELS: Record<DayOfWeek, string> = {
 };
 
 export function SchedulePage() {
+    const { selectedBranch } = useBranch();
     const [hours, setHours] = useState<OperatingHour[]>(DEFAULT_OPERATING_HOURS);
-    const [blocked, setBlocked] = useState<BlockedSlot[]>(BLOCKED_SLOTS);
+
+    // Filter BLOCKED_SLOTS by selected branch if available
+    const initialBlocked = selectedBranch
+        ? BLOCKED_SLOTS.filter(b => b.branchId === selectedBranch.id)
+        : BLOCKED_SLOTS;
+
+    const [blocked, setBlocked] = useState<BlockedSlot[]>(initialBlocked);
     const [showBlockForm, setShowBlockForm] = useState(false);
     const [newBlock, setNewBlock] = useState({ date: '', startTime: '', endTime: '', reason: '' });
     const [saved, setSaved] = useState(false);
@@ -28,7 +36,11 @@ export function SchedulePage() {
 
     const addBlock = () => {
         if (!newBlock.date || !newBlock.startTime || !newBlock.endTime) return;
-        setBlocked(prev => [...prev, { id: `BLK-${Date.now()}`, ...newBlock }]);
+        setBlocked(prev => [...prev, {
+            id: `BLK-${Date.now()}`,
+            ...newBlock,
+            branchId: selectedBranch ? selectedBranch.id : undefined
+        }]);
         setNewBlock({ date: '', startTime: '', endTime: '', reason: '' });
         setShowBlockForm(false);
     };

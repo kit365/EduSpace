@@ -1,6 +1,7 @@
 import { RouteObject } from "react-router-dom";
 import { HostDashboardPage } from "../features/host/pages/HostDashboardPage";
 import { SpacesPage } from "../features/host/pages/SpacesPage";
+import { BranchesPage } from "../features/host/pages/BranchesPage";
 import { ListSpacePage } from "../features/host/pages/ListSpacePage";
 import { CalendarPage } from "../features/host/pages/CalendarPage";
 import { FinancePage } from "../features/host/pages/FinancePage";
@@ -11,6 +12,11 @@ import { SchedulePage } from "../features/host/pages/SchedulePage";
 import { StaffCheckoutPage } from "../features/host/pages/StaffCheckoutPage";
 import { AdsPage } from "../features/host/pages/AdsPage";
 import { HostRegistrationPage } from "../features/host/pages/HostRegistrationPage";
+import { HostProfilePage } from "../features/host/profile/pages/HostProfilePage";
+import { HostSettingsPage } from "../features/host/settings/pages/HostSettingsPage";
+import { RoomTypesPage } from "../features/host/pages/RoomTypesPage";
+import { RoomTypeFormPage } from "../features/host/pages/RoomTypeFormPage";
+import { HostSpaceDetailsPage } from "../features/host/pages/HostSpaceDetailsPage";
 
 export const rentalRoutes: RouteObject[] = [
     {
@@ -19,8 +25,14 @@ export const rentalRoutes: RouteObject[] = [
             { path: 'register', element: <HostRegistrationPage /> },
             { path: '', element: <HostDashboardPage /> },
             { path: 'dashboard', element: <HostDashboardPage /> },
+            { path: 'branches', element: <BranchesPage /> },
             { path: 'spaces', element: <SpacesPage /> },
+            { path: 'room-types', element: <RoomTypesPage /> },
+            { path: 'room-types/new', element: <RoomTypeFormPage /> },
+            { path: 'room-types/edit/:id', element: <RoomTypeFormPage /> },
             { path: 'spaces/new', element: <ListSpacePage /> },
+            { path: 'spaces/edit/:id', element: <ListSpacePage /> },
+            { path: 'spaces/:id', element: <HostSpaceDetailsPage /> },
             { path: 'calendar', element: <CalendarPage /> },
             { path: 'finance', element: <FinancePage /> },
             // FR-01: KYC & Staff
@@ -34,6 +46,10 @@ export const rentalRoutes: RouteObject[] = [
             { path: 'ads', element: <AdsPage /> },
             // FR-15: Room Status
             { path: 'room-status', element: <RoomStatusPage /> },
+            // Host Profile
+            { path: 'profile', element: <HostProfilePage /> },
+            // Host Settings
+            { path: 'settings', element: <HostSettingsPage /> },
         ]
     }
 ];
