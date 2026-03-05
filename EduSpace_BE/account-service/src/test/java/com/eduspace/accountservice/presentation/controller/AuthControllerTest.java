@@ -1,6 +1,8 @@
 package com.eduspace.accountservice.presentation.controller;
 
 import com.eduspace.accountservice.business.service.AuthService;
+import com.eduspace.accountservice.exception.AppException;
+import com.eduspace.accountservice.exception.ErrorCode;
 import com.eduspace.accountservice.model.dto.request.LoginRequest;
 import com.eduspace.accountservice.model.dto.response.LoginResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -48,11 +50,27 @@ class AuthControllerTest {
 
         // Act & Assert
         mockMvc.perform(post("/api/v1/auth/login")
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED) // Wait, the controller says @RequestBody, so it
-                                                                    // should be JSON
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void login_InvalidCredentials_ReturnsError() throws Exception {
+        // Arrange
+        LoginRequest request = new LoginRequest();
+        request.setEmail("wrong@email.com");
+        request.setPassword("wrong");
+
+        when(authService.login(any(LoginRequest.class)))
+                .thenThrow(new AppException(ErrorCode.UNAUTHORIZED));
+
+        // Act & Assert
+        mockMvc.perform(post("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false));
     }
 }

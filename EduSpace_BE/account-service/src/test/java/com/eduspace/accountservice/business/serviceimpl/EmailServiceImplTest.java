@@ -58,15 +58,16 @@ class EmailServiceImplTest {
     }
 
     @Test
-    void sendVerificationEmail_MessagingException_LogsError() {
+    void sendVerificationEmail_MailError() {
         // Arrange
         when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
-        doThrow(new RuntimeException("Mail error")).when(mailSender).send(any(MimeMessage.class));
+        doThrow(new RuntimeException("SMTP Server Down")).when(mailSender).send(any(MimeMessage.class));
 
         // Act
         emailService.sendVerificationEmail("user@example.com", "User Name", "token123");
 
         // Assert
         verify(mailSender).send(mimeMessage);
+        // Method catches exception and logs it, so it shouldn't throw to caller
     }
 }

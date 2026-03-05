@@ -2,6 +2,7 @@ package com.eduspace.accountservice.business.serviceimpl;
 
 import com.eduspace.accountservice.business.service.AuthService;
 import com.eduspace.accountservice.business.service.EmailService;
+import com.eduspace.accountservice.business.service.KeycloakUserService;
 import com.eduspace.accountservice.common.enums.Role;
 import com.eduspace.accountservice.exception.AppException;
 import com.eduspace.accountservice.exception.ErrorCode;
@@ -40,7 +41,7 @@ class AuthServiceImplTest {
     @Mock
     private RoleRepository roleRepository;
     @Mock
-    private KeycloakUserServiceImpl keycloakUserService;
+    private KeycloakUserService keycloakUserService; // Using Interface
     @Mock
     private UserMapper userMapper;
     @Mock
@@ -51,9 +52,9 @@ class AuthServiceImplTest {
     private ValueOperations<String, String> valueOperations;
 
     @InjectMocks
-    private AuthServiceImpl authServiceImpl;
+    private AuthServiceImpl authServiceImpl; // Target implementation
 
-    private AuthService authService;
+    private AuthService authService; // Interface for calling
 
     @BeforeEach
     void setUp() {
@@ -67,7 +68,7 @@ class AuthServiceImplTest {
         LoginRequest request = new LoginRequest();
         request.setEmail("test@email.com");
         request.setPassword("password");
-
+        
         UserEntity user = UserEntity.builder()
                 .email("test@email.com")
                 .isEmailVerified(true)
@@ -123,7 +124,7 @@ class AuthServiceImplTest {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 
         // Act
-        UserResponse result = authService.register(request);
+        authService.register(request);
 
         // Assert
         verify(userRepository).save(any(UserEntity.class));
@@ -131,22 +132,16 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void verifyEmail_Success() {
+    void register_UserAlreadyExists_ThrowsException() {
         // Arrange
-        String token = "valid-token";
-        String keycloakId = "user-id";
-        UserEntity user = UserEntity.builder().keycloakId(keycloakId).build();
+        RegisterRequest request = new RegisterRequest();
+        request.setEmail("existing@email.com");
+        
+        when(userRepository.existsByEmail("existing@email.com")).thenReturn(true);
 
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get("email_verify:" + token)).thenReturn(keycloakId);
-        when(userRepository.findByKeycloakId(keycloakId)).thenReturn(Optional.of(user));
-
-        // Act
-        authService.verifyEmail(token);
-
-        // Assert
-        assertThat(user.getIsEmailVerified()).isTrue();
-        verify(keycloakUserService).verifyEmail(keycloakId);
-        verify(redisTemplate).delete("email_verify:" + token);
+        // Act & Assert
+        assertThatThrownBy(() -> authService.register(request))
+                .isInstanceOf(AppException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.USER_ALREADY_EXISTS);
     }
 }

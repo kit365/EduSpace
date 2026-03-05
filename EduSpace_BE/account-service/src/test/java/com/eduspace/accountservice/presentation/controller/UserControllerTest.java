@@ -1,14 +1,14 @@
 package com.eduspace.accountservice.presentation.controller;
 
 import com.eduspace.accountservice.business.service.UserService;
+import com.eduspace.accountservice.exception.AppException;
+import com.eduspace.accountservice.exception.ErrorCode;
 import com.eduspace.accountservice.model.dto.response.UserResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.MessageSource;
-import org.springframework.context.MessageSource;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -48,5 +48,17 @@ class UserControllerTest {
                 .with(jwt().jwt(j -> j.subject("test-sub"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.email").value("test@email.com"));
+    }
+
+    @Test
+    void getMyProfile_NotFound_ReturnsError() throws Exception {
+        // Arrange
+        when(userService.getProfile(anyString())).thenThrow(new AppException(ErrorCode.USER_NOT_FOUND));
+
+        // Act & Assert
+        mockMvc.perform(post("/api/v1/account/me")
+                .with(jwt().jwt(j -> j.subject("unknown-sub"))))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false));
     }
 }

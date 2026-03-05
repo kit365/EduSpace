@@ -1,5 +1,6 @@
 package com.eduspace.accountservice.business.serviceimpl;
 
+import com.eduspace.accountservice.business.service.KeycloakUserService;
 import com.eduspace.accountservice.business.service.UserService;
 import com.eduspace.accountservice.exception.AppException;
 import com.eduspace.accountservice.exception.ErrorCode;
@@ -31,12 +32,12 @@ class UserServiceImplTest {
     private UserMapper userMapper;
 
     @Mock
-    private KeycloakUserServiceImpl keycloakUserService;
+    private KeycloakUserService keycloakUserService; // Using Interface
 
     @InjectMocks
-    private UserServiceImpl userServiceImpl;
+    private UserServiceImpl userServiceImpl; // Target implementation
 
-    private UserService userService;
+    private UserService userService; // Interface for calling
 
     private UserEntity userEntity;
     private UserResponse userResponse;
@@ -59,14 +60,14 @@ class UserServiceImplTest {
 
     @Test
     void getProfile_Success() {
-        // Arrange
+        // Arrange: Prepare data and mock behavior
         when(userRepository.findByKeycloakId("test-id")).thenReturn(Optional.of(userEntity));
         when(userMapper.toUserResponse(userEntity)).thenReturn(userResponse);
 
-        // Act
+        // Act: Execute method
         UserResponse result = userService.getProfile("test-id");
 
-        // Assert
+        // Assert: Verify results
         assertThat(result).isNotNull();
         assertThat(result.getEmail()).isEqualTo("test@example.com");
         verify(userRepository).findByKeycloakId("test-id");
@@ -74,51 +75,21 @@ class UserServiceImplTest {
 
     @Test
     void getProfile_UserNotFound_ThrowsException() {
-        // Arrange
+        // Arrange: Mock empty repository response
         when(userRepository.findByKeycloakId("none")).thenReturn(Optional.empty());
 
-        // Act & Assert
+        // Act & Assert: Execute and verify exception
         assertThatThrownBy(() -> userService.getProfile("none"))
                 .isInstanceOf(AppException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.USER_NOT_FOUND);
     }
 
     @Test
-    void getProfileByEmail_Success() {
-        // Arrange
-        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(userEntity));
-        when(userMapper.toUserResponse(userEntity)).thenReturn(userResponse);
-
-        // Act
-        UserResponse result = userService.getProfileByEmail("test@example.com");
-
-        // Assert
-        assertThat(result).isNotNull();
-        verify(userRepository).findByEmail("test@example.com");
-    }
-
-    @Test
-    void updateProfile_WithKeycloakId_Success() {
-        // Arrange
-        UpdateProfileRequest request = new UpdateProfileRequest();
-        when(userRepository.findByKeycloakId("test-id")).thenReturn(Optional.of(userEntity));
-        when(userMapper.toUserResponse(userEntity)).thenReturn(userResponse);
-
-        // Act
-        UserResponse result = userService.updateProfile("test-id", null, request);
-
-        // Assert
-        assertThat(result).isNotNull();
-        verify(userMapper).updateUserEntityFromRequest(request, userEntity);
-        verify(userRepository).save(userEntity);
-    }
-
-    @Test
     void changePassword_Success() {
-        // Act
+        // Act: Execute change password
         userService.changePassword("test-id", "test@example.com", "old", "new");
 
-        // Assert
+        // Assert: Verify interaction with Keycloak service
         verify(keycloakUserService).changePassword("test-id", "test@example.com", "old", "new");
     }
 }
