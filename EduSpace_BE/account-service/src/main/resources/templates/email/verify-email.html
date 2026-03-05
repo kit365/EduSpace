@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{fragments/components/head :: head('Xác thực Email - EduSpace')}"></head>
+
+<body
+    style="margin: 0; padding: 0; background-color: #F3F4F6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #F3F4F6;">
+        <tr>
+            <td align="center" style="padding: 40px 16px;">
+                <table role="presentation" width="600" cellspacing="0" cellpadding="0"
+                    style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.07);">
+
+                    <!-- Header -->
+                    <tr>
+                        <td th:replace="~{fragments/components/header :: header}"></td>
+                    </tr>
+
+                    <!-- Body -->
+                    <tr>
+                        <td style="padding: 40px 32px;">
+                            <h2 style="margin: 0 0 16px 0; color: #111827; font-size: 22px; font-weight: 600;">
+                                Xin chào <span th:text="${fullName}" style="color: #4F46E5;">User</span>! 👋
+                            </h2>
+
+                            <p style="margin: 0 0 24px 0; color: #4B5563; font-size: 15px; line-height: 1.7;">
+                                Cảm ơn bạn đã đăng ký tài khoản tại <strong>EduSpace</strong>.
+                                Vui lòng nhấn nút bên dưới để xác thực địa chỉ email của bạn.
+                            </p>
+
+                            <!-- CTA Button -->
+                            <div style="text-align: center; margin: 32px 0;">
+                                <a
+                                    th:replace="~{fragments/components/button :: button(${verifyUrl}, 'Xác thực Email')}"></a>
+                            </div>
+
+                            <p style="margin: 0 0 8px 0; color: #6B7280; font-size: 13px; line-height: 1.6;">
+                                Nếu nút trên không hoạt động, bạn có thể sao chép và dán đường dẫn sau vào trình duyệt:
+                            </p>
+                            <p style="margin: 0 0 24px 0; word-break: break-all;">
+                                <a th:href="${verifyUrl}" th:text="${verifyUrl}"
+                                    style="color: #4F46E5; font-size: 13px; text-decoration: underline;">
+                                    link
+                                </a>
+                            </p>
+
+                            <div style="border-top: 1px solid #E5E7EB; padding-top: 20px; margin-top: 16px;">
+                                <p style="margin: 0; color: #9CA3AF; font-size: 12px; line-height: 1.6;">
+                                    ⏳ Liên kết này sẽ hết hạn sau <strong th:text="${expiryHours}">24</strong> giờ.
+                                    <br />
+                                    Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email này.
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td th:replace="~{fragments/components/footer :: footer}"></td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+
+</body>
+
+</html>

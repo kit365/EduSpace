@@ -2,7 +2,7 @@ import { RouteObject } from 'react-router-dom';
 import { HomePage } from '../features/customer/home';
 import { SearchPage } from '../features/customer/search';
 import { SpaceDetailPage } from '../features/customer/spaces';
-import { AuthPage } from '../features/customer/auth';
+import { AuthPage, VerifyEmailPage } from '../features/customer/auth';
 import { ProfilePage, EkycPage } from '../features/customer/profile';
 import { BookingsPage, BookingDetailPage } from '../features/customer/bookings';
 import { CheckoutPage } from '../features/customer/checkout';
@@ -17,6 +17,7 @@ export const customerRoutes: RouteObject[] = [
     { path: '/search', element: <SearchPage /> },
     { path: '/spaces/:id', element: <SpaceDetailPage /> },
     { path: '/auth', element: <AuthPage /> },
+    { path: '/verify-email', element: <VerifyEmailPage /> },
     { path: '/profile', element: <ProfilePage /> },
     { path: '/ekyc', element: <EkycPage /> },           // FR-07: eKYC xác thực danh tính
     { path: '/bookings', element: <BookingsPage /> },

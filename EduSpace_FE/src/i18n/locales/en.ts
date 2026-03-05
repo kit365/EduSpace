@@ -341,6 +341,114 @@ export const en = {
                 contact: "Contact",
                 review: "Review"
             }
+        },
+        profile: {
+            sidebar: {
+                identity: "Identity",
+                security: "Security",
+                alerts: "Alerts",
+                billing: "Billing",
+                transactions: "Transaction History"
+            },
+            premium: {
+                title: "Premium Host",
+                description: "Unlock advanced analytics and top-tier placement for your classrooms.",
+                upgrade: "Upgrade Now"
+            },
+            header: {
+                roles: {
+                    renter: "Student / Learner",
+                    host: "Hoster",
+                    staff: "Staff",
+                    admin: "Admin"
+                },
+                memberSince: "Member since",
+                bookings: "bookings",
+                reviews: "reviews",
+                recently: "recently"
+            },
+            personal: {
+                title: "Personal Information",
+                edit: "Edit Profile",
+                fullName: "Full Name",
+                email: "Email Address",
+                phone: "Phone Number",
+                location: "Location",
+                bio: "Short Bio",
+                save: "Save Changes",
+                cancel: "Cancel",
+                emailReadOnly: "Email cannot be changed"
+            },
+            security: {
+                title: "Change Password",
+                currentPassword: "Current Password",
+                newPassword: "New Password",
+                confirmPassword: "Confirm New Password",
+                update: "Update Password",
+                updating: "Updating...",
+                currentPlaceholder: "Enter current password",
+                newPlaceholder: "At least 8 characters",
+                confirmPlaceholder: "Re-enter new password",
+                twoFactor: {
+                    title: "Two-Factor Authentication",
+                    enabled: "Enabled",
+                    disabled: "Disabled",
+                    description: "Add an extra layer of security to your account by requiring a verification code when you log in.",
+                    enable: "Enable 2FA",
+                    disable: "Disable 2FA",
+                    setup: {
+                        title: "Setup Two-Factor Authentication",
+                        step1: "1. Scan QR Code",
+                        step2: "2. Enter Verification Code",
+                        scanDesc: "Use Google Authenticator or Microsoft Authenticator to scan the QR code below.",
+                        enterCode: "Enter 6-digit code from app",
+                        verify: "Verify and Enable",
+                        secretCode: "Secret Code (if QR doesn't work):",
+                        success: "2FA enabled successfully!",
+                        error: "Incorrect verification code.",
+                        invalid: "Invalid verification code."
+                    },
+                    disableModal: {
+                        title: "Disable Two-Factor Authentication",
+                        desc: "To disable 2FA, please enter the verification code from your app to confirm your identity.",
+                        confirm: "Confirm Disable 2FA",
+                        success: "Two-factor authentication disabled."
+                    }
+                },
+                passwordSuccess: "Password changed successfully!",
+                passwordError: "Error changing password.",
+                wrongPassword: "Current password is incorrect."
+            },
+            alerts: {
+                title: "Notification Settings",
+                emailSection: "Email Notifications",
+                pushSection: "Push Notifications",
+                bookingConfirm: {
+                    title: "Booking Confirmations",
+                    desc: "Receive emails when bookings are confirmed"
+                },
+                messages: {
+                    title: "Messages",
+                    desc: "Get notified when you receive new messages"
+                },
+                promotions: {
+                    title: "Promotions & Tips",
+                    desc: "Receive special offers and learning space tips"
+                },
+                pushEnable: {
+                    title: "Enable Push Notifications",
+                    desc: "Get instant updates on your device"
+                },
+                save: "Save Preferences"
+            },
+            billing: {
+                title: "Payment Methods",
+                addMethod: "Add Method",
+                expiry: "Expiry",
+                default: "Default",
+                remove: "Remove",
+                noMethods: "You haven't added any payment methods yet."
+            }
         }
     },
     footer: {

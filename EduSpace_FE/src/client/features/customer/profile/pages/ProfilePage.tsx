@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { User, Lock, Bell, CreditCard, Loader2, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { CustomerLayout } from '../../../../layouts/CustomerLayout';
 import { ProfileHeader, PersonalInfoTab, SecurityTab, NotificationsTab, PaymentMethodsTab } from '../components';
 import { NOTIFICATION_SETTINGS, PAYMENT_METHODS } from '../data/mockData';
@@ -8,16 +9,17 @@ import { NotificationSettings } from '../types';
 import { useProfile } from '../hooks/useProfile';
 
 export function ProfilePage() {
+  const { t } = useTranslation();
   const { profile, loading, updateProfile } = useProfile();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('personal');
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(NOTIFICATION_SETTINGS);
 
   const tabs = [
-    { id: 'personal', label: 'Identity', icon: User },
-    { id: 'security', label: 'Security', icon: Lock },
-    { id: 'notifications', label: 'Alerts', icon: Bell },
-    { id: 'payment', label: 'Billing', icon: CreditCard }
+    { id: 'personal', label: t('customer.profile.sidebar.identity'), icon: User },
+    { id: 'security', label: t('customer.profile.sidebar.security'), icon: Lock },
+    { id: 'notifications', label: t('customer.profile.sidebar.alerts'), icon: Bell },
+    { id: 'payment', label: t('customer.profile.sidebar.billing'), icon: CreditCard }
   ];
 
   if (loading || !profile) {
@@ -68,14 +70,18 @@ export function ProfilePage() {
                 className="w-full flex items-center gap-4 px-6 py-4 mt-3 rounded-2xl transition-all duration-300 font-black text-sm uppercase tracking-widest bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-100"
               >
                 <FileText className="w-5 h-5 text-indigo-500" />
-                Lịch sử Giao dịch
+                {t('customer.profile.sidebar.transactions')}
               </button>
 
               <div className="bg-gradient-to-br from-red-500 to-orange-600 p-8 rounded-[32px] text-white shadow-xl shadow-red-100 overflow-hidden relative group">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700" />
-                <h3 className="text-xl font-black mb-2 relative z-10">Premium Host</h3>
-                <p className="text-xs font-bold text-red-100 mb-6 relative z-10 opacity-80 uppercase tracking-tighter leading-relaxed">Unlock advanced analytics and top-tier placement for your classrooms.</p>
-                <button className="w-full bg-white text-gray-900 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-gray-100 transition-all shadow-lg active:scale-95 relative z-10">Upgrade Now</button>
+                <h3 className="text-xl font-black mb-2 relative z-10">{t('customer.profile.premium.title')}</h3>
+                <p className="text-xs font-bold text-red-100 mb-6 relative z-10 opacity-80 uppercase tracking-tighter leading-relaxed">
+                  {t('customer.profile.premium.description')}
+                </p>
+                <button className="w-full bg-white text-gray-900 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-gray-100 transition-all shadow-lg active:scale-95 relative z-10">
+                  {t('customer.profile.premium.upgrade')}
+                </button>
               </div>
             </div>
 

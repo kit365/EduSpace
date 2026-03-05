@@ -341,6 +341,114 @@ export const vi = {
                 contact: "Liên hệ",
                 review: "Đánh giá"
             }
+        },
+        profile: {
+            sidebar: {
+                identity: "Cá nhân",
+                security: "Bảo mật",
+                alerts: "Thông báo",
+                billing: "Thanh toán",
+                transactions: "Lịch sử Giao dịch"
+            },
+            premium: {
+                title: "Premium Host",
+                description: "Mở khóa phân tích nâng cao và vị trí hiển thị ưu tiên cho lớp học của bạn.",
+                upgrade: "Nâng cấp ngay"
+            },
+            header: {
+                roles: {
+                    renter: "Học sinh / Sinh viên",
+                    host: "Hoster",
+                    staff: "Nhân viên",
+                    admin: "Admin"
+                },
+                memberSince: "Thành viên từ",
+                bookings: "đơn đặt",
+                reviews: "đánh giá",
+                recently: "gần đây"
+            },
+            personal: {
+                title: "Thông tin Cá nhân",
+                edit: "Chỉnh sửa",
+                fullName: "Họ và tên",
+                email: "Địa chỉ Email",
+                phone: "Số điện thoại",
+                location: "Vị trí",
+                bio: "Tiểu sử",
+                save: "Lưu cập nhật",
+                cancel: "Hủy",
+                emailReadOnly: "Không thể thay đổi email"
+            },
+            security: {
+                title: "Đổi mật khẩu",
+                currentPassword: "Mật khẩu hiện tại",
+                newPassword: "Mật khẩu mới",
+                confirmPassword: "Xác nhận mật khẩu mới",
+                update: "Cập nhật mật khẩu",
+                updating: "Đang cập nhật...",
+                currentPlaceholder: "Nhập mật khẩu hiện tại",
+                newPlaceholder: "Ít nhất 8 ký tự",
+                confirmPlaceholder: "Nhập lại mật khẩu mới",
+                twoFactor: {
+                    title: "Xác thực 2 yếu tố (2FA)",
+                    enabled: "Đã bật",
+                    disabled: "Đang tắt",
+                    description: "Thêm một lớp bảo mật cho tài khoản của bạn bằng cách yêu cầu mã xác thực khi đăng nhập.",
+                    enable: "Bật 2FA",
+                    disable: "Tắt 2FA",
+                    setup: {
+                        title: "Thiết lập xác thực 2 yếu tố",
+                        step1: "1. Quét mã QR",
+                        step2: "2. Nhập mã xác minh",
+                        scanDesc: "Sử dụng ứng dụng Google Authenticator hoặc Microsoft Authenticator để quét mã QR bên dưới.",
+                        enterCode: "Nhập mã 6 số từ ứng dụng",
+                        verify: "Xác nhận và Bật",
+                        secretCode: "Mã bí mật (nếu không quét được QR):",
+                        success: "Bật 2FA thành công!",
+                        error: "Mã xác thực không chính xác.",
+                        invalid: "Mã xác thực không hợp lệ."
+                    },
+                    disableModal: {
+                        title: "Tắt xác thực 2 yếu tố",
+                        desc: "Để tắt 2FA, vui lòng nhập mã xác thực từ ứng dụng của bạn để xác nhận danh tính.",
+                        confirm: "Xác nhận tắt 2FA",
+                        success: "Đã tắt xác thực 2 yếu tố."
+                    }
+                },
+                passwordSuccess: "Đổi mật khẩu thành công!",
+                passwordError: "Có lỗi xảy ra khi đổi mật khẩu.",
+                wrongPassword: "Mật khẩu cũ không chính xác."
+            },
+            alerts: {
+                title: "Cài đặt Thông báo",
+                emailSection: "Thông báo qua Email",
+                pushSection: "Thông báo Đẩy",
+                bookingConfirm: {
+                    title: "Xác nhận Đặt chỗ",
+                    desc: "Nhận email khi đơn đặt chỗ của bạn được xác nhận"
+                },
+                messages: {
+                    title: "Tin nhắn",
+                    desc: "Nhận thông báo khi bạn có tin nhắn mới"
+                },
+                promotions: {
+                    title: "Khuyến mãi & Mẹo",
+                    desc: "Nhận các ưu đãi đặc biệt và mẹo sử dụng EduSpace"
+                },
+                pushEnable: {
+                    title: "Bật Thông báo Đẩy",
+                    desc: "Nhận cập nhật tức thì trên thiết bị của bạn"
+                },
+                save: "Lưu Cài đặt"
+            },
+            billing: {
+                title: "Phương thức Thanh toán",
+                addMethod: "Thêm Phương thức",
+                expiry: "Hết hạn",
+                default: "Mặc định",
+                remove: "Gỡ bỏ",
+                noMethods: "Bạn chưa thêm phương thức thanh toán nào."
+            }
         }
     },
     footer: {

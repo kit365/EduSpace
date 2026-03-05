@@ -1,0 +1,208 @@
+services:
+  # ═══════════════════════════════════════════════════════════════
+  # DATABASE PER SERVICE — Mỗi service 1 container PostgreSQL riêng
+  # ═══════════════════════════════════════════════════════════════
+
+  # DB của Account Service
+  account-db:
+    image: postgres:16-alpine
+    container_name: account-db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: eduspace_account
+    ports:
+      - "5432:5432"
+    volumes:
+      - account-pgdata:/var/lib/postgresql/data
+    networks:
+      - eduspace-network
+
+  # DB của Booking Service
+  booking-db:
+    image: postgres:16-alpine
+    container_name: booking-db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: eduspace_booking
+    ports:
+      - "5433:5432"
+    volumes:
+      - booking-pgdata:/var/lib/postgresql/data
+    networks:
+      - eduspace-network
+
+  # DB của Room Service (chuẩn bị sẵn)
+  room-db:
+    image: postgres:16-alpine
+    container_name: room-db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: eduspace_room
+    ports:
+      - "5434:5432"
+    volumes:
+      - room-pgdata:/var/lib/postgresql/data
+    networks:
+      - eduspace-network
+
+  # ═══════════════════════════════════════════════════════════════
+  # INFRASTRUCTURE
+  # ═══════════════════════════════════════════════════════════════
+
+  # Redis — Caching & email verification tokens
+  redis:
+    image: redis:7-alpine
+    container_name: eduspace-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    networks:
+      - eduspace-network
+
+  # Keycloak Database (tách riêng)
+  keycloak-db:
+    image: postgres:16-alpine
+    container_name: keycloak-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+    volumes:
+      - keycloakdata:/var/lib/postgresql/data
+    networks:
+      - eduspace-network
+
+  # Keycloak Identity Server
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1
+    container_name: keycloak
+    command: start-dev --import-realm
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+    ports:
+      - "${KEYCLOAK_PORT}:8080"
+    volumes:
+      - ./realm-export.json:/opt/keycloak/data/import/realm.json
+    depends_on:
+      - keycloak-db
+    networks:
+      - eduspace-network
+
+  # Eureka Discovery Server
+  discovery-server:
+    build:
+      context: ./discovery-server
+      dockerfile: Dockerfile
+    container_name: discovery-server
+    ports:
+      - "8761:8761"
+    networks:
+      - eduspace-network
+
+  # ═══════════════════════════════════════════════════════════════
+  # MICROSERVICES
+  # ═══════════════════════════════════════════════════════════════
+
+  # Account Service → account-db:5432/eduspace_account
+  account-service:
+    build:
+      context: ./account-service
+      dockerfile: Dockerfile
+    container_name: account-service
+    ports:
+      - "${ACCOUNT_SERVICE_PORT}:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://account-db:5432/eduspace_account
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      KEYCLOAK_SERVER_URL: http://keycloak:8080
+      KEYCLOAK_CLIENT_ID: eduspace-be
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      KEYCLOAK_REALM: eduspace
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/eduspace
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/eduspace/protocol/openid-connect/certs
+      EUREKA_SERVER_URL: http://discovery-server:8761/eureka/
+      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST}
+      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD}
+    depends_on:
+      - account-db
+      - redis
+      - keycloak
+      - discovery-server
+    networks:
+      - eduspace-network
+
+  # Booking Service → booking-db:5432/eduspace_booking
+  booking-service:
+    build:
+      context: ./booking-service
+      dockerfile: Dockerfile
+    container_name: booking-service
+    ports:
+      - "${BOOKING_SERVICE_PORT}:8082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://booking-db:5432/eduspace_booking
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/eduspace
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/eduspace/protocol/openid-connect/certs
+      EUREKA_SERVER_URL: http://discovery-server:8761/eureka/
+    depends_on:
+      - booking-db
+      - keycloak
+      - discovery-server
+    networks:
+      - eduspace-network
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./api-gateway-service
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    ports:
+      - "${GATEWAY_PORT}:8080"
+    environment:
+      EUREKA_SERVER_URL: http://discovery-server:8761/eureka/
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/eduspace
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/eduspace/protocol/openid-connect/certs
+    depends_on:
+      - discovery-server
+      - keycloak
+    networks:
+      - eduspace-network
+
+# ═══════════════════════════════════════════════════════════════
+# NETWORKS & VOLUMES
+# ═══════════════════════════════════════════════════════════════
+networks:
+  eduspace-network:
+    driver: bridge
+
+volumes:
+  account-pgdata:
+  booking-pgdata:
+  room-pgdata:
+  redisdata:
+  keycloakdata:

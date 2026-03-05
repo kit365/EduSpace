@@ -11,11 +11,13 @@ export interface PaginationReq {
     limit: number;
 }
 
-export interface ApiResponse<T> {
+export interface ApiResponse<T = any> {
     success: boolean;
+    timestamp: string;
+    status: number;
+    code: string;
+    message: string;
     data: T;
-    message?: string;
-    errors?: string[];
 }
 
 // --- FR-06: Search API ---

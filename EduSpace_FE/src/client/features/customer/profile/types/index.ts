@@ -1,25 +1,58 @@
 import type { UserRole, KycStatus } from '../../../../../types/user';
 
-export interface UserProfile {
-  id: number;
-  name: string;
+// Interface mapped from backend DTO
+export interface UserResponse {
+  id: string;
   email: string;
-  phone?: string;
-  avatar?: string;
+  fullName: string;
+  phoneNumber: string;
+  avatarUrl: string;
+  studentId: string;
+  isActive: boolean;
+  isEmailVerified: boolean;
+  is2faEnabled: boolean;
+  roles: string[];
+  createdAt: string;
+  updatedAt: string;
+  location: string;
+  shortBio: string;
+}
+
+export interface TwoFactorSetup {
+  secret: string;
+  qrCodeUrl: string;
+}
+
+export interface UpdateProfileRequest {
+  fullName: string;
+  phoneNumber: string;
+  avatarUrl: string;
+  studentId: string;
+  location: string;
+  shortBio: string;
+}
+
+export interface UserProfile {
+  id: string; // From BE
+  name: string; // Mapped from BE fullName
+  email: string;
+  phone?: string; // Mapped from BE phoneNumber
+  avatar?: string; // Mapped from BE avatarUrl
   bio?: string;
   location?: string;
-  memberSince: string;
+  memberSince: string; // Mapped from BE createdAt
+  is2faEnabled: boolean;
 
   // Role & verification
-  role: UserRole;
-  verified: boolean;
+  role: UserRole | string; // Mapped from BE roles[0]
+  verified: boolean; // Mapped from BE isEmailVerified
   kycStatus: KycStatus;
 
   // Stats
   totalBookings: number;
   totalReviews: number;
   rating: number;
-  totalSpent?: number;         // VNĐ for renters
+  totalSpent?: number;
 }
 
 export interface NotificationSettings {

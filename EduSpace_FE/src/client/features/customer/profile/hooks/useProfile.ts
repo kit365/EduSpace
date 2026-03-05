@@ -8,9 +8,15 @@ export function useProfile() {
 
     useEffect(() => {
         const fetch = async () => {
-            const data = await profileService.getProfile();
-            setProfile(data);
-            setLoading(false);
+            try {
+                const data = await profileService.getProfile();
+                setProfile(data);
+            } catch (error) {
+                console.error("Failed to fetch profile", error);
+                // Optionally handle error state
+            } finally {
+                setLoading(false);
+            }
         };
         fetch();
     }, []);

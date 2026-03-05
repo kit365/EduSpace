@@ -1,0 +1,91 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    gateway:
+      # Route definitions
+      routes:
+        # Account Service routes
+        - id: account-service
+          uri: lb://ACCOUNT-SERVICE
+          predicates:
+            - Path=/api/v1/accounts/**, /api/v1/auth/**
+
+        # Account Service Swagger Docs
+        - id: account-service-docs
+          uri: lb://ACCOUNT-SERVICE
+          predicates:
+            - Path=/v3/api-docs/account-service
+          filters:
+            - RewritePath=/v3/api-docs/account-service, /v3/api-docs
+
+        # Booking Service routes
+        - id: booking-service
+          uri: lb://BOOKING-SERVICE
+          predicates:
+            - Path=/api/v1/bookings/**
+
+        # Booking Service Swagger Docs
+        - id: booking-service-docs
+          uri: lb://BOOKING-SERVICE
+          predicates:
+            - Path=/v3/api-docs/booking-service
+          filters:
+            - RewritePath=/v3/api-docs/booking-service, /v3/api-docs
+
+      # Global CORS configuration
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+            allowCredentials: false
+
+      # Default filters applied to all routes
+      default-filters:
+        # Tránh lỗi Double CORS khi cả Gateway và Service con đều set header
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/eduspace}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/realms/eduspace/protocol/openid-connect/certs}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: true
+
+# SpringDoc Aggregation (Hiển thị tài liệu từ nhiều service)
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    urls:
+      - name: Account Service
+        url: /v3/api-docs/account-service
+      - name: Booking Service
+        url: /v3/api-docs/booking-service
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, gateway
+  endpoint:
+    gateway:
+      enabled: true
+    health:
+      show-details: always

@@ -1,0 +1,73 @@
+spring:
+  application:
+    name: account-service
+  profiles:
+    active: dev
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/eduspace}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/realms/eduspace/protocol/openid-connect/certs}
+
+
+  messages:
+    basename: i18n/messages
+
+  # JPA / Hibernate
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 0
+
+  # Mail
+  mail:
+    host: ${SPRING_MAIL_HOST:smtp.gmail.com}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
+    default-encoding: UTF-8
+    properties:
+      mail:
+        debug: ${SPRING_MAIL_DEBUG:false}
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+
+  # Thymeleaf (email templates only)
+  thymeleaf:
+    prefix: classpath:/templates/
+    suffix: .html
+    mode: HTML
+    encoding: UTF-8
+    check-template-location: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: true
+
+app:
+  mail:
+    from: ${SPRING_MAIL_FROM:noreply@eduspace.id.vn}
+    display-name: ${SPRING_MAIL_DISPLAY_NAME:EduSpace Support}
+  frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  verification:
+    token-expiry-hours: 24
+
+springdoc:
+  swagger-ui:
+    persist-authorization: true
