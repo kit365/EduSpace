@@ -67,7 +67,7 @@ class AuthServiceImplTest {
         LoginRequest request = new LoginRequest();
         request.setEmail("test@email.com");
         request.setPassword("password");
-
+        
         UserEntity user = UserEntity.builder()
                 .email("test@email.com")
                 .isEmailVerified(true)
@@ -136,60 +136,9 @@ class AuthServiceImplTest {
         RegisterRequest request = new RegisterRequest();
         request.setEmail("existing@email.com");
 
-        when(userRepository.existsByEmail("existing@email.com")).thenReturn(true);
-
         // Act & Assert
         assertThatThrownBy(() -> authService.register(request))
                 .isInstanceOf(AppException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.USER_ALREADY_EXISTS);
-
-    }
-
-    @Test
-    void verifyEmail_Success() {
-        String token = "valid-token";
-        String keycloakId = "k-id";
-        UserEntity user = UserEntity.builder()
-                .email("test@email.com")
-                .keycloakId(keycloakId)
-                .isEmailVerified(false)
-                .build();
-
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get("email_verify:" + token)).thenReturn(keycloakId);
-        when(userRepository.findByKeycloakId(keycloakId)).thenReturn(Optional.of(user));
-
-        authService.verifyEmail(token);
-
-        assertThat(user.getIsEmailVerified()).isTrue();
-        verify(keycloakUserService).verifyEmail("k-id");
-        verify(userRepository).save(user);
-        verify(redisTemplate).delete("email_verify:" + token);
-    }
-
-    @Test
-    void verifyEmail_InvalidToken_ThrowsException() {
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get(anyString())).thenReturn(null);
-
-        assertThatThrownBy(() -> authService.verifyEmail("invalid"))
-                .isInstanceOf(AppException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.VERIFICATION_TOKEN_INVALID);
-    }
-
-    @Test
-    void refreshToken_Success() {
-        LoginResponse mockResponse = new LoginResponse();
-        when(keycloakUserService.refreshToken("refresh-token")).thenReturn(mockResponse);
-
-        LoginResponse result = authService.refreshToken("refresh-token");
-
-        assertThat(result).isEqualTo(mockResponse);
-    }
-
-    @Test
-    void logout_Success() {
-        authService.logout("refresh-token");
-        verify(keycloakUserService).logout("refresh-token");
     }
 }

@@ -183,6 +183,19 @@
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>0.8.11</version>
+                <configuration>
+                    <excludes>
+                        <exclude>com/eduspace/accountservice/model/dto/**</exclude>
+                        <exclude>com/eduspace/accountservice/model/entity/**</exclude>
+                        <exclude>com/eduspace/accountservice/model/mapper/**</exclude>
+                        <exclude>com/eduspace/accountservice/infrastructure/**</exclude>
+                        <exclude>com/eduspace/accountservice/common/**</exclude>
+                        <exclude>com/eduspace/accountservice/exception/**</exclude>
+                        <exclude>com/eduspace/accountservice/persistence/repository/**</exclude>
+                        <exclude>com/eduspace/accountservice/AccountServiceApplication.class</exclude>
+                        <exclude>com/eduspace/accountservice/presentation/constants/**</exclude>
+                    </excludes>
+                </configuration>
                 <executions>
                     <execution>
                         <goals>

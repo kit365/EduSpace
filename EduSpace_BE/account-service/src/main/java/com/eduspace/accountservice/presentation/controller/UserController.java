@@ -22,7 +22,7 @@ public class UserController {
         private final UserService userService;
         private final MessageSource messageSource;
 
-        @PostMapping(ApiPaths.Account.ME)
+        @GetMapping(ApiPaths.Account.ME)
         public ApiResponse<UserResponse> getMyProfile(@AuthenticationPrincipal Jwt jwt) {
                 String keycloakId = jwt.getSubject();
                 UserResponse response;
