@@ -10,7 +10,7 @@ CREATE TABLE roles (
 
 -- Users table
 CREATE TABLE users (
-    user_id             VARCHAR(36)     PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    user_id             VARCHAR(36)     PRIMARY KEY,
     keycloak_id         VARCHAR(255)    UNIQUE NOT NULL,
     email               VARCHAR(255)    NOT NULL UNIQUE,
     full_name           VARCHAR(255)    NOT NULL,

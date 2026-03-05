@@ -5,6 +5,8 @@ import com.eduspace.accountservice.exception.AppException;
 import com.eduspace.accountservice.exception.ErrorCode;
 import com.eduspace.accountservice.model.dto.request.LoginRequest;
 import com.eduspace.accountservice.model.dto.response.LoginResponse;
+import com.eduspace.accountservice.model.dto.request.RefreshTokenRequest;
+import com.eduspace.accountservice.model.dto.request.RegisterRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -72,5 +74,38 @@ class AuthControllerTest {
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    void register_Success() throws Exception {
+        RegisterRequest request = new RegisterRequest();
+        request.setEmail("new@email.com");
+        request.setPassword("password123");
+        request.setFullName("New User");
+
+        mockMvc.perform(post("/api/v1/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void verifyEmail_Success() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/verify-email")
+                .param("token", "valid-token"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void refreshToken_Success() throws Exception {
+        RefreshTokenRequest request = new RefreshTokenRequest();
+        request.setRefreshToken("refresh-token");
+
+        when(authService.refreshToken(anyString())).thenReturn(new LoginResponse());
+
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
     }
 }

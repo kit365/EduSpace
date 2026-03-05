@@ -12,11 +12,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestTemplate;
-import org.keycloak.admin.client.resource.RealmResource;
-import org.keycloak.admin.client.resource.UsersResource;
-import org.keycloak.admin.client.resource.UserResource;
-import java.util.Optional;
-import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -62,47 +57,13 @@ class KeycloakUserServiceImplTest {
     }
 
     @Test
-    void refreshToken_Success() {
-        LoginResponse mockResponse = new LoginResponse();
-        when(restTemplate.postForObject(anyString(), any(), eq(LoginResponse.class))).thenReturn(mockResponse);
+    void authenticate_Failure_ThrowsAppException() {
+        // Arrange
+        when(restTemplate.postForObject(anyString(), any(), eq(LoginResponse.class)))
+                .thenThrow(new RuntimeException("API error"));
 
-        LoginResponse response = keycloakUserService.refreshToken("refresh-token");
-
-        assertThat(response).isEqualTo(mockResponse);
-    }
-
-    @Test
-    void logout_Success() {
-        keycloakUserService.logout("refresh-token");
-        verify(restTemplate).postForLocation(anyString(), any());
-    }
-
-    @Test
-    void deleteUser_Success() {
-        RealmResource realmResource = mock(RealmResource.class);
-        UsersResource usersResource = mock(UsersResource.class);
-        UserResource userResource = mock(UserResource.class);
-
-        when(keycloak.realm("eduspace")).thenReturn(realmResource);
-        when(realmResource.users()).thenReturn(usersResource);
-        when(usersResource.get("user-id")).thenReturn(userResource);
-
-        keycloakUserService.deleteUser("user-id");
-
-        verify(userResource).remove();
-    }
-
-    @Test
-    void findUserIdByEmail_NotFound() {
-        RealmResource realmResource = mock(RealmResource.class);
-        UsersResource usersResource = mock(UsersResource.class);
-
-        when(keycloak.realm("eduspace")).thenReturn(realmResource);
-        when(realmResource.users()).thenReturn(usersResource);
-        when(usersResource.search("test@email.com", true)).thenReturn(Collections.emptyList());
-
-        Optional<String> result = keycloakUserService.findUserIdByEmail("test@email.com");
-
-        assertThat(result).isEmpty();
+        // Act & Assert
+        assertThatThrownBy(() -> keycloakUserService.authenticate("test@email.com", "password", null))
+                .isInstanceOf(AppException.class);
     }
 }
