@@ -3,6 +3,9 @@ package com.eduspace.roomservice.persistence.repository;
 import com.eduspace.roomservice.model.entity.RoomEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface RoomRepository extends JpaRepository<RoomEntity, String> {
-}
+import java.util.List;
 
+public interface RoomRepository extends JpaRepository<RoomEntity, Integer> {
+
+    List<RoomEntity> findByFacility_Id(Integer facilityId);
+}
