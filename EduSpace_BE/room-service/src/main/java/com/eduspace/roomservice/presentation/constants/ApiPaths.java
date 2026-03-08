@@ -12,15 +12,60 @@ public final class ApiPaths {
     public static final class Rooms {
         private Rooms() {
         }
-
         public static final String BASE_PATH = BASE + "/rooms";
     }
 
     public static final class Facilities {
         private Facilities() {
         }
-
         public static final String BASE_PATH = BASE + "/facilities";
     }
-}
 
+    public static final class AdsPackages {
+        private AdsPackages() {
+        }
+        public static final String BASE_PATH = BASE + "/ads-packages";
+    }
+
+    public static final class RoomSlots {
+        private RoomSlots() {
+        }
+        public static final String BASE_PATH = BASE + "/room-slots";
+    }
+
+    public static final class Amenities {
+        private Amenities() {
+        }
+        public static final String BASE_PATH = BASE + "/amenities";
+    }
+
+    public static final class RoomAmenities {
+        private RoomAmenities() {
+        }
+        public static final String BASE_PATH = BASE + "/room-amenities";
+    }
+
+    public static final class Reviews {
+        private Reviews() {
+        }
+        public static final String BASE_PATH = BASE + "/reviews";
+    }
+
+    public static final class RoomAds {
+        private RoomAds() {
+        }
+        public static final String BASE_PATH = BASE + "/room-ads";
+    }
+
+    public static final class SystemCalendarRules {
+        private SystemCalendarRules() {
+        }
+        public static final String BASE_PATH = BASE + "/system-calendar-rules";
+    }
+
+    public static final class RoomBlocks {
+        private RoomBlocks() {
+        }
+        public static final String BASE_PATH = BASE + "/room-blocks";
+    }
+}

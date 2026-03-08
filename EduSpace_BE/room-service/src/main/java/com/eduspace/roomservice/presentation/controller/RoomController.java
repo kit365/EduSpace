@@ -1,15 +1,13 @@
 package com.eduspace.roomservice.presentation.controller;
 
 import com.eduspace.roomservice.business.service.RoomService;
+import com.eduspace.roomservice.model.dto.request.RoomRequest;
 import com.eduspace.roomservice.model.dto.response.ApiResponse;
-import com.eduspace.roomservice.model.entity.RoomEntity;
+import com.eduspace.roomservice.model.dto.response.RoomResponse;
 import com.eduspace.roomservice.presentation.constants.ApiPaths;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping(ApiPaths.Rooms.BASE_PATH)
@@ -19,13 +17,31 @@ public class RoomController {
     private final RoomService roomService;
 
     @GetMapping
-    public ApiResponse<List<RoomEntity>> getRooms() {
+    public ApiResponse<List<RoomResponse>> getAll(@RequestParam(required = false) Integer facilityId) {
+        if (facilityId != null) {
+            return ApiResponse.success(roomService.getRoomsByFacilityId(facilityId));
+        }
         return ApiResponse.success(roomService.getAllRooms());
     }
 
     @GetMapping("/{id}")
-    public ApiResponse<RoomEntity> getRoom(@PathVariable("id") String id) {
+    public ApiResponse<RoomResponse> getById(@PathVariable Integer id) {
         return ApiResponse.success(roomService.getRoomById(id));
     }
-}
 
+    @PostMapping
+    public ApiResponse<RoomResponse> create(@RequestBody RoomRequest request) {
+        return ApiResponse.success(roomService.create(request));
+    }
+
+    @PutMapping("/{id}")
+    public ApiResponse<RoomResponse> update(@PathVariable Integer id, @RequestBody RoomRequest request) {
+        return ApiResponse.success(roomService.update(id, request));
+    }
+
+    @DeleteMapping("/{id}")
+    public ApiResponse<Void> delete(@PathVariable Integer id) {
+        roomService.deleteById(id);
+        return ApiResponse.success(null);
+    }
+}
