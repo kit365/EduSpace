@@ -18,60 +18,27 @@ import lombok.Setter;
 import lombok.experimental.FieldDefaults;
 
 @Entity
-@Table(name = "facilities")
+@Table(name = "amenities")
 @Getter
 @Setter
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @NoArgsConstructor
 @AllArgsConstructor
-public class FacilityEntity {
+public class AmenityEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Integer id;
 
-    @Column(name = "owner_id")
-    Integer ownerId;
-
     @Column(name = "name")
     String name;
 
-    @Column(name = "identity_code")
-    String identityCode;
+    @Column(name = "icon")
+    String icon;
 
-    @Column(name = "verification_images")
-    String verificationImages;
-
-    @Column(name = "contact_phone")
-    String contactPhone;
-
-    @Column(name = "contact_email")
-    String contactEmail;
-
-    @Column(name = "address", columnDefinition = "TEXT")
-    String address;
-
-    @Column(name = "logo", columnDefinition = "TEXT")
-    String logo;
-
-    @Column(name = "description", columnDefinition = "TEXT")
-    String description;
-
-    @Column(name = "status")
-    String status;
-
-    @Column(name = "rejection_note", columnDefinition = "TEXT")
-    String rejectionNote;
-
-    @Column(name = "submitted_at")
-    LocalDateTime submittedAt;
-
-    @Column(name = "approved_by")
-    Integer approvedBy;
-
-    @Column(name = "approved_at")
-    LocalDateTime approvedAt;
+    @Column(name = "type")
+    String type;
 
     @Column(name = "created_at")
     LocalDateTime createdAt;

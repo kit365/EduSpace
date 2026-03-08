@@ -8,6 +8,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -18,60 +20,39 @@ import lombok.Setter;
 import lombok.experimental.FieldDefaults;
 
 @Entity
-@Table(name = "facilities")
+@Table(name = "system_calendar_rules")
 @Getter
 @Setter
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @NoArgsConstructor
 @AllArgsConstructor
-public class FacilityEntity {
+public class SystemCalendarRuleEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Integer id;
 
-    @Column(name = "owner_id")
-    Integer ownerId;
-
     @Column(name = "name")
     String name;
 
-    @Column(name = "identity_code")
-    String identityCode;
+    @Column(name = "start_date")
+    LocalDate startDate;
 
-    @Column(name = "verification_images")
-    String verificationImages;
+    @Column(name = "end_date")
+    LocalDate endDate;
 
-    @Column(name = "contact_phone")
-    String contactPhone;
+    @Column(name = "commission_rate", precision = 5, scale = 4)
+    BigDecimal commissionRate;
 
-    @Column(name = "contact_email")
-    String contactEmail;
+    @Column(name = "price_modifier_rate", precision = 5, scale = 4)
+    BigDecimal priceModifierRate;
 
-    @Column(name = "address", columnDefinition = "TEXT")
-    String address;
+    @Column(name = "block_type")
+    String blockType;
 
-    @Column(name = "logo", columnDefinition = "TEXT")
-    String logo;
-
-    @Column(name = "description", columnDefinition = "TEXT")
-    String description;
-
-    @Column(name = "status")
-    String status;
-
-    @Column(name = "rejection_note", columnDefinition = "TEXT")
-    String rejectionNote;
-
-    @Column(name = "submitted_at")
-    LocalDateTime submittedAt;
-
-    @Column(name = "approved_by")
-    Integer approvedBy;
-
-    @Column(name = "approved_at")
-    LocalDateTime approvedAt;
+    @Column(name = "created_by")
+    Integer createdBy;
 
     @Column(name = "created_at")
     LocalDateTime createdAt;

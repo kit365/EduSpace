@@ -2,13 +2,17 @@ package com.eduspace.roomservice.model.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,60 +22,40 @@ import lombok.Setter;
 import lombok.experimental.FieldDefaults;
 
 @Entity
-@Table(name = "facilities")
+@Table(name = "room_slots")
 @Getter
 @Setter
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @NoArgsConstructor
 @AllArgsConstructor
-public class FacilityEntity {
+public class RoomSlotEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Integer id;
 
-    @Column(name = "owner_id")
-    Integer ownerId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "room_id", nullable = false)
+    RoomEntity room;
 
     @Column(name = "name")
     String name;
 
-    @Column(name = "identity_code")
-    String identityCode;
+    @Column(name = "start_time")
+    LocalTime startTime;
 
-    @Column(name = "verification_images")
-    String verificationImages;
+    @Column(name = "end_time")
+    LocalTime endTime;
 
-    @Column(name = "contact_phone")
-    String contactPhone;
+    @Column(name = "day_of_week")
+    String dayOfWeek;
 
-    @Column(name = "contact_email")
-    String contactEmail;
-
-    @Column(name = "address", columnDefinition = "TEXT")
-    String address;
-
-    @Column(name = "logo", columnDefinition = "TEXT")
-    String logo;
-
-    @Column(name = "description", columnDefinition = "TEXT")
-    String description;
+    @Column(name = "base_price")
+    Long basePrice;
 
     @Column(name = "status")
     String status;
-
-    @Column(name = "rejection_note", columnDefinition = "TEXT")
-    String rejectionNote;
-
-    @Column(name = "submitted_at")
-    LocalDateTime submittedAt;
-
-    @Column(name = "approved_by")
-    Integer approvedBy;
-
-    @Column(name = "approved_at")
-    LocalDateTime approvedAt;
 
     @Column(name = "created_at")
     LocalDateTime createdAt;

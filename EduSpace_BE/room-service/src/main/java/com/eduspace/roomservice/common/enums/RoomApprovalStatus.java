@@ -1,10 +1,10 @@
 package com.eduspace.roomservice.common.enums;
 
+/**
+ * Trạng thái duyệt bài đăng phòng.
+ */
 public enum RoomApprovalStatus {
-    draft,
-    pending_review,
-    active,
-    rejected,
-    suspended
+    PENDING,
+    APPROVED,
+    REJECTED
 }
-

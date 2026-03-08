@@ -1,10 +1,8 @@
 package com.eduspace.roomservice.model.entity;
 
-import com.eduspace.roomservice.common.enums.RoomApprovalStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -34,66 +32,54 @@ import lombok.experimental.FieldDefaults;
 public class RoomEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "room_id")
-    String id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    Integer id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "facility_id", nullable = false)
     FacilityEntity facility;
 
-    @Column(name = "name", nullable = false)
+    @Column(name = "room_type")
+    String roomType;
+
+    @Column(name = "booking_type")
+    String bookingType;
+
+    @Column(name = "name")
     String name;
 
-    @Column(name = "type", nullable = false)
-    String type;
-
-    @Column(name = "capacity", nullable = false)
+    @Column(name = "capacity")
     Integer capacity;
 
-    @Column(name = "size_sqm")
-    BigDecimal sizeSqm;
+    @Column(name = "area", precision = 10, scale = 2)
+    BigDecimal area;
 
-    @Column(name = "price_per_hour", nullable = false)
-    Long pricePerHour;
+    @Column(name = "location")
+    String location;
 
-    @Column(name = "cover_image_url")
-    String coverImageUrl;
+    @Column(name = "images")
+    String images;
 
-    @Column(name = "description")
+    @Column(name = "description", columnDefinition = "TEXT")
     String description;
 
-    @Column(name = "additional_info")
-    String additionalInfo;
+    @Column(name = "status")
+    String status;
 
-    @Builder.Default
-    @Column(name = "instant_book")
-    Boolean instantBook = false;
+    @Column(name = "approval_status")
+    String approvalStatus;
 
-    @Builder.Default
-    @Enumerated(EnumType.STRING)
-    @Column(name = "approval_status", nullable = false)
-    RoomApprovalStatus approvalStatus = RoomApprovalStatus.draft;
+    @Column(name = "rejection_note", columnDefinition = "TEXT")
+    String rejectionNote;
 
-    @Column(name = "rejection_reason")
-    String rejectionReason;
+    @Column(name = "avg_rating", precision = 3, scale = 2)
+    BigDecimal avgRating;
 
-    @Column(name = "submitted_at")
-    LocalDateTime submittedAt;
-
-    @Column(name = "approved_at")
-    LocalDateTime approvedAt;
-
-    @Column(name = "approved_by")
-    String approvedBy;
-
-    @Builder.Default
-    @Column(name = "avg_rating")
-    BigDecimal avgRating = BigDecimal.ZERO;
-
-    @Builder.Default
     @Column(name = "review_count")
-    Integer reviewCount = 0;
+    Integer reviewCount;
+
+    @Column(name = "deleted_at")
+    LocalDateTime deletedAt;
 
     @Column(name = "created_at")
     LocalDateTime createdAt;
@@ -103,8 +89,9 @@ public class RoomEntity {
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now();
+        createdAt = now;
+        updatedAt = now;
     }
 
     @PreUpdate
@@ -112,4 +99,3 @@ public class RoomEntity {
         updatedAt = LocalDateTime.now();
     }
 }
-
