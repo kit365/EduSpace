@@ -98,9 +98,9 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
             String keycloakUserId = CreatedResponseUtil.getCreatedId(response);
             log.info("Created user in Keycloak: {} (ID: {})", email, keycloakUserId);
             try {
-                assignRole(keycloakUserId, Role.STUDENT.getName());
+                assignRole(keycloakUserId, Role.GUEST.getName());
             } catch (Exception e) {
-                log.warn("Failed to assign role {} to user {}. Will retry later. Error: {}", Role.STUDENT.getName(),
+                log.warn("Failed to assign role {} to user {}. Will retry later. Error: {}", Role.GUEST.getName(),
                         email,
                         e.getMessage());
             }

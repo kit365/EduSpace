@@ -115,11 +115,11 @@ class AuthServiceImplTest {
 
         RoleEntity role = new RoleEntity();
         role.setId(1L);
-        role.setName(Role.STUDENT.getName());
+        role.setName(Role.GUEST.getName());
 
         when(userRepository.existsByEmail("test@email.com")).thenReturn(false);
         when(keycloakUserService.createUser(anyString(), anyString(), anyString())).thenReturn("keycloak-id");
-        when(roleRepository.findByName(Role.STUDENT.getName())).thenReturn(Optional.of(role));
+        when(roleRepository.findByName(Role.GUEST.getName())).thenReturn(Optional.of(role));
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 
         // Act

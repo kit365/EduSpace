@@ -23,5 +23,5 @@ public class RoomBlockResponse {
     LocalDateTime endDatetime;
     String reason;
     BlockType blockType;
-    Integer createdBy;
+    String createdBy;
 }

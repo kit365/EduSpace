@@ -18,9 +18,11 @@ public class UserResponse {
     String fullName;
     String phoneNumber;
     String avatarUrl;
-    String studentId;
     String location;
     String shortBio;
+    String hostType;
+    String verificationDocument;
+    String verificationStatus;
     Boolean isActive;
     Boolean isEmailVerified;
     Boolean is2faEnabled;

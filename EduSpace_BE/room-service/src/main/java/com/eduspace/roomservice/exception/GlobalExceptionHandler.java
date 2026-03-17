@@ -43,6 +43,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(value = MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<?>> handlingValidation(MethodArgumentNotValidException exception) {
         log.warn("Validation failed: {}", exception.getMessage());
+        var fieldError = exception.getFieldError();
         String enumKey = Objects.requireNonNull(exception.getFieldError()).getDefaultMessage();
         String message;
         try {

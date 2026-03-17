@@ -1,6 +1,6 @@
 server:
-  # 8081 = default. Chạy từ IDE khi Docker đang dùng 8081: thêm VM option -Dserver.port=8085
-  port: ${server.port:8081}
+  # 8081 = default. Docker: ACCOUNT_SERVICE_PORT. IDE override: -DACCOUNT_SERVICE_PORT=8085
+  port: ${ACCOUNT_SERVICE_PORT:8081}
 
 spring:
   datasource:

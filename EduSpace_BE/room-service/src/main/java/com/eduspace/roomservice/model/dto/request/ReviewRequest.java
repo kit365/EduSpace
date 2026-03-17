@@ -16,7 +16,7 @@ import lombok.experimental.FieldDefaults;
 public class ReviewRequest {
 
     Integer roomId;
-    Integer authorId;
+    String authorId;
     Integer bookingId;
     Short rating;
     String comment;

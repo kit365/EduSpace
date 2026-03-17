@@ -20,7 +20,7 @@ public class RoomAdResponse {
     Integer id;
     Integer roomId;
     Integer adsPackageId;
-    Integer ownerId;
+    String ownerId;
     Integer transactionId;
     LocalDate startDate;
     LocalDate endDate;

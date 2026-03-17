@@ -39,7 +39,7 @@ public class ReviewEntity {
     RoomEntity room;
 
     @Column(name = "author_id")
-    Integer authorId;
+    String authorId; // UUID from account-service, no FK
 
     @Column(name = "booking_id")
     Integer bookingId;

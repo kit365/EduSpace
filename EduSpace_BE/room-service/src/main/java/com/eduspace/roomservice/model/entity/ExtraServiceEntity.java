@@ -11,7 +11,6 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -22,14 +21,14 @@ import lombok.Setter;
 import lombok.experimental.FieldDefaults;
 
 @Entity
-@Table(name = "rooms")
+@Table(name = "extra_services")
 @Getter
 @Setter
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @NoArgsConstructor
 @AllArgsConstructor
-public class RoomEntity {
+public class ExtraServiceEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -39,51 +38,20 @@ public class RoomEntity {
     @JoinColumn(name = "property_id", nullable = false)
     PropertyEntity property;
 
-    @Column(name = "room_type")
-    String roomType;
-
-    @Column(name = "booking_type")
-    String bookingType;
-
     @Column(name = "name")
     String name;
-
-    @Column(name = "capacity")
-    Integer capacity;
-
-    @Column(name = "area", precision = 10, scale = 2)
-    BigDecimal area;
-
-    @Column(name = "location")
-    String location;
-
-    @Column(name = "images")
-    String images;
 
     @Column(name = "description", columnDefinition = "TEXT")
     String description;
 
+    @Column(name = "price")
+    Long price;
+
+    @Column(name = "price_unit")
+    String priceUnit; // PER_DAY, PER_HOUR, PER_STAY
+
     @Column(name = "status")
-    String status;
-
-    @Column(name = "approval_status")
-    String approvalStatus;
-
-    @Column(name = "rejection_note", columnDefinition = "TEXT")
-    String rejectionNote;
-
-    @Column(name = "avg_rating", precision = 3, scale = 2)
-    BigDecimal avgRating;
-
-    @Column(name = "review_count")
-    Integer reviewCount;
-
-    @Column(name = "deleted_at")
-    LocalDateTime deletedAt;
-
-    @Builder.Default
-    @Column(name = "is_active")
-    Boolean isActive = true;
+    String status; // ACTIVE, INACTIVE
 
     @Column(name = "created_at")
     LocalDateTime createdAt;

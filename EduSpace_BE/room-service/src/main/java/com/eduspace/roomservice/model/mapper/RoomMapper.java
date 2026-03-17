@@ -15,14 +15,17 @@ import java.util.List;
 public interface RoomMapper {
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "facility", ignore = true)
+    @Mapping(target = "property", ignore = true)
+    @Mapping(target = "avgRating", ignore = true)
+    @Mapping(target = "reviewCount", ignore = true)
+    @Mapping(target = "deletedAt", ignore = true)
     @Mapping(target = "roomType", expression = "java(toRoomTypeString(request.getRoomType()))")
     @Mapping(target = "bookingType", expression = "java(toBookingTypeString(request.getBookingType()))")
     @Mapping(target = "status", expression = "java(toStatusString(request.getStatus()))")
     @Mapping(target = "approvalStatus", expression = "java(toApprovalStatusString(request.getApprovalStatus()))")
     RoomEntity toEntity(RoomRequest request);
 
-    @Mapping(target = "facilityId", expression = "java(entity.getFacility() != null ? entity.getFacility().getId() : null)")
+    @Mapping(target = "propertyId", expression = "java(entity.getProperty() != null ? entity.getProperty().getId() : null)")
     @Mapping(target = "roomType", expression = "java(toRoomType(entity.getRoomType()))")
     @Mapping(target = "bookingType", expression = "java(toBookingType(entity.getBookingType()))")
     @Mapping(target = "status", expression = "java(toStatus(entity.getStatus()))")
@@ -32,7 +35,10 @@ public interface RoomMapper {
     List<RoomResponse> toResponseList(List<RoomEntity> entities);
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "facility", ignore = true)
+    @Mapping(target = "property", ignore = true)
+    @Mapping(target = "avgRating", ignore = true)
+    @Mapping(target = "reviewCount", ignore = true)
+    @Mapping(target = "deletedAt", ignore = true)
     @Mapping(target = "roomType", expression = "java(toRoomTypeString(request.getRoomType()))")
     @Mapping(target = "bookingType", expression = "java(toBookingTypeString(request.getBookingType()))")
     @Mapping(target = "status", expression = "java(toStatusString(request.getStatus()))")

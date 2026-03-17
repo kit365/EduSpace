@@ -15,10 +15,10 @@ public final class ApiPaths {
         public static final String BASE_PATH = BASE + "/rooms";
     }
 
-    public static final class Facilities {
-        private Facilities() {
+    public static final class Properties {
+        private Properties() {
         }
-        public static final String BASE_PATH = BASE + "/facilities";
+        public static final String BASE_PATH = BASE + "/properties";
     }
 
     public static final class AdsPackages {
@@ -67,5 +67,11 @@ public final class ApiPaths {
         private RoomBlocks() {
         }
         public static final String BASE_PATH = BASE + "/room-blocks";
+    }
+
+    public static final class ExtraServices {
+        private ExtraServices() {
+        }
+        public static final String BASE_PATH = BASE + "/extra-services";
     }
 }

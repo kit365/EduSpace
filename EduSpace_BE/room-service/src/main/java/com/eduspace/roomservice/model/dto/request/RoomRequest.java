@@ -21,7 +21,7 @@ import java.time.LocalDateTime;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class RoomRequest {
 
-    Integer facilityId;
+    Integer propertyId;
     RoomType roomType;
     BookingType bookingType;
     String name;
@@ -36,4 +36,5 @@ public class RoomRequest {
     BigDecimal avgRating;
     Integer reviewCount;
     LocalDateTime deletedAt;
+    Boolean isActive;
 }

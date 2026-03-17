@@ -1,6 +1,5 @@
-package com.eduspace.roomservice.model.dto.request;
+package com.eduspace.roomservice.model.dto.response;
 
-import com.eduspace.roomservice.common.enums.BlockType;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -15,12 +14,15 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class RoomBlockRequest {
+public class ExtraServiceResponse {
 
-    Integer roomId;
-    LocalDateTime startDatetime;
-    LocalDateTime endDatetime;
-    String reason;
-    BlockType blockType;
-    String createdBy;
+    Integer id;
+    Integer propertyId;
+    String name;
+    String description;
+    Long price;
+    String priceUnit;
+    String status;
+    LocalDateTime createdAt;
+    LocalDateTime updatedAt;
 }

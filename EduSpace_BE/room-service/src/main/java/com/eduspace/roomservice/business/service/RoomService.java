@@ -8,7 +8,7 @@ public interface RoomService {
 
     List<RoomResponse> getAllRooms();
 
-    List<RoomResponse> getRoomsByFacilityId(Integer facilityId);
+    List<RoomResponse> getRoomsByPropertyId(Integer propertyId);
 
     RoomResponse getRoomById(Integer id);
 

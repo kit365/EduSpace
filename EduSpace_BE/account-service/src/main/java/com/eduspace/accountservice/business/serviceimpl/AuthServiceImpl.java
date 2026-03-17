@@ -81,14 +81,14 @@ public class AuthServiceImpl implements AuthService {
         String keycloakId = keycloakUserService.createUser(
                 request.getEmail(), request.getFullName(), request.getPassword());
 
-        RoleEntity studentRole = roleRepository.findByName(Role.STUDENT.getName())
+        RoleEntity guestRole = roleRepository.findByName(Role.GUEST.getName())
                 .orElseThrow(() -> new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION));
 
         UserEntity user = UserEntity.builder()
                 .keycloakId(keycloakId)
                 .email(request.getEmail())
                 .fullName(request.getFullName())
-                .roles(Set.of(studentRole))
+                .roles(Set.of(guestRole))
                 .build();
 
         userRepository.save(user);

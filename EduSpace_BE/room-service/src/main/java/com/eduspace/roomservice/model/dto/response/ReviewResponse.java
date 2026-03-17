@@ -19,7 +19,7 @@ public class ReviewResponse {
 
     Integer id;
     Integer roomId;
-    Integer authorId;
+    String authorId;
     Integer bookingId;
     Short rating;
     String comment;

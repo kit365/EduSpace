@@ -5,6 +5,7 @@ import com.eduspace.roomservice.model.dto.request.RoomRequest;
 import com.eduspace.roomservice.model.dto.response.ApiResponse;
 import com.eduspace.roomservice.model.dto.response.RoomResponse;
 import com.eduspace.roomservice.presentation.constants.ApiPaths;
+
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -17,9 +18,9 @@ public class RoomController {
     private final RoomService roomService;
 
     @GetMapping
-    public ApiResponse<List<RoomResponse>> getAll(@RequestParam(required = false) Integer facilityId) {
-        if (facilityId != null) {
-            return ApiResponse.success(roomService.getRoomsByFacilityId(facilityId));
+    public ApiResponse<List<RoomResponse>> getAll(@RequestParam(required = false) Integer propertyId) {
+        if (propertyId != null) {
+            return ApiResponse.success(roomService.getRoomsByPropertyId(propertyId));
         }
         return ApiResponse.success(roomService.getAllRooms());
     }

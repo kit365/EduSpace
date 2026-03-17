@@ -11,7 +11,7 @@ public enum ErrorCode {
     FORBIDDEN(HttpStatus.FORBIDDEN, "FORBIDDEN", "error.forbidden"),
 
     ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "ROOM_NOT_FOUND", "room.not-found"),
-    FACILITY_NOT_FOUND(HttpStatus.NOT_FOUND, "FACILITY_NOT_FOUND", "facility.not-found"),
+    PROPERTY_NOT_FOUND(HttpStatus.NOT_FOUND, "PROPERTY_NOT_FOUND", "property.not-found"),
     ADS_PACKAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "ADS_PACKAGE_NOT_FOUND", "ads-package.not-found"),
     ROOM_SLOT_NOT_FOUND(HttpStatus.NOT_FOUND, "ROOM_SLOT_NOT_FOUND", "room-slot.not-found"),
     AMENITY_NOT_FOUND(HttpStatus.NOT_FOUND, "AMENITY_NOT_FOUND", "amenity.not-found"),
@@ -19,7 +19,8 @@ public enum ErrorCode {
     REVIEW_NOT_FOUND(HttpStatus.NOT_FOUND, "REVIEW_NOT_FOUND", "review.not-found"),
     ROOM_AD_NOT_FOUND(HttpStatus.NOT_FOUND, "ROOM_AD_NOT_FOUND", "room-ad.not-found"),
     SYSTEM_CALENDAR_RULE_NOT_FOUND(HttpStatus.NOT_FOUND, "SYSTEM_CALENDAR_RULE_NOT_FOUND", "system-calendar-rule.not-found"),
-    ROOM_BLOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "ROOM_BLOCK_NOT_FOUND", "room-block.not-found");
+    ROOM_BLOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "ROOM_BLOCK_NOT_FOUND", "room-block.not-found"),
+    EXTRA_SERVICE_NOT_FOUND(HttpStatus.NOT_FOUND, "EXTRA_SERVICE_NOT_FOUND", "extra-service.not-found");
 
     ErrorCode(HttpStatus httpStatus, String code, String messageKey) {
         this.httpStatus = httpStatus;

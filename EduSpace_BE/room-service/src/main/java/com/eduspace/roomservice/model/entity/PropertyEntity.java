@@ -18,30 +18,27 @@ import lombok.Setter;
 import lombok.experimental.FieldDefaults;
 
 @Entity
-@Table(name = "facilities")
+@Table(name = "properties")
 @Getter
 @Setter
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @NoArgsConstructor
 @AllArgsConstructor
-public class FacilityEntity {
+public class PropertyEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Integer id;
 
     @Column(name = "owner_id")
-    Integer ownerId;
+    String ownerId; // UUID from account-service, no FK
 
     @Column(name = "name")
     String name;
 
-    @Column(name = "identity_code")
-    String identityCode;
-
-    @Column(name = "verification_images")
-    String verificationImages;
+    @Column(name = "property_type")
+    String propertyType; // HOTEL, HOMESTAY, APARTMENT, PRIVATE_ROOM
 
     @Column(name = "contact_phone")
     String contactPhone;
@@ -68,7 +65,7 @@ public class FacilityEntity {
     LocalDateTime submittedAt;
 
     @Column(name = "approved_by")
-    Integer approvedBy;
+    String approvedBy; // UUID from account-service, no FK
 
     @Column(name = "approved_at")
     LocalDateTime approvedAt;

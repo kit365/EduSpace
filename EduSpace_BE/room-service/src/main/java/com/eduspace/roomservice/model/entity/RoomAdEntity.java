@@ -44,7 +44,7 @@ public class RoomAdEntity {
     AdsPackageEntity adsPackage;
 
     @Column(name = "owner_id")
-    Integer ownerId;
+    String ownerId; // UUID from account-service, no FK
 
     @Column(name = "transaction_id")
     Integer transactionId;

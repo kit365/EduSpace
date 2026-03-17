@@ -22,7 +22,7 @@ import java.time.LocalDateTime;
 public class RoomResponse {
 
     Integer id;
-    Integer facilityId;
+    Integer propertyId;
     RoomType roomType;
     BookingType bookingType;
     String name;
@@ -37,4 +37,5 @@ public class RoomResponse {
     BigDecimal avgRating;
     Integer reviewCount;
     LocalDateTime deletedAt;
+    Boolean isActive;
 }

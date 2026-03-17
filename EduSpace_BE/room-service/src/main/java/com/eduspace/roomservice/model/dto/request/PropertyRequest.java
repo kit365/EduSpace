@@ -1,6 +1,6 @@
 package com.eduspace.roomservice.model.dto.request;
 
-import com.eduspace.roomservice.common.enums.FacilityStatus;
+import com.eduspace.roomservice.common.enums.PropertyStatus;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -15,20 +15,19 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class FacilityRequest {
+public class PropertyRequest {
 
-    Integer ownerId;
+    String ownerId;
     String name;
-    String identityCode;
-    String verificationImages;
+    String propertyType; // HOTEL, HOMESTAY, APARTMENT, PRIVATE_ROOM
     String contactPhone;
     String contactEmail;
     String address;
     String logo;
     String description;
-    FacilityStatus status;
+    PropertyStatus status;
     String rejectionNote;
     LocalDateTime submittedAt;
-    Integer approvedBy;
+    String approvedBy;
     LocalDateTime approvedAt;
 }

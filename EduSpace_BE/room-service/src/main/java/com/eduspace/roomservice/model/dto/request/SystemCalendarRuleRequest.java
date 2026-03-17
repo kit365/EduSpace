@@ -24,5 +24,5 @@ public class SystemCalendarRuleRequest {
     BigDecimal commissionRate;
     BigDecimal priceModifierRate;
     BlockType blockType;
-    Integer createdBy;
+    String createdBy;
 }
