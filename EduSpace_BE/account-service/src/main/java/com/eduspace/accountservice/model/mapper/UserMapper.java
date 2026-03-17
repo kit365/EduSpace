@@ -27,9 +27,6 @@ public class UserMapper {
         if (request.getAvatarUrl() != null) {
             entity.setAvatarUrl(request.getAvatarUrl());
         }
-        if (request.getStudentId() != null) {
-            entity.setStudentId(request.getStudentId());
-        }
         if (request.getLocation() != null) {
             entity.setLocation(request.getLocation());
         }
@@ -49,8 +46,10 @@ public class UserMapper {
                 .fullName(entity.getFullName())
                 .phoneNumber(entity.getPhoneNumber())
                 .avatarUrl(entity.getAvatarUrl())
-                .studentId(entity.getStudentId())
                 .location(entity.getLocation())
+                .hostType(entity.getHostType())
+                .verificationDocument(entity.getVerificationDocument())
+                .verificationStatus(entity.getVerificationStatus())
                 .shortBio(entity.getShortBio())
                 .isActive(entity.getIsActive())
                 .isEmailVerified(entity.getIsEmailVerified())

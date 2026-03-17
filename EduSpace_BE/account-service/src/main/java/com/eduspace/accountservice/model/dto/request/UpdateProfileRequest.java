@@ -11,7 +11,6 @@ public class UpdateProfileRequest {
     String fullName;
     String phoneNumber;
     String avatarUrl;
-    String studentId;
     String location;
     String shortBio;
 }

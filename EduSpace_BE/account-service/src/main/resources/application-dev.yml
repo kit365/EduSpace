@@ -1,5 +1,6 @@
 server:
-  port: 8081
+  # 8081 = default. Docker: ACCOUNT_SERVICE_PORT. IDE override: -DACCOUNT_SERVICE_PORT=8085
+  port: ${ACCOUNT_SERVICE_PORT:8081}
 
 spring:
   datasource:

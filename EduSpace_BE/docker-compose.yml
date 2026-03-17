@@ -175,6 +175,25 @@ services:
     networks:
       - eduspace-network
 
+  # Room Service → room-db:5432/eduspace_room
+  room-service:
+    build:
+      context: ./room-service
+      dockerfile: Dockerfile
+    container_name: room-service
+    ports:
+      - "${ROOM_SERVICE_PORT:-8083}:8083"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://room-db:5432/eduspace_room
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      EUREKA_SERVER_URL: http://discovery-server:8761/eureka/
+    depends_on:
+      - room-db
+      - discovery-server
+    networks:
+      - eduspace-network
+
   # API Gateway
   api-gateway:
     build:

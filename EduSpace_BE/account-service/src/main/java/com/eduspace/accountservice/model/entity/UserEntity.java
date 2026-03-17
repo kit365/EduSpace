@@ -38,14 +38,20 @@ public class UserEntity {
     @Column(name = "avatar_url")
     String avatarUrl;
 
-    @Column(name = "student_id")
-    String studentId;
-
     @Column(name = "location")
     String location;
 
     @Column(name = "short_bio", length = 500)
     String shortBio;
+
+    @Column(name = "host_type")
+    String hostType; // INDIVIDUAL, BUSINESS
+
+    @Column(name = "verification_document")
+    String verificationDocument; // ID card or Business License URL
+
+    @Column(name = "verification_status")
+    String verificationStatus; // PENDING, VERIFIED, REJECTED
 
     @Builder.Default
     @Column(name = "is_active")
