@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { ApiResponse, CreateBookingReq, BookingPriceCalculationResult } from '@/types';
 import { CustomerLayout } from '../../../../layouts/CustomerLayout';
 import { Calendar, Clock, CreditCard, ChevronRight, CheckCircle2, ShieldCheck, Loader2, Timer, Info } from 'lucide-react';
 import { formatCurrency } from '../../../../../utils';
-import { BookingPriceCalculationResult, CreateBookingReq } from '../../../../../types/api';
 
 export function CheckoutPage() {
   const navigate = useNavigate();

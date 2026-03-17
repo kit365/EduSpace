@@ -6,7 +6,10 @@ import lombok.Getter;
 public enum Role {
     GUEST("GUEST"),
     HOST("HOST"),
-    ADMIN("ADMIN");
+    STUDENT("STUDENT"),
+    TUTOR("TUTOR"),
+    ADMIN("ADMIN"),
+    SUPER_ADMIN("SUPER_ADMIN");
 
     private final String name;
 

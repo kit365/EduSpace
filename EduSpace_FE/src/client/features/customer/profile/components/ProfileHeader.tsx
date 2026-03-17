@@ -1,6 +1,6 @@
 import { Camera, CheckCircle, GraduationCap, Building2, UserCircle2, Mic, Code2 } from 'lucide-react';
 import { UserProfile } from '../types';
-import { UserRole } from '../../../../../types/user';
+import { User, UserRole } from '@/types';
 import { useTranslation } from 'react-i18next';
 
 interface ProfileHeaderProps {

@@ -27,7 +27,13 @@ export const vi = {
         rating: "Đánh giá",
         verifiedSpace: "ĐÃ XÁC THỰC",
         spacesFound: "không gian tại TP. Hồ Chí Minh",
-        showingResults: "Hiển thị kết quả cho"
+        showingResults: "Hiển thị kết quả cho",
+        error: {
+            title: "Lỗi dữ liệu",
+            fetchUsers: "Không thể lấy danh sách người dùng",
+            fetchRoles: "Không thể lấy danh sách vai trò",
+            system: "Đã xảy ra lỗi hệ thống"
+        }
     },
     host: {
         register: {
@@ -343,12 +349,27 @@ export const vi = {
             }
         },
         profile: {
+            accountSettings: "Cài đặt Tài khoản",
             sidebar: {
+                myProfile: "Hồ sơ của tôi",
                 identity: "Cá nhân",
                 security: "Bảo mật",
+                teams: "Nhóm",
+                teamMember: "Thành viên nhóm",
                 alerts: "Thông báo",
                 billing: "Thanh toán",
+                dataExport: "Xuất dữ liệu",
+                deleteAccount: "Xóa tài khoản",
                 transactions: "Lịch sử Giao dịch"
+            },
+            address: {
+                title: "Địa chỉ",
+                cityState: "Tỉnh/Thành phố",
+                district: "Quận/Huyện",
+                ward: "Phường/Xã",
+                streetAddress: "Địa chỉ cụ thể",
+                postalCode: "Mã bưu điện",
+                taxId: "Mã số thuế"
             },
             premium: {
                 title: "Premium Host",
@@ -368,6 +389,9 @@ export const vi = {
                 recently: "gần đây"
             },
             personal: {
+                myProfile: "Hồ sơ của tôi",
+                firstName: "Tên",
+                lastName: "Họ",
                 title: "Thông tin Cá nhân",
                 edit: "Chỉnh sửa",
                 fullName: "Họ và tên",
@@ -470,5 +494,117 @@ export const vi = {
         allRightsReserved: "Mọi quyền được bảo lưu",
         privacyPolicy: "Chính sách bảo mật",
         cookiePolicy: "Chính sách cookie"
+    },
+    admin_sidebar: {
+        dashboard: "Dashboard",
+        finance: "Tài chính & Thanh toán",
+        approvals: "Duyệt & KYC",
+        disputes: "Tranh chấp & Báo cáo",
+        hosts: "Quản lý Host",
+        users: "Quản lý Người dùng",
+        roles: "Vai trò & Quyền",
+        settings: "Cài đặt Hệ thống",
+        points: "Điểm thưởng & Quà",
+        signOut: "Đăng xuất",
+        adminPortal: "Admin Portal",
+        systemControl: "Điều khiển Hệ thống"
+    },
+    admin_management: {
+        title: "Quản lý Người dùng",
+        subtitle: "Quản lý vai trò và phân quyền hệ thống",
+        searchPlaceholder: "Tìm tên hoặc email...",
+        filter: {
+            title: "Bộ lọc",
+            options: "Tùy chọn lọc",
+            reset: "Reset",
+            apply: "Áp dụng",
+            role: "Vai trò",
+            status: "Trạng thái tài khoản",
+            kyc: "Trạng thái eKYC",
+            sort: "Sắp xếp"
+        },
+        roles: {
+            all: "Tất cả",
+            super_admin: "Super Admin",
+            admin: "Admin",
+            staff: "Nhân viên",
+            host: "Host",
+            renter: "Khách hàng"
+        },
+        status: {
+            all: "Tất cả",
+            active: "Hoạt động",
+            suspended: "Tạm ngưng",
+            pending: "Chờ duyệt",
+            blocked: "Đã khóa"
+        }
+    },
+    points: {
+        title: "Điểm thưởng & Quà",
+        subtitle: "Quy tắc tích điểm, catalog quà và giao dịch",
+        tabs: {
+            rules: "Quy tắc điểm",
+            rewards: "Catalog quà",
+            transactions: "Giao dịch điểm"
+        },
+        rules: {
+            actionName: "Hành động",
+            pointsEarned: "Điểm được cộng",
+            description: "Mô tả",
+            isActive: "Đang bật",
+            addRule: "Thêm quy tắc",
+            editRule: "Sửa quy tắc",
+            deleteRule: "Xóa quy tắc",
+            noRules: "Chưa có quy tắc nào",
+            emptyRuleCta: "Chưa có quy tắc cộng điểm nào. Hãy tạo quy tắc đầu tiên!",
+            refresh: "Tải lại"
+        },
+        rewards: {
+            name: "Tên quà",
+            pointsRequired: "Điểm đổi",
+            stock: "Tồn kho",
+            imageUrl: "URL ảnh",
+            addReward: "Thêm quà",
+            editReward: "Sửa quà",
+            deleteReward: "Xóa quà",
+            noRewards: "Chưa có quà nào",
+            emptyRewardCta: "Chưa có quà nào trong catalog. Hãy thêm quà đầu tiên!",
+            unlimited: "Không giới hạn"
+        },
+        transactions: {
+            userId: "ID người dùng",
+            load: "Tải",
+            userFullName: "Người dùng",
+            points: "Điểm",
+            type: "Loại",
+            typeEarn: "Tích điểm",
+            typeRedeem: "Đổi quà",
+            reason: "Lý do",
+            date: "Ngày",
+            noTransactions: "Chưa có giao dịch"
+        },
+        error: {
+            fetchRules: "Không thể tải quy tắc",
+            fetchRewards: "Không thể tải catalog quà",
+            fetchTransactions: "Không thể tải giao dịch",
+            fetchConfig: "Không thể tải cấu hình",
+            updateConfig: "Không thể cập nhật cấu hình"
+        },
+        success: {
+            ruleCreated: "Đã thêm quy tắc",
+            ruleUpdated: "Đã cập nhật quy tắc",
+            ruleDeleted: "Đã xóa quy tắc",
+            rewardCreated: "Đã thêm quà",
+            rewardUpdated: "Đã cập nhật quà",
+            rewardDeleted: "Đã xóa quà",
+            configUpdated: "Đã cập nhật tỉ lệ quy đổi"
+        },
+        confirmDelete: "Bạn có chắc muốn xóa?",
+        globalSettings: "Cài đặt chung",
+        conversionRate: "Tỉ lệ quy đổi (Điểm → VNĐ)",
+        conversionRateLink: "Chỉnh tỉ lệ quy đổi tại Cài đặt hệ thống",
+        conversionLabel: "1 Điểm =",
+        conversionSuffix: "VNĐ",
+        saveConfig: "Lưu"
     }
 };

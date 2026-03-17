@@ -1,15 +1,15 @@
 import { UserProfile, UserResponse, UpdateProfileRequest, TwoFactorSetup } from '../types';
 import apiClient from '../../../../../lib/axios';
 import { ACCOUNT_API } from '../../../../../config/api/account';
-import { ApiResponse } from '../../../../../types/api';
+import { ApiResponse, User } from '@/types';
 
 class ProfileService {
     async getProfile(): Promise<UserProfile> {
-        const response = await apiClient.post<unknown, ApiResponse<UserResponse>>(ACCOUNT_API.ME);
-        const data = response.data;
+        try {
+            const response = await apiClient.get<unknown, ApiResponse<UserResponse>>(ACCOUNT_API.ME);
+            const data = response.data;
 
-        // Convert BE "ROLE_CUSTOMER" to FE format
-        let role = 'renter'; // default fallback
+        let role = 'renter';
         if (data.roles && data.roles.length > 0) {
             const rawRole = data.roles[0].toLowerCase().replace('role_', '');
             if (rawRole === 'student') role = 'renter';
@@ -29,6 +29,12 @@ class ProfileService {
             avatar: data.avatarUrl || '',
             bio: data.shortBio || '',
             location: data.location || '',
+            cityState: data.cityState ?? undefined,
+            district: data.district ?? undefined,
+            ward: data.ward ?? undefined,
+            streetAddress: data.streetAddress ?? undefined,
+            postalCode: data.postalCode ?? undefined,
+            taxId: data.taxId ?? undefined,
             memberSince: memberSinceStr,
             is2faEnabled: data.is2faEnabled || false,
             role: role as any,
@@ -39,6 +45,12 @@ class ProfileService {
             rating: 5.0,
             totalSpent: 0
         };
+        } catch (error: any) {
+            console.error('Failed to fetch profile:', error);
+            const errMsg = error.response?.data?.message || error.message || 'Không thể lấy thông tin cá nhân';
+            // Note: useProfile hook usually handles this, but we toast just in case
+            throw error;
+        }
     }
 
     async updateProfile(data: Partial<UserProfile>): Promise<UserProfile> {
@@ -48,7 +60,13 @@ class ProfileService {
             avatarUrl: data.avatar || '',
             studentId: '',
             location: data.location || '',
-            shortBio: data.bio || ''
+            shortBio: data.bio || '',
+            cityState: data.cityState,
+            district: data.district,
+            ward: data.ward,
+            streetAddress: data.streetAddress,
+            postalCode: data.postalCode,
+            taxId: data.taxId
         };
 
         await apiClient.put<unknown, ApiResponse<UserResponse>>(ACCOUNT_API.ME, updateData);

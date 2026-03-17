@@ -74,7 +74,7 @@ export function BookingDetailPage() {
                         Quay lại danh sách
                     </button>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                         {/* Left: Main Info */}
                         <div className="lg:col-span-2 space-y-6">
                             {/* Space Card */}
@@ -87,16 +87,16 @@ export function BookingDetailPage() {
                                         </span>
                                     </div>
                                 </div>
-                                <div className="p-6">
-                                    <h1 className="text-2xl font-black text-gray-900 mb-1 tracking-tight">{booking.spaceName}</h1>
+                                <div className="p-4">
+                                    <h1 className="text-xl font-black text-gray-900 mb-1 tracking-tight">{booking.spaceName}</h1>
                                     <p className="text-sm font-medium text-gray-400">Host: {booking.hostName}</p>
                                 </div>
                             </div>
 
                             {/* Booking Details */}
-                            <div className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm">
-                                <h3 className="font-black text-gray-900 mb-5">Chi tiết đặt phòng</h3>
-                                <div className="grid grid-cols-2 gap-5">
+                            <div className="bg-white rounded-3xl border border-gray-100 p-4 shadow-sm">
+                                <h3 className="font-black text-gray-900 mb-4">Chi tiết đặt phòng</h3>
+                                <div className="grid grid-cols-2 gap-3">
                                     <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-2xl">
                                         <Calendar className="w-5 h-5 text-blue-500" />
                                         <div>
@@ -129,8 +129,8 @@ export function BookingDetailPage() {
                             </div>
 
                             {/* Payment Breakdown */}
-                            <div className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm">
-                                <h3 className="font-black text-gray-900 mb-5 flex items-center gap-2">
+                            <div className="bg-white rounded-3xl border border-gray-100 p-4 shadow-sm">
+                                <h3 className="font-black text-gray-900 mb-4 flex items-center gap-2">
                                     <CreditCard className="w-5 h-5 text-gray-400" /> Chi tiết thanh toán
                                 </h3>
                                 <div className="space-y-3">
@@ -149,7 +149,7 @@ export function BookingDetailPage() {
 
                             {/* FR-10: Review Form */}
                             {booking.status === 'completed' && !reviewSubmitted && (
-                                <div className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm">
+                                <div className="bg-white rounded-3xl border border-gray-100 p-4 shadow-sm">
                                     <div className="text-center py-4">
                                         <Star className="w-10 h-10 text-amber-400 mx-auto mb-3" />
                                         <h3 className="font-black text-gray-900 mb-2">Đánh giá trải nghiệm</h3>
@@ -175,9 +175,9 @@ export function BookingDetailPage() {
                         </div>
 
                         {/* Right: QR & Actions */}
-                        <div className="space-y-6">
+                        <div className="space-y-4">
                             {/* QR Code Card */}
-                            <div className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm text-center">
+                            <div className="bg-white rounded-3xl border border-gray-100 p-4 shadow-sm text-center">
                                 <h3 className="font-black text-gray-900 mb-1">Mã đặt phòng</h3>
                                 <p className="text-[10px] font-bold text-gray-300 uppercase tracking-widest mb-4">Xuất trình cho nhân viên khi check-in</p>
 
@@ -209,7 +209,7 @@ export function BookingDetailPage() {
                             </div>
 
                             {/* Actions */}
-                            <div className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm space-y-3">
+                            <div className="bg-white rounded-3xl border border-gray-100 p-4 shadow-sm space-y-3">
                                 <button
                                     onClick={() => navigate('/messages')}
                                     className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white py-3.5 rounded-xl font-black shadow-lg shadow-blue-200 hover:shadow-xl transition-all active:scale-95"

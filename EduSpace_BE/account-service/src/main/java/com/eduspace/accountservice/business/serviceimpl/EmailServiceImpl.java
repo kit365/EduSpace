@@ -1,7 +1,6 @@
 package com.eduspace.accountservice.business.serviceimpl;
 
 import com.eduspace.accountservice.business.service.EmailService;
-import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -56,7 +55,7 @@ public class EmailServiceImpl implements EmailService {
 
             mailSender.send(message);
             log.info("Verification email sent to: {}", toEmail);
-        } catch (MessagingException | java.io.UnsupportedEncodingException e) {
+        } catch (Exception e) {
             log.error("Failed to send verification email to: {}. Error: {}", toEmail, e.getMessage());
         }
     }

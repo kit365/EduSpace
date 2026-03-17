@@ -2,13 +2,13 @@ package com.eduspace.accountservice.business.serviceimpl;
 
 import com.eduspace.accountservice.business.service.AuthService;
 import com.eduspace.accountservice.business.service.EmailService;
+import com.eduspace.accountservice.business.service.KeycloakUserService;
 import com.eduspace.accountservice.common.enums.Role;
 import com.eduspace.accountservice.exception.AppException;
 import com.eduspace.accountservice.exception.ErrorCode;
-import com.eduspace.accountservice.model.dto.request.LoginRequest;
-import com.eduspace.accountservice.model.dto.request.RegisterRequest;
-import com.eduspace.accountservice.model.dto.response.LoginResponse;
-import com.eduspace.accountservice.model.dto.response.UserResponse;
+import com.eduspace.accountservice.model.dto.request.auth.LoginRequest;
+import com.eduspace.accountservice.model.dto.request.auth.RegisterRequest;
+import com.eduspace.accountservice.model.dto.response.auth.LoginResponse;
 import com.eduspace.accountservice.model.entity.RoleEntity;
 import com.eduspace.accountservice.model.entity.UserEntity;
 import com.eduspace.accountservice.model.mapper.UserMapper;
@@ -40,7 +40,7 @@ class AuthServiceImplTest {
     @Mock
     private RoleRepository roleRepository;
     @Mock
-    private KeycloakUserServiceImpl keycloakUserService;
+    private KeycloakUserService keycloakUserService; // Using Interface
     @Mock
     private UserMapper userMapper;
     @Mock
@@ -51,9 +51,9 @@ class AuthServiceImplTest {
     private ValueOperations<String, String> valueOperations;
 
     @InjectMocks
-    private AuthServiceImpl authServiceImpl;
+    private AuthServiceImpl authServiceImpl; // Target implementation
 
-    private AuthService authService;
+    private AuthService authService; // Interface for calling
 
     @BeforeEach
     void setUp() {
@@ -123,7 +123,7 @@ class AuthServiceImplTest {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 
         // Act
-        UserResponse result = authService.register(request);
+        authService.register(request);
 
         // Assert
         verify(userRepository).save(any(UserEntity.class));
@@ -131,22 +131,65 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void verifyEmail_Success() {
+    void register_UserAlreadyExists_ThrowsException() {
         // Arrange
+        RegisterRequest request = new RegisterRequest();
+        request.setEmail("existing@email.com");
+
+        when(userRepository.existsByEmail("existing@email.com")).thenReturn(true);
+
+        // Act & Assert
+        assertThatThrownBy(() -> authService.register(request))
+                .isInstanceOf(AppException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.USER_ALREADY_EXISTS);
+
+    }
+
+    @Test
+    void verifyEmail_Success() {
         String token = "valid-token";
-        String keycloakId = "user-id";
-        UserEntity user = UserEntity.builder().keycloakId(keycloakId).build();
+        String keycloakId = "k-id";
+        UserEntity user = UserEntity.builder()
+                .email("test@email.com")
+                .keycloakId(keycloakId)
+                .isEmailVerified(false)
+                .build();
 
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get("email_verify:" + token)).thenReturn(keycloakId);
         when(userRepository.findByKeycloakId(keycloakId)).thenReturn(Optional.of(user));
 
-        // Act
         authService.verifyEmail(token);
 
-        // Assert
         assertThat(user.getIsEmailVerified()).isTrue();
-        verify(keycloakUserService).verifyEmail(keycloakId);
+        verify(keycloakUserService).verifyEmail("k-id");
+        verify(userRepository).save(user);
         verify(redisTemplate).delete("email_verify:" + token);
+    }
+
+    @Test
+    void verifyEmail_InvalidToken_ThrowsException() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(anyString())).thenReturn(null);
+
+        assertThatThrownBy(() -> authService.verifyEmail("invalid"))
+                .isInstanceOf(AppException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.VERIFICATION_TOKEN_INVALID);
+    }
+
+    @Test
+    void refreshToken_Success() {
+        LoginResponse mockResponse = new LoginResponse();
+        when(keycloakUserService.refreshToken("refresh-token")).thenReturn(mockResponse);
+
+        LoginResponse result = authService.refreshToken("refresh-token");
+
+        assertThat(result).isEqualTo(mockResponse);
+    }
+
+    @Test
+    void logout_Success() {
+        authService.logout("refresh-token");
+        verify(keycloakUserService).logout("refresh-token");
     }
 }
