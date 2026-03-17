@@ -1,22 +1,6 @@
 import { useState, useEffect } from 'react';
 import { adminService } from '../services/adminService';
-
-// Define types based on mock data structure
-export interface User {
-    id: string;
-    name: string;
-    email: string;
-    role: string;
-    status: string;
-    joined: string;
-}
-
-export interface Role {
-    id: string;
-    name: string;
-    users: number;
-    permissions: string[];
-}
+import { User, Role } from '@/types';
 
 export interface Log {
     id: string;

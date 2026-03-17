@@ -4,7 +4,7 @@ import com.eduspace.accountservice.business.service.KeycloakUserService;
 import com.eduspace.accountservice.business.service.UserService;
 import com.eduspace.accountservice.exception.AppException;
 import com.eduspace.accountservice.exception.ErrorCode;
-import com.eduspace.accountservice.model.dto.response.UserResponse;
+import com.eduspace.accountservice.model.dto.response.user.UserResponse;
 import com.eduspace.accountservice.model.entity.UserEntity;
 import com.eduspace.accountservice.model.mapper.UserMapper;
 import com.eduspace.accountservice.persistence.repository.UserRepository;

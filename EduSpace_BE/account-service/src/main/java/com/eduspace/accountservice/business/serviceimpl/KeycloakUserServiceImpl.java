@@ -1,6 +1,6 @@
 package com.eduspace.accountservice.business.serviceimpl;
 
-import com.eduspace.accountservice.model.dto.response.LoginResponse;
+import com.eduspace.accountservice.model.dto.response.auth.LoginResponse;
 import com.eduspace.accountservice.common.enums.Role;
 import com.eduspace.accountservice.business.service.KeycloakUserService;
 import jakarta.ws.rs.core.Response;
@@ -114,6 +114,16 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
 
     @Override
     public void assignRole(String userId, String roleName) {
+        try {
+            // Check if role exists
+            keycloak.realm(realm).roles().get(roleName).toRepresentation();
+        } catch (jakarta.ws.rs.NotFoundException e) {
+            log.info("Role '{}' not found in Keycloak. Creating it now...", roleName);
+            RoleRepresentation newRole = new RoleRepresentation();
+            newRole.setName(roleName);
+            keycloak.realm(realm).roles().create(newRole);
+        }
+
         RoleRepresentation role = keycloak.realm(realm)
                 .roles()
                 .get(roleName)

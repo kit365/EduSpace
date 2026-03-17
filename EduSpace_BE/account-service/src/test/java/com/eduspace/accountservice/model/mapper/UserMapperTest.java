@@ -1,6 +1,6 @@
 package com.eduspace.accountservice.model.mapper;
 
-import com.eduspace.accountservice.model.dto.response.UserResponse;
+import com.eduspace.accountservice.model.dto.response.user.UserResponse;
 import com.eduspace.accountservice.model.entity.UserEntity;
 import org.junit.jupiter.api.Test;
 

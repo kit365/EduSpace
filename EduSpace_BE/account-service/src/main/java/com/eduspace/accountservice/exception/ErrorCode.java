@@ -18,7 +18,8 @@ public enum ErrorCode {
     EMAIL_NOT_VERIFIED(HttpStatus.FORBIDDEN, "EMAIL_NOT_VERIFIED", "error.email.not-verified"),
     EMAIL_ALREADY_VERIFIED(HttpStatus.CONFLICT, "EMAIL_ALREADY_VERIFIED", "error.verification.already-verified"),
     REQUIRE_2FA(HttpStatus.FORBIDDEN, "REQUIRE_2FA", "error.require.2fa"),
-    INVALID_2FA_CODE(HttpStatus.BAD_REQUEST, "INVALID_2FA_CODE", "error.invalid.2fa.code");
+    INVALID_2FA_CODE(HttpStatus.BAD_REQUEST, "INVALID_2FA_CODE", "error.invalid.2fa.code"),
+    RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", "error.resource-not-found");
 
     ErrorCode(HttpStatus httpStatus, String code, String messageKey) {
         this.httpStatus = httpStatus;

@@ -4,7 +4,7 @@ import com.eduspace.accountservice.business.service.KeycloakUserService;
 import com.eduspace.accountservice.business.service.UserService;
 import com.eduspace.accountservice.exception.AppException;
 import com.eduspace.accountservice.exception.ErrorCode;
-import com.eduspace.accountservice.model.dto.response.UserResponse;
+import com.eduspace.accountservice.model.dto.response.user.UserResponse;
 import com.eduspace.accountservice.model.entity.UserEntity;
 import com.eduspace.accountservice.model.mapper.UserMapper;
 import com.eduspace.accountservice.persistence.repository.UserRepository;
@@ -15,8 +15,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.eduspace.accountservice.model.dto.request.UpdateProfileRequest;
-import com.eduspace.accountservice.model.dto.response.TwoFactorResponse;
+import com.eduspace.accountservice.model.dto.request.user.UpdateProfileRequest;
+import com.eduspace.accountservice.model.dto.response.user.TwoFactorResponse;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;

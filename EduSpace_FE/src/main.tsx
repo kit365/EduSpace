@@ -7,9 +7,12 @@ import { queryClient } from './lib/queryClient'
 import './styles/globals.css'
 import './i18n/config';
 
+import { Toaster } from './components/ui/sonner'
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
         <QueryClientProvider client={queryClient}>
+            <Toaster position="top-right" duration={3000} closeButton richColors />
             <RouterProvider router={router} />
         </QueryClientProvider>
     </React.StrictMode>,

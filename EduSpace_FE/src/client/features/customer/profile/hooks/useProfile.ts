@@ -22,6 +22,9 @@ export function useProfile() {
     }, []);
 
     const updateProfile = async (data: Partial<UserProfile>) => {
+        if (profile) {
+            setProfile((prev) => (prev ? { ...prev, ...data } : prev));
+        }
         const updated = await profileService.updateProfile(data);
         setProfile(updated);
     };

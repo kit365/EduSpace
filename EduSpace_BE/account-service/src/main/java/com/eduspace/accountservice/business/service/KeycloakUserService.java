@@ -1,6 +1,6 @@
 package com.eduspace.accountservice.business.service;
 
-import com.eduspace.accountservice.model.dto.response.LoginResponse;
+import com.eduspace.accountservice.model.dto.response.auth.LoginResponse;
 
 public interface KeycloakUserService {
 

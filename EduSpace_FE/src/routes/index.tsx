@@ -3,6 +3,7 @@ import { customerRoutes, rentalRoutes } from '../client/routes';
 import { adminRoutes } from '../admin/routes';
 import { RoleSwitcher } from '../components/common/RoleSwitcher';
 import { useState } from 'react';
+import { Toaster } from '../components/ui/sonner';
 
 const RootLayout = () => {
     const [role, setRole] = useState<'user' | 'host' | 'admin'>('user');

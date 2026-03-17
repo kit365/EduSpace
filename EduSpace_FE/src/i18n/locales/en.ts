@@ -27,7 +27,13 @@ export const en = {
         rating: "Rating",
         verifiedSpace: "VERIFIED SPACE",
         spacesFound: "spaces in Ho Chi Minh City",
-        showingResults: "Showing results for"
+        showingResults: "Showing results for",
+        error: {
+            title: "Data Error",
+            fetchUsers: "Could not fetch user list",
+            fetchRoles: "Could not fetch role list",
+            system: "A system error occurred"
+        }
     },
     host: {
         register: {
@@ -343,12 +349,27 @@ export const en = {
             }
         },
         profile: {
+            accountSettings: "Account Settings",
             sidebar: {
+                myProfile: "My Profile",
                 identity: "Identity",
                 security: "Security",
-                alerts: "Alerts",
+                teams: "Teams",
+                teamMember: "Team Member",
+                alerts: "Notifications",
                 billing: "Billing",
+                dataExport: "Data Export",
+                deleteAccount: "Delete Account",
                 transactions: "Transaction History"
+            },
+            address: {
+                title: "Address",
+                cityState: "Province/City",
+                district: "District",
+                ward: "Ward",
+                streetAddress: "Street address",
+                postalCode: "Postal Code",
+                taxId: "TAX ID"
             },
             premium: {
                 title: "Premium Host",
@@ -368,8 +389,11 @@ export const en = {
                 recently: "recently"
             },
             personal: {
+                myProfile: "My Profile",
+                firstName: "First Name",
+                lastName: "Last Name",
                 title: "Personal Information",
-                edit: "Edit Profile",
+                edit: "Edit",
                 fullName: "Full Name",
                 email: "Email Address",
                 phone: "Phone Number",
@@ -470,5 +494,35 @@ export const en = {
         allRightsReserved: "All rights reserved",
         privacyPolicy: "Privacy Policy",
         cookiePolicy: "Cookie Policy"
+    },
+    admin_management: {
+        title: "User Management",
+        subtitle: "Manage system roles and permissions",
+        searchPlaceholder: "Search by name or email...",
+        filter: {
+            title: "Filter",
+            options: "Filter Options",
+            reset: "Reset",
+            apply: "Apply",
+            role: "Role",
+            status: "Account Status",
+            kyc: "eKYC Status",
+            sort: "Sort By"
+        },
+        roles: {
+            all: "All Roles",
+            super_admin: "Super Admin",
+            admin: "Admin",
+            staff: "Staff",
+            host: "Host",
+            renter: "Customer"
+        },
+        status: {
+            all: "All Statuses",
+            active: "Active",
+            suspended: "Suspended",
+            pending: "Pending",
+            blocked: "Blocked"
+        }
     }
 };

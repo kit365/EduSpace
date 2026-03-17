@@ -27,7 +27,13 @@ export const vi = {
         rating: "Đánh giá",
         verifiedSpace: "ĐÃ XÁC THỰC",
         spacesFound: "không gian tại TP. Hồ Chí Minh",
-        showingResults: "Hiển thị kết quả cho"
+        showingResults: "Hiển thị kết quả cho",
+        error: {
+            title: "Lỗi dữ liệu",
+            fetchUsers: "Không thể lấy danh sách người dùng",
+            fetchRoles: "Không thể lấy danh sách vai trò",
+            system: "Đã xảy ra lỗi hệ thống"
+        }
     },
     host: {
         register: {
@@ -343,12 +349,27 @@ export const vi = {
             }
         },
         profile: {
+            accountSettings: "Cài đặt Tài khoản",
             sidebar: {
+                myProfile: "Hồ sơ của tôi",
                 identity: "Cá nhân",
                 security: "Bảo mật",
+                teams: "Nhóm",
+                teamMember: "Thành viên nhóm",
                 alerts: "Thông báo",
                 billing: "Thanh toán",
+                dataExport: "Xuất dữ liệu",
+                deleteAccount: "Xóa tài khoản",
                 transactions: "Lịch sử Giao dịch"
+            },
+            address: {
+                title: "Địa chỉ",
+                cityState: "Tỉnh/Thành phố",
+                district: "Quận/Huyện",
+                ward: "Phường/Xã",
+                streetAddress: "Địa chỉ cụ thể",
+                postalCode: "Mã bưu điện",
+                taxId: "Mã số thuế"
             },
             premium: {
                 title: "Premium Host",
@@ -368,6 +389,9 @@ export const vi = {
                 recently: "gần đây"
             },
             personal: {
+                myProfile: "Hồ sơ của tôi",
+                firstName: "Tên",
+                lastName: "Họ",
                 title: "Thông tin Cá nhân",
                 edit: "Chỉnh sửa",
                 fullName: "Họ và tên",
@@ -470,5 +494,35 @@ export const vi = {
         allRightsReserved: "Mọi quyền được bảo lưu",
         privacyPolicy: "Chính sách bảo mật",
         cookiePolicy: "Chính sách cookie"
+    },
+    admin_management: {
+        title: "Quản lý Người dùng",
+        subtitle: "Quản lý vai trò và phân quyền hệ thống",
+        searchPlaceholder: "Tìm tên hoặc email...",
+        filter: {
+            title: "Bộ lọc",
+            options: "Tùy chọn lọc",
+            reset: "Reset",
+            apply: "Áp dụng",
+            role: "Vai trò",
+            status: "Trạng thái tài khoản",
+            kyc: "Trạng thái eKYC",
+            sort: "Sắp xếp"
+        },
+        roles: {
+            all: "Tất cả",
+            super_admin: "Super Admin",
+            admin: "Admin",
+            staff: "Nhân viên",
+            host: "Host",
+            renter: "Khách hàng"
+        },
+        status: {
+            all: "Tất cả",
+            active: "Hoạt động",
+            suspended: "Tạm ngưng",
+            pending: "Chờ duyệt",
+            blocked: "Đã khóa"
+        }
     }
 };
