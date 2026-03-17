@@ -33,19 +33,19 @@ public class PointEarningRuleController {
     }
 
     @PostMapping
-    @PreAuthorize(PreAuthorizeConstants.HAS_ROLE_ADMIN)
+    @PreAuthorize(PreAuthorizeConstants.HAS_ANY_ROLE_ADMIN_OR_SUPER)
     public ResponseEntity<ApiResponse<PointEarningRuleResponse>> createRule(@Valid @RequestBody PointEarningRuleRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(pointEarningRuleService.createRule(request)));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize(PreAuthorizeConstants.HAS_ROLE_ADMIN)
+    @PreAuthorize(PreAuthorizeConstants.HAS_ANY_ROLE_ADMIN_OR_SUPER)
     public ResponseEntity<ApiResponse<PointEarningRuleResponse>> updateRule(@PathVariable Long id, @Valid @RequestBody PointEarningRuleRequest request) {
         return ResponseEntity.ok(ApiResponse.success(pointEarningRuleService.updateRule(id, request)));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(PreAuthorizeConstants.HAS_ANY_ROLE_ADMIN_OR_SUPER)
     public ResponseEntity<ApiResponse<Void>> deleteRule(@PathVariable Long id) {
         pointEarningRuleService.deleteRule(id);
         return ResponseEntity.ok(ApiResponse.success(null));

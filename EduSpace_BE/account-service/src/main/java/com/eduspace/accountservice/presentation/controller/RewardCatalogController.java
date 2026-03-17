@@ -37,19 +37,19 @@ public class RewardCatalogController {
     }
 
     @PostMapping
-    @PreAuthorize(PreAuthorizeConstants.HAS_ROLE_ADMIN)
+    @PreAuthorize(PreAuthorizeConstants.HAS_ANY_ROLE_ADMIN_OR_SUPER)
     public ResponseEntity<ApiResponse<RewardCatalogResponse>> createReward(@Valid @RequestBody RewardCatalogRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(rewardCatalogService.createReward(request)));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize(PreAuthorizeConstants.HAS_ROLE_ADMIN)
+    @PreAuthorize(PreAuthorizeConstants.HAS_ANY_ROLE_ADMIN_OR_SUPER)
     public ResponseEntity<ApiResponse<RewardCatalogResponse>> updateReward(@PathVariable Long id, @Valid @RequestBody RewardCatalogRequest request) {
         return ResponseEntity.ok(ApiResponse.success(rewardCatalogService.updateReward(id, request)));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(PreAuthorizeConstants.HAS_ANY_ROLE_ADMIN_OR_SUPER)
     public ResponseEntity<ApiResponse<Void>> deleteReward(@PathVariable Long id) {
         rewardCatalogService.deleteReward(id);
         return ResponseEntity.ok(ApiResponse.success(null));

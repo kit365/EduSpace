@@ -27,9 +27,13 @@ public class UserResponse {
     String streetAddress;
     String postalCode;
     String taxId;
+    String hostType;
+    String verificationDocument;
+    String verificationStatus;
     Boolean isActive;
     Boolean isEmailVerified;
     Boolean is2faEnabled;
+    Integer pointBalance;
     Set<String> roles;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;

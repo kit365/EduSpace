@@ -78,6 +78,7 @@ public class UserMapper {
                 .isActive(entity.getIsActive())
                 .isEmailVerified(entity.getIsEmailVerified())
                 .is2faEnabled(entity.getIs2faEnabled())
+                .pointBalance(entity.getPointBalance())
                 .roles(mapRoles(entity.getRoles()))
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
