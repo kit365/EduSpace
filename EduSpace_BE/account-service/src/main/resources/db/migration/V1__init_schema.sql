@@ -65,6 +65,8 @@ CREATE INDEX IF NOT EXISTS idx_users_keycloak_id ON users (keycloak_id);
 -- 1. Default Roles
 INSERT INTO roles (name) VALUES ('STUDENT') ON CONFLICT (name) DO NOTHING;
 INSERT INTO roles (name) VALUES ('TUTOR') ON CONFLICT (name) DO NOTHING;
+INSERT INTO roles (name) VALUES ('GUEST') ON CONFLICT (name) DO NOTHING;
+INSERT INTO roles (name) VALUES ('HOST') ON CONFLICT (name) DO NOTHING;
 INSERT INTO roles (name) VALUES ('ADMIN') ON CONFLICT (name) DO NOTHING;
 INSERT INTO roles (name) VALUES ('SUPER_ADMIN') ON CONFLICT (name) DO NOTHING;
 
