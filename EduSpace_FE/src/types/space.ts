@@ -8,6 +8,8 @@ export type SpaceType = 'classroom' | 'meeting_room' | 'lab' | 'workshop' | 'sem
 
 export interface Space {
   id: number;
+  /** Slug do BE trả về sau khi tạo phòng — dùng cho URL /{slug} */
+  slug?: string;
   name: string;
   location: string;
   address?: string;

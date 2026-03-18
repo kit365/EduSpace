@@ -16,7 +16,7 @@ export function HostSpaceDetailsPage() {
     }, [id]);
 
     const spaceId = id ? parseInt(id) : 1;
-    const { data: space, loading, error } = useSpaceDetails(spaceId);
+    const { data: space, loading, error } = useSpaceDetails(String(spaceId));
 
     const onBack = () => navigate('/rental/spaces');
     const onEdit = () => navigate(`/rental/spaces/edit/${spaceId}`);

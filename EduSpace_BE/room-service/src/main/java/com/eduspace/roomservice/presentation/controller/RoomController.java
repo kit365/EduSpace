@@ -25,9 +25,15 @@ public class RoomController {
         return ApiResponse.success(roomService.getAllRooms());
     }
 
-    @GetMapping("/{id}")
-    public ApiResponse<RoomResponse> getById(@PathVariable Integer id) {
-        return ApiResponse.success(roomService.getRoomById(id));
+    /**
+     * Một segment: toàn số → theo id; ngược lại → theo slug.
+     */
+    @GetMapping("/{ref}")
+    public ApiResponse<RoomResponse> getByRef(@PathVariable String ref) {
+        if (ref != null && ref.matches("^\\d+$")) {
+            return ApiResponse.success(roomService.getRoomById(Integer.parseInt(ref)));
+        }
+        return ApiResponse.success(roomService.getRoomBySlug(ref));
     }
 
     @PostMapping

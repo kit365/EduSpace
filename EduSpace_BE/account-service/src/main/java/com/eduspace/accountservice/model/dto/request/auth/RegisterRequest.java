@@ -21,4 +21,7 @@ public class RegisterRequest {
 
     @NotBlank(message = "Full name is required")
     String fullName;
+
+    /** Có thì BE tạo luôn host_partner_applications (PENDING); user vẫn chỉ có role thường cho tới khi admin duyệt. */
+    RegisterHostPartnerPart hostPartnerApplication;
 }
