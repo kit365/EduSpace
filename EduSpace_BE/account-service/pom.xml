@@ -90,6 +90,13 @@
             <version>10.20.1</version>
         </dependency>
 
+        <!-- .env cho local: Spring không đọc .env mặc định -->
+        <dependency>
+            <groupId>io.github.cdimascio</groupId>
+            <artifactId>dotenv-java</artifactId>
+            <version>3.0.0</version>
+        </dependency>
+
         <!-- OAuth2 Resource Server (JWT validation with Keycloak) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

@@ -1,5 +1,5 @@
 server:
-  port: 8082
+  port: ${BOOKING_SERVICE_PORT:8082}
 
 spring:
   application:
@@ -8,6 +8,6 @@ spring:
 eureka:
   client:
     service-url:
-      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:${DISCOVERY_SERVER_PORT:8761}/eureka/}
   instance:
     prefer-ip-address: true

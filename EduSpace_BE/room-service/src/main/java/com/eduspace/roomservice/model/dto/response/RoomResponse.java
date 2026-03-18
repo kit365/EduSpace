@@ -26,6 +26,7 @@ public class RoomResponse {
     RoomType roomType;
     BookingType bookingType;
     String name;
+    String slug;
     Integer capacity;
     BigDecimal area;
     String location;

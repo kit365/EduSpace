@@ -6,12 +6,14 @@ import { SearchHeader, SearchFilters, SearchResults } from '../components';
 import { PRICE_RANGE } from '../../../../../config';
 import { useSearchSpaces } from '../../spaces/hooks/useSpaces';
 import { Loader2 } from 'lucide-react';
+import type { Space } from '@/types/space';
 
 export function SearchPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
-  const handleSpaceClick = (id: number) => navigate(`/spaces/${id}`);
+  const handleSpaceClick = (space: Space) =>
+    navigate(`/${encodeURIComponent(String(space.slug ?? space.id))}`);
   const handleBackToHome = () => navigate('/');
 
   const [priceRange, setPriceRange] = useState<[number, number]>([PRICE_RANGE.MIN, PRICE_RANGE.MAX]);

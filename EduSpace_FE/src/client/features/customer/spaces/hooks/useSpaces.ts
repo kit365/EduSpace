@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { SpaceDetails, Space } from '../../../../../types/space';
 import { spaceService } from '../services/spaceService';
 
-export function useSpaceDetails(id: number) {
+export function useSpaceDetails(spaceRef: string) {
     const [data, setData] = useState<SpaceDetails | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<Error | null>(null);
@@ -11,16 +11,17 @@ export function useSpaceDetails(id: number) {
         const fetch = async () => {
             try {
                 setLoading(true);
-                const details = await spaceService.getSpaceDetails(id);
+                setError(null);
+                const details = await spaceService.getSpaceDetails(spaceRef);
                 setData(details);
-            } catch (err: any) {
-                setError(err);
+            } catch (err: unknown) {
+                setError(err instanceof Error ? err : new Error('Failed'));
             } finally {
                 setLoading(false);
             }
         };
-        fetch();
-    }, [id]);
+        if (spaceRef) fetch();
+    }, [spaceRef]);
 
     return { data, loading, error };
 }

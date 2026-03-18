@@ -35,6 +35,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/accounts/admin/**").hasAnyRole(
                                 Role.ADMIN.name(),
                                 Role.SUPER_ADMIN.name())
+                        .requestMatchers("/api/v1/accounts/host-applications/admin/**").hasAnyRole(
+                                Role.ADMIN.name(),
+                                Role.SUPER_ADMIN.name())
                         .requestMatchers(AdminPaths.BASE_PATH + "/**").hasAnyRole(
                                 Role.ADMIN.name(),
                                 Role.SUPER_ADMIN.name())

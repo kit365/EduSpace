@@ -12,6 +12,7 @@ import com.eduspace.accountservice.model.dto.response.auth.LoginResponse;
 import com.eduspace.accountservice.model.entity.RoleEntity;
 import com.eduspace.accountservice.model.entity.UserEntity;
 import com.eduspace.accountservice.model.mapper.UserMapper;
+import com.eduspace.accountservice.persistence.repository.HostPartnerApplicationRepository;
 import com.eduspace.accountservice.persistence.repository.RoleRepository;
 import com.eduspace.accountservice.persistence.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,6 +50,8 @@ class AuthServiceImplTest {
     private StringRedisTemplate redisTemplate;
     @Mock
     private ValueOperations<String, String> valueOperations;
+    @Mock
+    private HostPartnerApplicationRepository hostPartnerApplicationRepository;
 
     @InjectMocks
     private AuthServiceImpl authServiceImpl; // Target implementation
@@ -121,12 +124,18 @@ class AuthServiceImplTest {
         when(keycloakUserService.createUser(anyString(), anyString(), anyString())).thenReturn("keycloak-id");
         when(roleRepository.findByName(Role.GUEST.getName())).thenReturn(Optional.of(role));
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(userRepository.save(any(UserEntity.class))).thenAnswer(inv -> {
+            UserEntity u = inv.getArgument(0);
+            ReflectionTestUtils.setField(u, "id", "user-uuid-test");
+            return u;
+        });
 
         // Act
         authService.register(request);
 
         // Assert
         verify(userRepository).save(any(UserEntity.class));
+        verify(hostPartnerApplicationRepository, never()).save(any());
         verify(emailService).sendVerificationEmail(eq("test@email.com"), eq("Full Name"), anyString());
     }
 

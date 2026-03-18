@@ -48,6 +48,9 @@ public class RoomEntity {
     @Column(name = "name")
     String name;
 
+    @Column(name = "slug", length = 220, unique = true)
+    String slug;
+
     @Column(name = "capacity")
     Integer capacity;
 

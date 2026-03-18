@@ -57,6 +57,12 @@ export function BecomeHostCTA() {
                             {t('customer.home.cta.registerNow')}
                             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </button>
+                        <p className="mt-4 max-w-md text-xs font-medium text-gray-400">
+                            {t(
+                                'customer.home.cta.hostNote',
+                                'Giống bước "List My Space" khi tạo tài khoản: cần đăng nhập, điền thông tin & KYC (URL ảnh tạm). Admin duyệt sau.',
+                            )}
+                        </p>
                     </div>
 
                     <div className="relative">
