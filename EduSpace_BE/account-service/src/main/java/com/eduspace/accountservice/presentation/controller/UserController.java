@@ -1,6 +1,8 @@
 package com.eduspace.accountservice.presentation.controller;
 
 import com.eduspace.accountservice.exception.SuccessCode;
+import com.eduspace.accountservice.exception.AppException;
+import com.eduspace.accountservice.exception.ErrorCode;
 import com.eduspace.accountservice.model.dto.request.user.ChangePasswordRequest;
 import com.eduspace.accountservice.model.dto.request.user.UpdateProfileRequest;
 import com.eduspace.accountservice.model.dto.response.ApiResponse;
@@ -9,6 +11,8 @@ import com.eduspace.accountservice.model.dto.response.PageResponse;
 import com.eduspace.accountservice.model.dto.response.user.UserResponse;
 import com.eduspace.accountservice.business.service.UserService;
 import com.eduspace.accountservice.presentation.constants.AccountPaths;
+
+import org.springframework.util.StringUtils;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -37,12 +41,20 @@ public class UserController {
                 String keycloakId = jwt.getSubject();
                 UserResponse response;
 
-                if (keycloakId != null) {
+                String email = jwt.getClaimAsString("email");
+                String preferredUsername = jwt.getClaimAsString("preferred_username");
+                String username = jwt.getClaimAsString("username");
+
+                String candidateEmail = StringUtils.hasText(email)
+                        ? email
+                        : (StringUtils.hasText(preferredUsername) ? preferredUsername : username);
+
+                if (StringUtils.hasText(candidateEmail)) {
+                        response = userService.getProfileByEmail(candidateEmail.trim());
+                } else if (keycloakId != null) {
                         response = userService.getProfile(keycloakId);
                 } else {
-                        String email = jwt.getClaimAsString("email");
-                        System.out.println("DEBUG: Keycloak sub is null, falling back to email: " + email);
-                        response = userService.getProfileByEmail(email);
+                        throw new AppException(ErrorCode.USER_NOT_FOUND);
                 }
 
                 String message = messageSource.getMessage(SuccessCode.USER_PROFILE_GET_SUCCESS.getMessageKey(), null,

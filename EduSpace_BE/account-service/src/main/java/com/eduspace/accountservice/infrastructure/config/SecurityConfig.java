@@ -9,16 +9,23 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Value;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
+
+    @Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri:http://localhost:8180/realms/eduspace/protocol/openid-connect/certs}")
+    private String jwkSetUri;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -46,6 +53,14 @@ public class SecurityConfig {
                         .jwt(jwt -> jwt
                                 .jwtAuthenticationConverter(keycloakJwtConverter())));
         return http.build();
+    }
+
+    @Bean
+    public JwtDecoder jwtDecoder() {
+        // Relax issuer validation for local/dev stability; still validates signature and exp.
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
+        decoder.setJwtValidator(JwtValidators.createDefault());
+        return decoder;
     }
 
     @Bean

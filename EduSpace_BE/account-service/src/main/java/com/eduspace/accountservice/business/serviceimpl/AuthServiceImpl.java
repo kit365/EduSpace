@@ -95,28 +95,49 @@ public class AuthServiceImpl implements AuthService {
                 .roles(Set.of(guestRole))
                 .build();
 
-        userRepository.save(user);
-        log.info("User registered: {} (keycloakId: {})", request.getEmail(), keycloakId);
+        // If user registers as Host, map host fields into UserEntity first.
+        // Then save user to generate id, and finally create HostPartnerApplicationEntity.
+        String at = null;
+        String addr = null;
+        String phone = null;
+        String documentFrontUrl = null;
+        String documentBackUrl = null;
+        String businessLicenseUrl = null;
 
         if (request.getHostPartnerApplication() != null) {
             var hp = request.getHostPartnerApplication();
-            String at = hp.getApplicantType() != null ? hp.getApplicantType().trim() : "";
-            String addr = hp.getAddress() != null ? hp.getAddress().trim() : "";
+            at = hp.getApplicantType() != null ? hp.getApplicantType().trim() : "";
+            addr = hp.getAddress() != null ? hp.getAddress().trim() : "";
             if (at.isEmpty() || addr.isEmpty()) {
                 throw new AppException(ErrorCode.INVALID_KEY);
             }
+
+            phone = hp.getPhone() != null ? hp.getPhone().trim() : null;
+            documentFrontUrl = trimNull(hp.getDocumentFrontUrl());
+            documentBackUrl = trimNull(hp.getDocumentBackUrl());
+            businessLicenseUrl = trimNull(hp.getBusinessLicenseUrl());
+
+            user.setHostType(at);
+            user.setPhoneNumber(phone);
+            user.setStreetAddress(addr);
+        }
+
+        userRepository.save(user);
+        log.info("User registered: {} (keycloakId: {})", request.getEmail(), keycloakId);
+
+        if (at != null) {
             String msg = "Đăng ký host qua form tạo tài khoản.";
             HostPartnerApplicationEntity app = HostPartnerApplicationEntity.builder()
                     .userId(user.getId())
                     .applicantType(at)
                     .fullName(request.getFullName().trim())
-                    .phone(hp.getPhone() != null ? hp.getPhone().trim() : null)
+                    .phone(phone)
                     .email(request.getEmail().trim())
                     .address(addr)
                     .message(msg)
-                    .documentFrontUrl(trimNull(hp.getDocumentFrontUrl()))
-                    .documentBackUrl(trimNull(hp.getDocumentBackUrl()))
-                    .businessLicenseUrl(trimNull(hp.getBusinessLicenseUrl()))
+                    .documentFrontUrl(documentFrontUrl)
+                    .documentBackUrl(documentBackUrl)
+                    .businessLicenseUrl(businessLicenseUrl)
                     .status(HostPartnerApplicationStatus.PENDING)
                     .build();
             hostPartnerApplicationRepository.save(app);
