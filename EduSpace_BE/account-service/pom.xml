@@ -90,6 +90,13 @@
             <version>10.20.1</version>
         </dependency>
 
+        <!-- .env cho local: Spring không đọc .env mặc định -->
+        <dependency>
+            <groupId>io.github.cdimascio</groupId>
+            <artifactId>dotenv-java</artifactId>
+            <version>3.0.0</version>
+        </dependency>
+
         <!-- OAuth2 Resource Server (JWT validation with Keycloak) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -183,6 +190,19 @@
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>0.8.11</version>
+                <configuration>
+                    <excludes>
+                        <exclude>com/eduspace/accountservice/model/dto/**</exclude>
+                        <exclude>com/eduspace/accountservice/model/entity/**</exclude>
+                        <exclude>com/eduspace/accountservice/model/mapper/**</exclude>
+                        <exclude>com/eduspace/accountservice/infrastructure/**</exclude>
+                        <exclude>com/eduspace/accountservice/common/**</exclude>
+                        <exclude>com/eduspace/accountservice/exception/**</exclude>
+                        <exclude>com/eduspace/accountservice/persistence/repository/**</exclude>
+                        <exclude>com/eduspace/accountservice/AccountServiceApplication.class</exclude>
+                        <exclude>com/eduspace/accountservice/presentation/constants/**</exclude>
+                    </excludes>
+                </configuration>
                 <executions>
                     <execution>
                         <goals>

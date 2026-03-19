@@ -3,7 +3,7 @@ import { authService } from '../services/authService';
 import { useAuthStore } from '../stores/authStore';
 import type { LoginRequest, RegisterRequest } from '../types';
 import { AxiosError } from 'axios';
-import type { ApiResponse } from '../../../../../types/api';
+import { ApiResponse, AuthResponse } from '@/types';
 
 // ==========================================
 // useLogin - Đăng nhập

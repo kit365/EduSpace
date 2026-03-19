@@ -12,6 +12,8 @@ public interface RoomService {
 
     RoomResponse getRoomById(Integer id);
 
+    RoomResponse getRoomBySlug(String slug);
+
     RoomResponse create(RoomRequest request);
 
     RoomResponse update(Integer id, RoomRequest request);

@@ -138,7 +138,7 @@ export function SecurityTab() {
     <div className="space-y-6">
       {/* Change Password */}
       <div>
-        <h3 className="font-black mb-6 text-2xl tracking-tight text-gray-900">{t('customer.profile.security.title')}</h3>
+        <h2 className="text-xl font-bold text-[#333333] mb-6">{t('customer.profile.security.title')}</h2>
 
         {error && (
           <div className="mb-6 p-4 rounded-2xl bg-red-50 text-red-500 text-sm font-bold border border-red-100 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">

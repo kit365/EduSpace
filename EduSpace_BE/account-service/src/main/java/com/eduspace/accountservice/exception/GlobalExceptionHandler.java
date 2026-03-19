@@ -5,7 +5,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authorization.AuthorizationDeniedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -30,6 +33,28 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(errorCode.getHttpStatus()).body(apiResponse);
     }
 
+    @ExceptionHandler(value = AuthorizationDeniedException.class)
+    public ResponseEntity<ApiResponse<?>> handlingAuthorizationDeniedException(AuthorizationDeniedException exception) {
+        log.warn("Access denied: {}", exception.getMessage());
+        ErrorCode errorCode = ErrorCode.FORBIDDEN;
+        String message = resolveMessage(errorCode.getMessageKey());
+        ApiResponse<?> apiResponse = ApiResponse.error(
+                errorCode.getHttpStatus().value(),
+                errorCode.getCode(),
+                message);
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(apiResponse);
+    }
+
+    @ExceptionHandler(value = HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiResponse<?>> handlingMethodNotSupportedException(HttpRequestMethodNotSupportedException exception) {
+        log.warn("Method not supported: {}", exception.getMessage());
+        ApiResponse<?> apiResponse = ApiResponse.error(
+                HttpStatus.METHOD_NOT_ALLOWED.value(),
+                "METHOD_NOT_ALLOWED",
+                exception.getMessage());
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(apiResponse);
+    }
+
     @ExceptionHandler(value = Exception.class)
     public ResponseEntity<ApiResponse<?>> handlingRuntimeException(Exception exception) {
         log.error("Unhandled exception occurred: ", exception);
@@ -38,7 +63,7 @@ public class GlobalExceptionHandler {
                 ErrorCode.UNCATEGORIZED_EXCEPTION.getHttpStatus().value(),
                 ErrorCode.UNCATEGORIZED_EXCEPTION.getCode(),
                 message);
-        return ResponseEntity.badRequest().body(apiResponse);
+        return ResponseEntity.status(ErrorCode.UNCATEGORIZED_EXCEPTION.getHttpStatus()).body(apiResponse);
     }
 
     @ExceptionHandler(value = MethodArgumentNotValidException.class)

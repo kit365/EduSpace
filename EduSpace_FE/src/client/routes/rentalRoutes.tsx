@@ -3,6 +3,7 @@ import { HostDashboardPage } from "../features/host/pages/HostDashboardPage";
 import { SpacesPage } from "../features/host/pages/SpacesPage";
 import { BranchesPage } from "../features/host/pages/BranchesPage";
 import { ListSpacePage } from "../features/host/pages/ListSpacePage";
+import { RentalSpacesNewRedirect } from "../features/host/pages/RentalSpacesNewRedirect";
 import { CalendarPage } from "../features/host/pages/CalendarPage";
 import { FinancePage } from "../features/host/pages/FinancePage";
 import { KycPage } from "../features/host/pages/KycPage";
@@ -30,7 +31,7 @@ export const rentalRoutes: RouteObject[] = [
             { path: 'room-types', element: <RoomTypesPage /> },
             { path: 'room-types/new', element: <RoomTypeFormPage /> },
             { path: 'room-types/edit/:id', element: <RoomTypeFormPage /> },
-            { path: 'spaces/new', element: <ListSpacePage /> },
+            { path: 'spaces/new', element: <RentalSpacesNewRedirect /> },
             { path: 'spaces/edit/:id', element: <ListSpacePage /> },
             { path: 'spaces/:id', element: <HostSpaceDetailsPage /> },
             { path: 'calendar', element: <CalendarPage /> },

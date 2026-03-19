@@ -1,8 +1,12 @@
 package com.eduspace.accountservice.presentation.controller;
 
 import com.eduspace.accountservice.business.service.AuthService;
-import com.eduspace.accountservice.model.dto.request.LoginRequest;
-import com.eduspace.accountservice.model.dto.response.LoginResponse;
+import com.eduspace.accountservice.exception.AppException;
+import com.eduspace.accountservice.exception.ErrorCode;
+import com.eduspace.accountservice.model.dto.request.auth.LoginRequest;
+import com.eduspace.accountservice.model.dto.request.auth.RefreshTokenRequest;
+import com.eduspace.accountservice.model.dto.request.auth.RegisterRequest;
+import com.eduspace.accountservice.model.dto.response.auth.LoginResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,11 +52,60 @@ class AuthControllerTest {
 
         // Act & Assert
         mockMvc.perform(post("/api/v1/auth/login")
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED) // Wait, the controller says @RequestBody, so it
-                                                                    // should be JSON
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void login_InvalidCredentials_ReturnsError() throws Exception {
+        // Arrange
+        LoginRequest request = new LoginRequest();
+        request.setEmail("wrong@email.com");
+        request.setPassword("wrong");
+
+        when(authService.login(any(LoginRequest.class)))
+                .thenThrow(new AppException(ErrorCode.UNAUTHORIZED));
+
+        // Act & Assert
+        mockMvc.perform(post("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    void register_Success() throws Exception {
+        RegisterRequest request = new RegisterRequest();
+        request.setEmail("new@email.com");
+        request.setPassword("password123");
+        request.setFullName("New User");
+
+        mockMvc.perform(post("/api/v1/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void verifyEmail_Success() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/verify-email")
+                .param("token", "valid-token"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void refreshToken_Success() throws Exception {
+        RefreshTokenRequest request = new RefreshTokenRequest();
+        request.setRefreshToken("refresh-token");
+
+        when(authService.refreshToken(anyString())).thenReturn(new LoginResponse());
+
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
     }
 }

@@ -27,7 +27,13 @@ export const en = {
         rating: "Rating",
         verifiedSpace: "VERIFIED SPACE",
         spacesFound: "spaces in Ho Chi Minh City",
-        showingResults: "Showing results for"
+        showingResults: "Showing results for",
+        error: {
+            title: "Data Error",
+            fetchUsers: "Could not fetch user list",
+            fetchRoles: "Could not fetch role list",
+            system: "A system error occurred"
+        }
     },
     host: {
         register: {
@@ -343,12 +349,27 @@ export const en = {
             }
         },
         profile: {
+            accountSettings: "Account Settings",
             sidebar: {
+                myProfile: "My Profile",
                 identity: "Identity",
                 security: "Security",
-                alerts: "Alerts",
+                teams: "Teams",
+                teamMember: "Team Member",
+                alerts: "Notifications",
                 billing: "Billing",
+                dataExport: "Data Export",
+                deleteAccount: "Delete Account",
                 transactions: "Transaction History"
+            },
+            address: {
+                title: "Address",
+                cityState: "Province/City",
+                district: "District",
+                ward: "Ward",
+                streetAddress: "Street address",
+                postalCode: "Postal Code",
+                taxId: "TAX ID"
             },
             premium: {
                 title: "Premium Host",
@@ -368,8 +389,11 @@ export const en = {
                 recently: "recently"
             },
             personal: {
+                myProfile: "My Profile",
+                firstName: "First Name",
+                lastName: "Last Name",
                 title: "Personal Information",
-                edit: "Edit Profile",
+                edit: "Edit",
                 fullName: "Full Name",
                 email: "Email Address",
                 phone: "Phone Number",
@@ -470,5 +494,117 @@ export const en = {
         allRightsReserved: "All rights reserved",
         privacyPolicy: "Privacy Policy",
         cookiePolicy: "Cookie Policy"
+    },
+    admin_sidebar: {
+        dashboard: "Dashboard",
+        finance: "Finance & Payouts",
+        approvals: "Approvals & KYC",
+        disputes: "Disputes & Reports",
+        hosts: "Host Management",
+        users: "User Management",
+        roles: "Role & Perms",
+        settings: "System Settings",
+        points: "Points & Rewards",
+        signOut: "Sign Out",
+        adminPortal: "Admin Portal",
+        systemControl: "System Control"
+    },
+    admin_management: {
+        title: "User Management",
+        subtitle: "Manage system roles and permissions",
+        searchPlaceholder: "Search by name or email...",
+        filter: {
+            title: "Filter",
+            options: "Filter Options",
+            reset: "Reset",
+            apply: "Apply",
+            role: "Role",
+            status: "Account Status",
+            kyc: "eKYC Status",
+            sort: "Sort By"
+        },
+        roles: {
+            all: "All Roles",
+            super_admin: "Super Admin",
+            admin: "Admin",
+            staff: "Staff",
+            host: "Host",
+            renter: "Customer"
+        },
+        status: {
+            all: "All Statuses",
+            active: "Active",
+            suspended: "Suspended",
+            pending: "Pending",
+            blocked: "Blocked"
+        }
+    },
+    points: {
+        title: "Points & Rewards",
+        subtitle: "Earning rules, reward catalog and transactions",
+        tabs: {
+            rules: "Point Rules",
+            rewards: "Reward Catalog",
+            transactions: "Transactions"
+        },
+        rules: {
+            actionName: "Action",
+            pointsEarned: "Points earned",
+            description: "Description",
+            isActive: "Active",
+            addRule: "Add rule",
+            editRule: "Edit rule",
+            deleteRule: "Delete rule",
+            noRules: "No rules yet",
+            emptyRuleCta: "No earning rules yet. Create your first rule!",
+            refresh: "Refresh"
+        },
+        rewards: {
+            name: "Reward name",
+            pointsRequired: "Points required",
+            stock: "Stock",
+            imageUrl: "Image URL",
+            addReward: "Add reward",
+            editReward: "Edit reward",
+            deleteReward: "Delete reward",
+            noRewards: "No rewards yet",
+            emptyRewardCta: "No rewards in catalog yet. Add your first reward!",
+            unlimited: "Unlimited"
+        },
+        transactions: {
+            userId: "User ID",
+            load: "Load",
+            userFullName: "User",
+            points: "Points",
+            type: "Type",
+            typeEarn: "Earn",
+            typeRedeem: "Redeem",
+            reason: "Reason",
+            date: "Date",
+            noTransactions: "No transactions"
+        },
+        error: {
+            fetchRules: "Could not load rules",
+            fetchRewards: "Could not load reward catalog",
+            fetchTransactions: "Could not load transactions",
+            fetchConfig: "Could not load config",
+            updateConfig: "Could not update config"
+        },
+        success: {
+            ruleCreated: "Rule created",
+            ruleUpdated: "Rule updated",
+            ruleDeleted: "Rule deleted",
+            rewardCreated: "Reward created",
+            rewardUpdated: "Reward updated",
+            rewardDeleted: "Reward deleted",
+            configUpdated: "Conversion rate updated"
+        },
+        confirmDelete: "Are you sure you want to delete?",
+        globalSettings: "Global Settings",
+        conversionRate: "Conversion rate (Points → VNĐ)",
+        conversionRateLink: "Edit conversion rate in System Settings",
+        conversionLabel: "1 Point =",
+        conversionSuffix: "VNĐ",
+        saveConfig: "Save"
     }
 };

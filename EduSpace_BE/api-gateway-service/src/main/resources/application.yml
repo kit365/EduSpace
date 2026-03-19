@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: ${GATEWAY_PORT:8080}
 
 spring:
   application:
@@ -13,7 +13,8 @@ spring:
         - id: account-service
           uri: lb://ACCOUNT-SERVICE
           predicates:
-            - Path=/api/v1/accounts/**, /api/v1/auth/**
+            # Forward account, auth, points & rewards endpoints to ACCOUNT-SERVICE
+            - Path=/api/v1/accounts/**, /api/v1/auth/**, /api/v1/points/**, /api/v1/rewards/**
 
         # Account Service Swagger Docs
         - id: account-service-docs
@@ -69,13 +70,13 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/eduspace}
-          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/realms/eduspace/protocol/openid-connect/certs}
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:${KEYCLOAK_PORT:8180}/realms/eduspace}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:${KEYCLOAK_PORT:8180}/realms/eduspace/protocol/openid-connect/certs}
 
 eureka:
   client:
     service-url:
-      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:${DISCOVERY_SERVER_PORT:8761}/eureka/}
   instance:
     prefer-ip-address: true
 

@@ -5,7 +5,7 @@ import { formatCurrency } from '../../../../../utils';
 import { useTopRatedSpaces } from '../../spaces/hooks/useSpaces';
 
 interface TopRatedSpacesProps {
-  onSpaceClick: (spaceId: number) => void;
+  onSpaceClick: (space: Space) => void;
 }
 
 export function TopRatedSpaces({ onSpaceClick }: TopRatedSpacesProps) {
@@ -39,7 +39,7 @@ export function TopRatedSpaces({ onSpaceClick }: TopRatedSpacesProps) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
         {spaces.map((space) => (
-          <SpaceCard key={space.id} space={space} onClick={() => onSpaceClick(space.id)} />
+          <SpaceCard key={space.id} space={space} onClick={() => onSpaceClick(space)} />
         ))}
       </div>
     </section>

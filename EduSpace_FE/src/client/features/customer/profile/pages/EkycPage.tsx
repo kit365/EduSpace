@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CustomerLayout } from '../../../../layouts/CustomerLayout';
 import { Camera, Upload, CheckCircle2, XCircle, Loader2, ShieldCheck, ScanFace, CreditCard, ArrowRight, AlertTriangle } from 'lucide-react';
-import { EkycResult } from '../../../../../types/api';
+import { EkycResult } from '@/types';
 
 type EkycStep = 'intro' | 'front' | 'back' | 'selfie' | 'processing' | 'result';
 
