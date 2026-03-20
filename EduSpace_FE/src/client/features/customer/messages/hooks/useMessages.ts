@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Conversation, Message } from '../data/mockData';
 import { messageService } from '../services/messageService';
+import type { Conversation } from '../types';
 
 export function useConversations() {
     const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -8,9 +8,12 @@ export function useConversations() {
 
     useEffect(() => {
         const fetch = async () => {
-            const data = await messageService.getConversations();
-            setConversations(data);
-            setLoading(false);
+            try {
+                const data = await messageService.getConversations();
+                setConversations(data);
+            } finally {
+                setLoading(false);
+            }
         };
         fetch();
     }, []);

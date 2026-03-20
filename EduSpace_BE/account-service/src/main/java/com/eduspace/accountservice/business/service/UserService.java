@@ -1,7 +1,10 @@
 package com.eduspace.accountservice.business.service;
 
 import com.eduspace.accountservice.model.dto.request.UpdateProfileRequest;
+import com.eduspace.accountservice.model.dto.response.PublicUserProfileResponse;
 import com.eduspace.accountservice.model.dto.response.UserResponse;
+
+import java.util.List;
 
 public interface UserService {
 
@@ -18,4 +21,14 @@ public interface UserService {
     void enable2fa(String email, String code);
 
     void disable2fa(String email, String code);
+
+    PublicUserProfileResponse getPublicProfileByUserId(String userId);
+
+    List<PublicUserProfileResponse> getPublicProfilesByUserIds(List<String> userIds);
+
+    PublicUserProfileResponse getPublicProfileByKeycloakId(String keycloakId);
+
+    List<PublicUserProfileResponse> getPublicProfilesByKeycloakIds(List<String> keycloakIds);
+
+    List<PublicUserProfileResponse> searchPublicProfiles(String query, int limit);
 }

@@ -51,6 +51,22 @@ services:
     networks:
       - eduspace-network
 
+  # DB của Conversation Service
+  conversation-db:
+    image: postgres:16-alpine
+    container_name: conversation-db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: eduspace_conversation
+    ports:
+      - "5435:5432"
+    volumes:
+      - conversation-pgdata:/var/lib/postgresql/data
+    networks:
+      - eduspace-network
+
   # ═══════════════════════════════════════════════════════════════
   # INFRASTRUCTURE
   # ═══════════════════════════════════════════════════════════════
@@ -64,6 +80,33 @@ services:
       - "6379:6379"
     volumes:
       - redisdata:/data
+    networks:
+      - eduspace-network
+
+  # Kafka (Redpanda) — Saga/event bus
+  kafka:
+    image: redpandadata/redpanda:v24.3.6
+    container_name: eduspace-kafka
+    restart: always
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp
+      - "1"
+      - --memory
+      - 1G
+      - --reserve-memory
+      - 0M
+      - --node-id
+      - "0"
+      - --check=false
+      - --kafka-addr
+      - PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr
+      - PLAINTEXT://kafka:9092
+    ports:
+      - "9092:9092"
     networks:
       - eduspace-network
 
@@ -175,6 +218,32 @@ services:
     networks:
       - eduspace-network
 
+  # Conversation Service → conversation-db:5432/eduspace_conversation
+  conversation-service:
+    build:
+      context: ./conversation-service
+      dockerfile: Dockerfile
+    container_name: conversation-service
+    ports:
+      - "8083:8083"
+    environment:
+      SERVER_PORT: 8083
+      SPRING_DATASOURCE_URL: jdbc:postgresql://conversation-db:5432/eduspace_conversation
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/eduspace
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/eduspace/protocol/openid-connect/certs
+      EUREKA_SERVER_URL: http://discovery-server:8761/eureka/
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MEDIA_PUBLIC_BASE_URL: http://localhost:${GATEWAY_PORT}
+    depends_on:
+      - conversation-db
+      - kafka
+      - keycloak
+      - discovery-server
+    networks:
+      - eduspace-network
+
   # API Gateway
   api-gateway:
     build:
@@ -204,5 +273,6 @@ volumes:
   account-pgdata:
   booking-pgdata:
   room-pgdata:
+  conversation-pgdata:
   redisdata:
   keycloakdata:

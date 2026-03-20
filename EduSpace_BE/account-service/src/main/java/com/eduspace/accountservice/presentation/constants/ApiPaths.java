@@ -27,5 +27,10 @@ public final class ApiPaths {
 
         public static final String BASE_PATH = BASE + "/accounts";
         public static final String ME = "/me";
+        public static final String PUBLIC_PROFILE = "/{userId}/public";
+        public static final String PUBLIC_BATCH = "/public/batch";
+        public static final String PUBLIC_BY_KEYCLOAK = "/public/by-keycloak/{keycloakId}";
+        public static final String PUBLIC_BY_KEYCLOAK_BATCH = "/public/by-keycloak/batch";
+        public static final String PUBLIC_SEARCH = "/public/search";
     }
 }

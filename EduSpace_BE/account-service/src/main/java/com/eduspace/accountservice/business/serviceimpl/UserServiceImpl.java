@@ -1,6 +1,7 @@
 package com.eduspace.accountservice.business.serviceimpl;
 
 import com.eduspace.accountservice.model.dto.request.UpdateProfileRequest;
+import com.eduspace.accountservice.model.dto.response.PublicUserProfileResponse;
 import com.eduspace.accountservice.model.dto.response.UserResponse;
 import com.eduspace.accountservice.model.dto.response.TwoFactorResponse;
 import com.eduspace.accountservice.model.entity.UserEntity;
@@ -21,6 +22,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Slf4j
 @Service
@@ -144,5 +147,56 @@ public class UserServiceImpl implements UserService {
         user.setTotpSecret(null);
         userRepository.save(user);
         log.info("2FA disabled successfully for user: {}", email);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PublicUserProfileResponse getPublicProfileByUserId(String userId) {
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        return userMapper.toPublicUserProfile(user);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PublicUserProfileResponse> getPublicProfilesByUserIds(List<String> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return List.of();
+        }
+        return userRepository.findAllById(userIds).stream()
+                .map(userMapper::toPublicUserProfile)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PublicUserProfileResponse getPublicProfileByKeycloakId(String keycloakId) {
+        UserEntity user = userRepository.findByKeycloakId(keycloakId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        return userMapper.toPublicUserProfile(user);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PublicUserProfileResponse> getPublicProfilesByKeycloakIds(List<String> keycloakIds) {
+        if (keycloakIds == null || keycloakIds.isEmpty()) {
+            return List.of();
+        }
+        return userRepository.findAllByKeycloakIdIn(keycloakIds).stream()
+                .map(userMapper::toPublicUserProfile)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PublicUserProfileResponse> searchPublicProfiles(String query, int limit) {
+        if (query == null || query.isBlank()) {
+            return List.of();
+        }
+        int safeLimit = Math.min(Math.max(limit, 1), 50);
+        return userRepository.searchByEmailOrFullName(query).stream()
+                .limit(safeLimit)
+                .map(userMapper::toPublicUserProfile)
+                .toList();
     }
 }
