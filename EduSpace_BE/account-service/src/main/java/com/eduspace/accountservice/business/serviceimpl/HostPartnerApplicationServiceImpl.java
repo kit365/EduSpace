@@ -57,17 +57,28 @@ public class HostPartnerApplicationServiceImpl implements HostPartnerApplication
      */
     private UserEntity resolveUserFromJwt(Jwt jwt) {
         String sub = jwt.getSubject();
-        if (StringUtils.hasText(sub)) {
-            return userRepository
-                    .findByKeycloakId(sub)
-                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        }
         String email = jwt.getClaimAsString("email");
-        if (StringUtils.hasText(email)) {
-            return userRepository
-                    .findByEmail(email.trim())
-                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        String preferredUsername = jwt.getClaimAsString("preferred_username");
+        String username = jwt.getClaimAsString("username");
+
+        String candidateEmail = StringUtils.hasText(email) ? email : (StringUtils.hasText(preferredUsername) ? preferredUsername : username);
+        if (StringUtils.hasText(candidateEmail)) {
+            Optional<UserEntity> byEmail = userRepository.findByEmail(candidateEmail.trim());
+            if (byEmail.isPresent()) {
+                return byEmail.get();
+            }
         }
+
+        // Fallback to Keycloak user id (sub) if email resolution failed.
+        if (StringUtils.hasText(sub)) {
+            Optional<UserEntity> byKeycloakId = userRepository.findByKeycloakId(sub);
+            if (byKeycloakId.isPresent()) {
+                return byKeycloakId.get();
+            }
+        }
+
+        log.warn("Cannot resolve local user from JWT. sub={}, email={}, preferred_username={}, username={}",
+                sub, email, preferredUsername, username);
         throw new AppException(ErrorCode.USER_NOT_FOUND);
     }
 
