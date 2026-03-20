@@ -1,8 +1,8 @@
 package com.eduspace.accountservice.model.mapper;
 
-import com.eduspace.accountservice.model.dto.request.UpdateProfileRequest;
+import com.eduspace.accountservice.model.dto.request.user.UpdateProfileRequest;
 import com.eduspace.accountservice.model.dto.response.PublicUserProfileResponse;
-import com.eduspace.accountservice.model.dto.response.UserResponse;
+import com.eduspace.accountservice.model.dto.response.user.UserResponse;
 import com.eduspace.accountservice.model.entity.RoleEntity;
 import com.eduspace.accountservice.model.entity.UserEntity;
 import org.springframework.stereotype.Component;
@@ -28,14 +28,29 @@ public class UserMapper {
         if (request.getAvatarUrl() != null) {
             entity.setAvatarUrl(request.getAvatarUrl());
         }
-        if (request.getStudentId() != null) {
-            entity.setStudentId(request.getStudentId());
-        }
         if (request.getLocation() != null) {
             entity.setLocation(request.getLocation());
         }
         if (request.getShortBio() != null) {
             entity.setShortBio(request.getShortBio());
+        }
+        if (request.getCityState() != null) {
+            entity.setCityState(request.getCityState());
+        }
+        if (request.getDistrict() != null) {
+            entity.setDistrict(request.getDistrict());
+        }
+        if (request.getWard() != null) {
+            entity.setWard(request.getWard());
+        }
+        if (request.getStreetAddress() != null) {
+            entity.setStreetAddress(request.getStreetAddress());
+        }
+        if (request.getPostalCode() != null) {
+            entity.setPostalCode(request.getPostalCode());
+        }
+        if (request.getTaxId() != null) {
+            entity.setTaxId(request.getTaxId());
         }
     }
 
@@ -50,12 +65,21 @@ public class UserMapper {
                 .fullName(entity.getFullName())
                 .phoneNumber(entity.getPhoneNumber())
                 .avatarUrl(entity.getAvatarUrl())
-                .studentId(entity.getStudentId())
                 .location(entity.getLocation())
+                .hostType(entity.getHostType())
+                .verificationDocument(entity.getVerificationDocument())
+                .verificationStatus(entity.getVerificationStatus())
                 .shortBio(entity.getShortBio())
+                .cityState(entity.getCityState())
+                .district(entity.getDistrict())
+                .ward(entity.getWard())
+                .streetAddress(entity.getStreetAddress())
+                .postalCode(entity.getPostalCode())
+                .taxId(entity.getTaxId())
                 .isActive(entity.getIsActive())
                 .isEmailVerified(entity.getIsEmailVerified())
                 .is2faEnabled(entity.getIs2faEnabled())
+                .pointBalance(entity.getPointBalance())
                 .roles(mapRoles(entity.getRoles()))
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())

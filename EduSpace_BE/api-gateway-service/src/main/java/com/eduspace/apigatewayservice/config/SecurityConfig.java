@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import com.eduspace.apigatewayservice.common.enums.Role;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,7 +16,8 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
-import org.springframework.security.oauth2.jwt.ReactiveJwtDecoders;
+import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 
 import org.springframework.security.oauth2.server.resource.authentication.ReactiveJwtAuthenticationConverterAdapter;
@@ -30,9 +32,15 @@ public class SecurityConfig {
     @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri:http://localhost:8180/realms/eduspace}")
     private String issuerUri;
 
+    @Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri:http://localhost:8180/realms/eduspace/protocol/openid-connect/certs}")
+    private String jwkSetUri;
+
     @Bean
     public ReactiveJwtDecoder jwtDecoder() {
-        return ReactiveJwtDecoders.fromIssuerLocation(issuerUri);
+        // Use JWK set URI but relax issuer validation for local/dev environments.
+        NimbusReactiveJwtDecoder decoder = NimbusReactiveJwtDecoder.withJwkSetUri(jwkSetUri).build();
+        decoder.setJwtValidator(JwtValidators.createDefault()); // do not enforce `iss`
+        return decoder;
     }
 
     @Bean
@@ -51,8 +59,10 @@ public class SecurityConfig {
                         .pathMatchers("/swagger-resources/**").permitAll()
                         .pathMatchers("/webjars/**").permitAll()
 
-                        // Admin endpoints require ADMIN role
-                        .pathMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                        // Admin endpoints require ADMIN or SUPER_ADMIN role
+                        .pathMatchers("/api/v1/admin/**", "/api/v1/accounts/admin/**").hasAnyRole(
+                                Role.ADMIN.name(),
+                                Role.SUPER_ADMIN.name())
 
                         // All other endpoints require authentication
                         .anyExchange().authenticated())
@@ -66,20 +76,42 @@ public class SecurityConfig {
     private Converter<Jwt, Mono<AbstractAuthenticationToken>> keycloakJwtConverter() {
         JwtAuthenticationConverter jwtConverter = new JwtAuthenticationConverter();
         jwtConverter.setJwtGrantedAuthoritiesConverter(jwt -> {
-            // Extract realm_access.roles from Keycloak JWT token
+            java.util.Set<String> allRoles = new java.util.HashSet<>();
+
+            // 1. Extract Realm Roles
             Map<String, Object> realmAccess = jwt.getClaimAsMap("realm_access");
-            if (realmAccess == null || !realmAccess.containsKey("roles")) {
-                return List.of();
+            if (realmAccess != null && realmAccess.containsKey("roles")) {
+                Object rolesObj = realmAccess.get("roles");
+                if (rolesObj instanceof List) {
+                    @SuppressWarnings("unchecked")
+                    List<String> roles = (List<String>) rolesObj;
+                    allRoles.addAll(roles);
+                }
             }
 
-            @SuppressWarnings("unchecked")
-            List<String> roles = (List<String>) realmAccess.get("roles");
+            // 2. Extract Client Roles
+            Map<String, Object> resourceAccess = jwt.getClaimAsMap("resource_access");
+            if (resourceAccess != null) {
+                for (Map.Entry<String, Object> entry : resourceAccess.entrySet()) {
+                    Object accessObj = entry.getValue();
+                    if (accessObj instanceof Map) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> clientAccess = (Map<String, Object>) accessObj;
+                        if (clientAccess.containsKey("roles")) {
+                            Object clientRolesObj = clientAccess.get("roles");
+                            if (clientRolesObj instanceof List) {
+                                @SuppressWarnings("unchecked")
+                                List<String> clientRoles = (List<String>) clientRolesObj;
+                                allRoles.addAll(clientRoles);
+                            }
+                        }
+                    }
+                }
+            }
 
-            Collection<GrantedAuthority> authorities = roles.stream()
+            return allRoles.stream()
                     .map(role -> new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()))
                     .collect(Collectors.toList());
-
-            return authorities;
         });
 
         return new ReactiveJwtAuthenticationConverterAdapter(jwtConverter);

@@ -17,9 +17,9 @@ export function NotificationsTab({ settings, onUpdate }: NotificationsTabProps) 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-2xl font-black text-gray-900 tracking-tight">
+        <h2 className="text-xl font-bold text-[#333333]">
           {t('customer.profile.alerts.title')}
-        </h3>
+        </h2>
       </div>
 
       <div className="space-y-8">

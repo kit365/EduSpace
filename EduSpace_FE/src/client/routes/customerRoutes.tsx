@@ -1,7 +1,6 @@
 import { RouteObject } from 'react-router-dom';
 import { HomePage } from '../features/customer/home';
 import { SearchPage } from '../features/customer/search';
-import { SpaceDetailPage } from '../features/customer/spaces';
 import { AuthPage, VerifyEmailPage } from '../features/customer/auth';
 import { ProfilePage, EkycPage } from '../features/customer/profile';
 import { BookingsPage, BookingDetailPage } from '../features/customer/bookings';
@@ -15,7 +14,6 @@ import { TransactionHistoryPage } from '../features/customer/transactions/pages/
 export const customerRoutes: RouteObject[] = [
     { path: '/', element: <HomePage /> },
     { path: '/search', element: <SearchPage /> },
-    { path: '/spaces/:id', element: <SpaceDetailPage /> },
     { path: '/auth', element: <AuthPage /> },
     { path: '/verify-email', element: <VerifyEmailPage /> },
     { path: '/profile', element: <ProfilePage /> },

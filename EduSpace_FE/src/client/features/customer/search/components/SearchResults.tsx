@@ -7,7 +7,7 @@ interface SearchResultsProps {
   spaces: Space[];
   viewMode: 'grid' | 'list';
   onViewModeChange: (mode: 'grid' | 'list') => void;
-  onSpaceClick: (spaceId: number) => void;
+  onSpaceClick: (space: Space) => void;
 }
 
 export function SearchResults({ spaces, viewMode, onViewModeChange, onSpaceClick }: SearchResultsProps) {
@@ -55,7 +55,7 @@ export function SearchResults({ spaces, viewMode, onViewModeChange, onSpaceClick
             key={space.id}
             space={space}
             viewMode={viewMode}
-            onClick={() => onSpaceClick(space.id)}
+            onClick={() => onSpaceClick(space)}
           />
         ))}
       </div>

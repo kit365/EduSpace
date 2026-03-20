@@ -1,6 +1,6 @@
 import apiClient from '../../../../../lib/axios';
 import { AUTH_API } from '../../../../../config/api';
-import type { ApiResponse } from '../../../../../types/api';
+import { ApiResponse, AuthResponse } from '@/types';
 import type {
     LoginRequest,
     LoginResponse,

@@ -1,4 +1,5 @@
 server:
+  # Trong Docker map host:${DISCOVERY_SERVER_PORT} → 8761; container luôn 8761
   port: 8761
 
 spring:

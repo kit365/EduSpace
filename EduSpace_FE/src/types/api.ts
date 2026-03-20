@@ -1,8 +1,3 @@
-/**
- * API Types for Backend Integration
- * Use these interfaces to maintain consistency between FE and BE
- */
-
 // --- Base Types ---
 export type Language = 'vi' | 'en';
 
@@ -18,6 +13,20 @@ export interface ApiResponse<T = any> {
     code: string;
     message: string;
     data: T;
+}
+
+export interface Paginated<T> {
+    items: T[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+}
+
+export interface ResponseError {
+    code: string;
+    message: string;
+    errors?: Record<string, string[]>;
 }
 
 // --- FR-06: Search API ---
@@ -39,7 +48,7 @@ export interface SearchSpacesReq {
 
 // --- FR-07: eKYC API ---
 export interface EkycSubmissionReq {
-    frontIdCard: File | string; // File object or base64/url
+    frontIdCard: File | string;
     backIdCard: File | string;
     selfieImage: File | string;
 }
@@ -62,7 +71,7 @@ export interface BookingPriceCalculationItem {
     date: string;
     hours: number;
     basePrice: number;
-    appliedPrice: number; // weekend or peak rates might apply
+    appliedPrice: number;
     isWeekend: boolean;
 }
 
@@ -95,7 +104,7 @@ export interface CreateBookingReq {
 export interface SubmitReviewReq {
     bookingId: number;
     spaceId: number;
-    rating: number; // 1-5
+    rating: number;
     comment: string;
     images?: (File | string)[];
 }

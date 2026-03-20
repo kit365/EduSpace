@@ -6,13 +6,16 @@ import com.eduspace.accountservice.business.service.KeycloakUserService;
 import com.eduspace.accountservice.common.enums.Role;
 import com.eduspace.accountservice.exception.AppException;
 import com.eduspace.accountservice.exception.ErrorCode;
-import com.eduspace.accountservice.model.dto.request.LoginRequest;
-import com.eduspace.accountservice.model.dto.response.LoginResponse;
-import com.eduspace.accountservice.model.dto.request.RegisterRequest;
-import com.eduspace.accountservice.model.dto.response.UserResponse;
+import com.eduspace.accountservice.model.dto.request.auth.LoginRequest;
+import com.eduspace.accountservice.model.dto.request.auth.RegisterRequest;
+import com.eduspace.accountservice.model.dto.response.auth.LoginResponse;
+import com.eduspace.accountservice.model.dto.response.user.UserResponse;
+import com.eduspace.accountservice.common.enums.HostPartnerApplicationStatus;
+import com.eduspace.accountservice.model.entity.HostPartnerApplicationEntity;
 import com.eduspace.accountservice.model.entity.RoleEntity;
 import com.eduspace.accountservice.model.entity.UserEntity;
 import com.eduspace.accountservice.model.mapper.UserMapper;
+import com.eduspace.accountservice.persistence.repository.HostPartnerApplicationRepository;
 import com.eduspace.accountservice.persistence.repository.RoleRepository;
 import com.eduspace.accountservice.persistence.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +40,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserMapper userMapper;
     private final EmailService emailService;
     private final StringRedisTemplate redisTemplate;
+    private final HostPartnerApplicationRepository hostPartnerApplicationRepository;
 
     private static final String REDIS_KEY_PREFIX = "email_verify:";
 
@@ -81,18 +85,64 @@ public class AuthServiceImpl implements AuthService {
         String keycloakId = keycloakUserService.createUser(
                 request.getEmail(), request.getFullName(), request.getPassword());
 
-        RoleEntity studentRole = roleRepository.findByName(Role.STUDENT.getName())
+        RoleEntity guestRole = roleRepository.findByName(Role.GUEST.getName())
                 .orElseThrow(() -> new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION));
 
         UserEntity user = UserEntity.builder()
                 .keycloakId(keycloakId)
                 .email(request.getEmail())
                 .fullName(request.getFullName())
-                .roles(Set.of(studentRole))
+                .roles(Set.of(guestRole))
                 .build();
+
+        // If user registers as Host, map host fields into UserEntity first.
+        // Then save user to generate id, and finally create HostPartnerApplicationEntity.
+        String at = null;
+        String addr = null;
+        String phone = null;
+        String documentFrontUrl = null;
+        String documentBackUrl = null;
+        String businessLicenseUrl = null;
+
+        if (request.getHostPartnerApplication() != null) {
+            var hp = request.getHostPartnerApplication();
+            at = hp.getApplicantType() != null ? hp.getApplicantType().trim() : "";
+            addr = hp.getAddress() != null ? hp.getAddress().trim() : "";
+            if (at.isEmpty() || addr.isEmpty()) {
+                throw new AppException(ErrorCode.INVALID_KEY);
+            }
+
+            phone = hp.getPhone() != null ? hp.getPhone().trim() : null;
+            documentFrontUrl = trimNull(hp.getDocumentFrontUrl());
+            documentBackUrl = trimNull(hp.getDocumentBackUrl());
+            businessLicenseUrl = trimNull(hp.getBusinessLicenseUrl());
+
+            user.setHostType(at);
+            user.setPhoneNumber(phone);
+            user.setStreetAddress(addr);
+        }
 
         userRepository.save(user);
         log.info("User registered: {} (keycloakId: {})", request.getEmail(), keycloakId);
+
+        if (at != null) {
+            String msg = "Đăng ký host qua form tạo tài khoản.";
+            HostPartnerApplicationEntity app = HostPartnerApplicationEntity.builder()
+                    .userId(user.getId())
+                    .applicantType(at)
+                    .fullName(request.getFullName().trim())
+                    .phone(phone)
+                    .email(request.getEmail().trim())
+                    .address(addr)
+                    .message(msg)
+                    .documentFrontUrl(documentFrontUrl)
+                    .documentBackUrl(documentBackUrl)
+                    .businessLicenseUrl(businessLicenseUrl)
+                    .status(HostPartnerApplicationStatus.PENDING)
+                    .build();
+            hostPartnerApplicationRepository.save(app);
+            log.info("Host partner application created at register for user {}", user.getEmail());
+        }
 
         String token = UUID.randomUUID().toString();
         String redisKey = REDIS_KEY_PREFIX + token;
@@ -103,9 +153,17 @@ public class AuthServiceImpl implements AuthService {
                 tokenExpiryHours,
                 TimeUnit.HOURS);
 
+        log.info("Queue verification email for {}", user.getEmail());
         emailService.sendVerificationEmail(user.getEmail(), user.getFullName(), token);
 
         return userMapper.toUserResponse(user);
+    }
+
+    private static String trimNull(String s) {
+        if (s == null || s.isBlank()) {
+            return null;
+        }
+        return s.trim();
     }
 
     @Override

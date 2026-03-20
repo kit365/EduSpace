@@ -1,18 +1,21 @@
 import { useNavigate } from "react-router-dom";
-import { User, Shield, Activity, Settings, LogOut, DollarSign, FileCheck, MessageSquareWarning, Building2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { User, Shield, Activity, Settings, LogOut, DollarSign, FileCheck, MessageSquareWarning, Building2, Gift } from "lucide-react";
 
 export function AdminSidebar() {
     const navigate = useNavigate();
+    const { t } = useTranslation();
 
     const menuItems = [
-        { name: 'Dashboard', icon: Activity, path: '/admin' },
-        { name: 'Finance & Payouts', icon: DollarSign, path: '/admin/finance' },
-        { name: 'Approvals & KYC', icon: FileCheck, path: '/admin/verification' },
-        { name: 'Disputes & Reports', icon: MessageSquareWarning, path: '/admin/disputes' },
-        { name: 'Host Management', icon: Building2, path: '/admin/hosts' },
-        { name: 'User Management', icon: User, path: '/admin/users' },
-        { name: 'Role & Perms', icon: Shield, path: '/admin/roles' },
-        { name: 'System Settings', icon: Settings, path: '/admin/settings' },
+        { nameKey: 'admin_sidebar.dashboard', icon: Activity, path: '/admin' },
+        { nameKey: 'admin_sidebar.finance', icon: DollarSign, path: '/admin/finance' },
+        { nameKey: 'admin_sidebar.approvals', icon: FileCheck, path: '/admin/verification' },
+        { nameKey: 'admin_sidebar.disputes', icon: MessageSquareWarning, path: '/admin/disputes' },
+        { nameKey: 'admin_sidebar.hosts', icon: Building2, path: '/admin/hosts' },
+        { nameKey: 'admin_sidebar.users', icon: User, path: '/admin/users' },
+        { nameKey: 'admin_sidebar.roles', icon: Shield, path: '/admin/roles' },
+        { nameKey: 'admin_sidebar.points', icon: Gift, path: '/admin/points' },
+        { nameKey: 'admin_sidebar.settings', icon: Settings, path: '/admin/settings' },
     ];
 
     return (
@@ -23,8 +26,8 @@ export function AdminSidebar() {
                         A
                     </div>
                     <div>
-                        <h1 className="text-white font-bold text-lg tracking-tight">Admin Portal</h1>
-                        <p className="text-gray-500 text-xs font-medium uppercase tracking-wider">System Control</p>
+                        <h1 className="text-white font-bold text-lg tracking-tight">{t('admin_sidebar.adminPortal')}</h1>
+                        <p className="text-gray-500 text-xs font-medium uppercase tracking-wider">{t('admin_sidebar.systemControl')}</p>
                     </div>
                 </div>
             </div>
@@ -32,12 +35,12 @@ export function AdminSidebar() {
             <nav className="flex-1 px-3 py-6 space-y-1">
                 {menuItems.map((item) => (
                     <button
-                        key={item.name}
+                        key={item.path}
                         onClick={() => navigate(item.path)}
                         className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-gray-800 transition-all font-medium text-sm group"
                     >
                         <item.icon className="w-4 h-4 group-hover:text-blue-400 transition-colors" />
-                        {item.name}
+                        {t(item.nameKey)}
                     </button>
                 ))}
             </nav>
@@ -48,7 +51,7 @@ export function AdminSidebar() {
                     className="w-full flex items-center justify-center gap-2 p-3 text-red-400 hover:bg-red-500/10 rounded-xl transition-all font-bold text-sm"
                 >
                     <LogOut className="w-4 h-4" />
-                    Sign Out
+                    {t('admin_sidebar.signOut')}
                 </button>
             </div>
         </div>

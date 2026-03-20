@@ -1,15 +1,16 @@
 package com.eduspace.accountservice.business.serviceimpl;
 
 import com.eduspace.accountservice.business.service.EmailService;
-import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import jakarta.annotation.PostConstruct;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.thymeleaf.context.Context;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 
@@ -33,10 +34,26 @@ public class EmailServiceImpl implements EmailService {
     @Value("${app.verification.token-expiry-hours}")
     private int tokenExpiryHours;
 
+    @Value("${spring.mail.username:}")
+    private String mailUsername;
+
+    @PostConstruct
+    void logMailConfig() {
+        if (!StringUtils.hasText(mailUsername)) {
+            log.warn(
+                    "Spring Mail: spring.mail.username is empty — verification emails will NOT be sent. See docs/SPRING_MAIL.md");
+        }
+    }
+
     @Override
     @Async
     public void sendVerificationEmail(String toEmail, String fullName, String token) {
+        if (!StringUtils.hasText(mailUsername)) {
+            log.warn("Skip send verification email to {}: SMTP not configured (spring.mail.username empty)", toEmail);
+            return;
+        }
         try {
+            log.info("[Mail] Sending verification email to={} from={}", toEmail, fromEmail);
             String verifyUrl = frontendUrl + "/verify-email?token=" + token;
 
             Context context = new Context();
@@ -55,9 +72,14 @@ public class EmailServiceImpl implements EmailService {
             helper.setText(htmlContent, true);
 
             mailSender.send(message);
-            log.info("Verification email sent to: {}", toEmail);
-        } catch (MessagingException | java.io.UnsupportedEncodingException e) {
-            log.error("Failed to send verification email to: {}. Error: {}", toEmail, e.getMessage());
+            log.info("[Mail] SUCCESS verification email sent to {}", toEmail);
+        } catch (Exception e) {
+            log.error(
+                    "[Mail] FAILED verification email to {} — {} ({})",
+                    toEmail,
+                    e.getMessage(),
+                    e.getClass().getSimpleName(),
+                    e);
         }
     }
 }

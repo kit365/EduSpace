@@ -8,8 +8,8 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/eduspace}
-          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/realms/eduspace/protocol/openid-connect/certs}
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:${KEYCLOAK_PORT:8180}/realms/eduspace}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:${KEYCLOAK_PORT:8180}/realms/eduspace/protocol/openid-connect/certs}
 
 
   messages:
@@ -56,7 +56,7 @@ spring:
 eureka:
   client:
     service-url:
-      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:${DISCOVERY_SERVER_PORT:8761}/eureka/}
   instance:
     prefer-ip-address: true
 
@@ -64,7 +64,7 @@ app:
   mail:
     from: ${SPRING_MAIL_FROM:noreply@eduspace.id.vn}
     display-name: ${SPRING_MAIL_DISPLAY_NAME:EduSpace Support}
-  frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  frontend-url: ${FRONTEND_URL:http://localhost:${FRONTEND_PORT:5173}}
   verification:
     token-expiry-hours: 24
 

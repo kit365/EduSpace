@@ -1,4 +1,4 @@
-import type { UserRole, KycStatus } from '../../../../../types/user';
+import { User, ID, Timestamp, UserRole, KycStatus } from '@/types';
 
 // Interface mapped from backend DTO
 export interface UserResponse {
@@ -16,6 +16,12 @@ export interface UserResponse {
   updatedAt: string;
   location: string;
   shortBio: string;
+  cityState?: string;
+  district?: string;
+  ward?: string;
+  streetAddress?: string;
+  postalCode?: string;
+  taxId?: string;
 }
 
 export interface TwoFactorSetup {
@@ -30,6 +36,12 @@ export interface UpdateProfileRequest {
   studentId: string;
   location: string;
   shortBio: string;
+  cityState?: string;
+  district?: string;
+  ward?: string;
+  streetAddress?: string;
+  postalCode?: string;
+  taxId?: string;
 }
 
 export interface UserProfile {
@@ -40,6 +52,12 @@ export interface UserProfile {
   avatar?: string; // Mapped from BE avatarUrl
   bio?: string;
   location?: string;
+  cityState?: string;
+  district?: string;
+  ward?: string;
+  streetAddress?: string;
+  postalCode?: string;
+  taxId?: string;
   memberSince: string; // Mapped from BE createdAt
   is2faEnabled: boolean;
 

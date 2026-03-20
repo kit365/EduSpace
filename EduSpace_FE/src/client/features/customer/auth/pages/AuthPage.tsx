@@ -40,6 +40,11 @@ export function AuthPage() {
             toast.info('Please enter your 2FA code');
           } else if (code === 'INVALID_2FA_CODE') {
             toast.error('Invalid 2FA code. Please try again.');
+          } else if (code === 'EMAIL_NOT_VERIFIED') {
+            toast.error(
+              err.response?.data?.message ||
+                'Vui lòng xác thực email trước khi đăng nhập (kiểm tra hộp thư).',
+            );
           } else {
             toast.error(err.response?.data?.message || err.message || 'Login failed');
           }
@@ -62,10 +67,32 @@ export function AuthPage() {
     }
 
     register(
-      { email: data.email, password: data.password, fullName: data.name },
+      {
+        email: data.email,
+        password: data.password,
+        fullName: data.name,
+        ...(data.userType === 'host' && {
+          hostPartnerApplication: {
+            applicantType: data.hostApplicantType,
+            phone: data.hostPhone.trim() || undefined,
+            address: data.hostAddress.trim(),
+            documentFrontUrl: data.kycFrontUrl.trim() || undefined,
+            documentBackUrl: data.kycBackUrl.trim() || undefined,
+            businessLicenseUrl:
+              data.hostApplicantType === 'BUSINESS' ? data.kycLicenseUrl.trim() || undefined : undefined,
+          },
+        }),
+      },
       {
         onSuccess: (res) => {
-          toast.success(res.message || 'Registration successful! Please login.');
+          if (data.userType === 'host') {
+            toast.success(
+              res.message ||
+                'Đã tạo tài khoản & gửi đơn đối tác. Kiểm tra email để xác thực — bạn vẫn là khách cho đến khi admin duyệt.',
+            );
+          } else {
+            toast.success(res.message || 'Registration successful! Please login.');
+          }
           setMode('login');
         },
         onError: (err: any) => {

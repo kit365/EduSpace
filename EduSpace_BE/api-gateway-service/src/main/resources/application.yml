@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: ${GATEWAY_PORT:8080}
 
 spring:
   application:
@@ -13,7 +13,8 @@ spring:
         - id: account-service
           uri: lb://ACCOUNT-SERVICE
           predicates:
-            - Path=/api/v1/accounts/**, /api/v1/auth/**
+            # Forward account, auth, points & rewards endpoints to ACCOUNT-SERVICE
+            - Path=/api/v1/accounts/**, /api/v1/auth/**, /api/v1/points/**, /api/v1/rewards/**
 
         # Account Service Swagger Docs
         - id: account-service-docs
@@ -57,6 +58,20 @@ spring:
           filters:
             - RewritePath=/v3/api-docs/conversation-service, /v3/api-docs
 
+        # Room Service routes
+        - id: room-service
+          uri: lb://ROOM-SERVICE
+          predicates:
+            - Path=/api/v1/rooms/**, /api/v1/properties/**, /api/v1/extra-services/**, /api/v1/ads-packages/**, /api/v1/room-slots/**, /api/v1/amenities/**, /api/v1/room-amenities/**, /api/v1/reviews/**, /api/v1/room-ads/**, /api/v1/system-calendar-rules/**, /api/v1/room-blocks/**
+
+        # Room Service Swagger Docs
+        - id: room-service-docs
+          uri: lb://ROOM-SERVICE
+          predicates:
+            - Path=/v3/api-docs/room-service
+          filters:
+            - RewritePath=/v3/api-docs/room-service, /v3/api-docs
+
       # Global CORS configuration
       globalcors:
         cors-configurations:
@@ -75,13 +90,13 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/eduspace}
-          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/realms/eduspace/protocol/openid-connect/certs}
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:${KEYCLOAK_PORT:8180}/realms/eduspace}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:${KEYCLOAK_PORT:8180}/realms/eduspace/protocol/openid-connect/certs}
 
 eureka:
   client:
     service-url:
-      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:${DISCOVERY_SERVER_PORT:8761}/eureka/}
   instance:
     prefer-ip-address: true
 
@@ -99,6 +114,8 @@ springdoc:
         url: /v3/api-docs/booking-service
       - name: Conversation Service
         url: /v3/api-docs/conversation-service
+      - name: Room Service
+        url: /v3/api-docs/room-service
 
 # Actuator
 management:

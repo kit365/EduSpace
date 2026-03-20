@@ -1,7 +1,10 @@
 import { AdminLayout } from "../../../layouts/AdminLayout";
 import { Settings, ToggleLeft, ToggleRight, Save, RotateCw } from 'lucide-react';
+import { useLoyaltyConfig } from '../../points/hooks/useLoyaltyConfig';
+import { ConversionRateCard } from '../../points/components/ConversionRateCard';
 
 export function SystemSettingsPage() {
+    const { config: loyaltyConfig, loading: configLoading, saving: configSaving, updateConfig } = useLoyaltyConfig();
     return (
         <AdminLayout title="System Settings">
             <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm max-w-4xl">
@@ -57,23 +60,17 @@ export function SystemSettingsPage() {
                         </div>
                     </div>
 
-                    {/* Points System */}
-                    <div className="pt-10">
-                        <h3 className="text-lg font-black text-gray-900 mb-6 flex items-center gap-2">
+                    {/* Points System / Conversion Rate */}
+                    <div id="loyalty" className="pt-10 scroll-mt-4">
+                        <h3 className="text-lg font-black text-gray-900 mb-4 flex items-center gap-2">
                             <RotateCw className="w-5 h-5 text-amber-500" /> Loyalty Points
                         </h3>
-                        <div>
-                            <label className="text-xs font-black text-gray-400 uppercase tracking-wider mb-2 block">Conversion Rate (Points to VNĐ)</label>
-                            <div className="relative group">
-                                <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-gray-400">1 Point =</span>
-                                <input
-                                    type="number"
-                                    defaultValue={100}
-                                    className="w-full pl-24 p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-900 focus:ring-2 focus:ring-amber-500 transition-all"
-                                />
-                                <span className="absolute right-4 top-1/2 -translate-y-1/2 font-black text-gray-400">VNĐ</span>
-                            </div>
-                        </div>
+                        <ConversionRateCard
+                            vndPerPoint={loyaltyConfig?.vndPerPoint ?? 100}
+                            loading={configLoading}
+                            saving={configSaving}
+                            onSave={async (vnd) => { await updateConfig({ vndPerPoint: vnd }); }}
+                        />
                     </div>
 
                     <div className="pt-10 flex justify-end">

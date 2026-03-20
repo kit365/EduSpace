@@ -42,7 +42,7 @@ export function FavoritesPage() {
                                     <img
                                         src={space.image}
                                         alt={space.name}
-                                        onClick={() => navigate(`/spaces/${space.id}`)}
+                                        onClick={() => navigate(`/${encodeURIComponent(String(space.slug ?? space.id))}`)}
                                         className="w-full h-full object-cover group-hover:scale-110 transition duration-700 cursor-pointer"
                                     />
                                     <button
@@ -67,7 +67,7 @@ export function FavoritesPage() {
                                         <span className="text-sm font-bold text-gray-400">{space.location}</span>
                                     </div>
                                     <h3
-                                        onClick={() => navigate(`/spaces/${space.id}`)}
+                                        onClick={() => navigate(`/${encodeURIComponent(String(space.slug ?? space.id))}`)}
                                         className="text-xl font-black mb-4 group-hover:text-red-500 transition-colors cursor-pointer leading-tight h-14 line-clamp-2"
                                     >
                                         {space.name}

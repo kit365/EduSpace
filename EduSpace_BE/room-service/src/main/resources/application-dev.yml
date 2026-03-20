@@ -1,0 +1,17 @@
+server:
+  port: ${ROOM_SERVICE_PORT:8083}
+
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:${POSTGRES_ROOM_HOST_PORT:5434}/eduspace_room}
+    username: ${SPRING_DATASOURCE_USERNAME:eduspace}
+    password: ${SPRING_DATASOURCE_PASSWORD:eduspace_dev_123}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 0
+

@@ -15,8 +15,8 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/eduspace}
-          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/realms/eduspace/protocol/openid-connect/certs}
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:${KEYCLOAK_PORT:8180}/realms/eduspace}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:${KEYCLOAK_PORT:8180}/realms/eduspace/protocol/openid-connect/certs}
 
   # JPA / Hibernate
   jpa:
@@ -55,7 +55,7 @@ server:
 eureka:
   client:
     service-url:
-      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:${DISCOVERY_SERVER_PORT:8761}/eureka/}
   instance:
     prefer-ip-address: true
 
@@ -72,7 +72,7 @@ springdoc:
 app:
   media:
     storage-path: ${MEDIA_STORAGE_PATH:./data/media}
-    public-base-url: ${MEDIA_PUBLIC_BASE_URL:http://localhost:8080}
+    public-base-url: ${MEDIA_PUBLIC_BASE_URL:http://localhost:${GATEWAY_PORT:8080}}
   outbox:
     publisher-delay-ms: ${OUTBOX_PUBLISHER_DELAY_MS:2000}
   kafka:

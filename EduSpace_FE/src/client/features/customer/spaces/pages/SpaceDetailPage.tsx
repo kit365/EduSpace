@@ -7,17 +7,17 @@ import { SpaceGallery, BookingPanel, SpaceInfo, SpaceLocation, SpaceReviews } fr
 import { useSpaceDetails } from '../hooks/useSpaces';
 
 export function SpaceDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  const { spaceRef } = useParams<{ spaceRef: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
 
   // Ensure page scrolls to top on navigation/mount
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [id]);
+  }, [spaceRef]);
 
-  const spaceId = id ? parseInt(id) : 1;
-  const { data: space, loading, error } = useSpaceDetails(spaceId);
+  const ref = spaceRef ?? 'phong-hop-alpha';
+  const { data: space, loading, error } = useSpaceDetails(ref);
 
   const onBack = () => navigate(-1);
 
