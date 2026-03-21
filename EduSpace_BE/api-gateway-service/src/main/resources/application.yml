@@ -42,7 +42,7 @@ spring:
         - id: room-service
           uri: lb://ROOM-SERVICE
           predicates:
-            - Path=/api/v1/rooms/**, /api/v1/properties/**, /api/v1/extra-services/**, /api/v1/ads-packages/**, /api/v1/room-slots/**, /api/v1/amenities/**, /api/v1/room-amenities/**, /api/v1/reviews/**, /api/v1/room-ads/**, /api/v1/system-calendar-rules/**, /api/v1/room-blocks/**
+            - Path=/api/v1/rooms/**, /api/v1/properties/**, /api/v1/extra-services/**, /api/v1/ads-packages/**, /api/v1/amenities/**, /api/v1/room-amenities/**, /api/v1/reviews/**, /api/v1/room-ads/**, /api/v1/system-calendar-rules/**, /api/v1/room-blocks/**
 
         # Room Service Swagger Docs
         - id: room-service-docs

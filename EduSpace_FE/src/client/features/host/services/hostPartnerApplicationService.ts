@@ -45,6 +45,11 @@ export interface HostPartnerApplicationAdminItem {
   reviewedBy: string | null;
 }
 
+export interface PendingBranchUpdateItem {
+  propertyId: number;
+  submittedAt: string | null;
+}
+
 export const hostPartnerApplicationService = {
   getMyStatus: async (): Promise<MyHostApplicationStatus> => {
     const res = await apiClient.get(ACCOUNT_API.HOST_APPLICATIONS_ME);
@@ -53,6 +58,12 @@ export const hostPartnerApplicationService = {
 
   submit: async (body: SubmitHostPartnerApplicationPayload): Promise<void> => {
     await apiClient.post(ACCOUNT_API.HOST_APPLICATIONS_ME, body);
+  },
+
+  getMyPendingBranchUpdates: async (): Promise<PendingBranchUpdateItem[]> => {
+    const res = await apiClient.get(ACCOUNT_API.HOST_APPLICATIONS_ME_PENDING_BRANCH_UPDATES);
+    const list = unwrap<PendingBranchUpdateItem[]>(res);
+    return Array.isArray(list) ? list : [];
   },
 
   adminListPending: async (): Promise<HostPartnerApplicationAdminItem[]> => {

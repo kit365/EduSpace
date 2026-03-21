@@ -25,4 +25,8 @@ public interface UserService {
     void disable2fa(String email, String code);
 
     PageResponse<UserResponse> getAllUsers(Pageable pageable, String search, List<String> roles, String status, String kyc, String identifier, boolean isEmail);
+
+    void approveUserKyc(String userId);
+
+    void rejectUserKyc(String userId, String reason);
 }

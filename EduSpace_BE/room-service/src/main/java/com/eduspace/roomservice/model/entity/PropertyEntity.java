@@ -12,15 +12,13 @@ import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Getter;
+import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import lombok.experimental.FieldDefaults;
 
 @Entity
 @Table(name = "properties")
-@Getter
-@Setter
+@Data
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @NoArgsConstructor
@@ -37,8 +35,8 @@ public class PropertyEntity {
     @Column(name = "name")
     String name;
 
-    @Column(name = "property_type")
-    String propertyType; // HOTEL, HOMESTAY, APARTMENT, PRIVATE_ROOM
+    @Column(name = "property_type", length = 100)
+    String propertyType;
 
     @Column(name = "contact_phone")
     String contactPhone;
@@ -46,8 +44,17 @@ public class PropertyEntity {
     @Column(name = "contact_email")
     String contactEmail;
 
-    @Column(name = "address", columnDefinition = "TEXT")
-    String address;
+    @Column(name = "province_code", length = 20)
+    String provinceCode;
+
+    @Column(name = "district_code", length = 20)
+    String districtCode;
+
+    @Column(name = "ward_code", length = 20)
+    String wardCode;
+
+    @Column(name = "address_detail", length = 500)
+    String addressDetail;
 
     @Column(name = "logo", columnDefinition = "TEXT")
     String logo;
@@ -75,6 +82,11 @@ public class PropertyEntity {
 
     @Column(name = "updated_at")
     LocalDateTime updatedAt;
+
+    /** Xóa mềm: true = không hiển thị trong danh sách host, vẫn giữ dữ liệu & FK. */
+    @Column(name = "deleted", nullable = false)
+    @Builder.Default
+    boolean deleted = false;
 
     @PrePersist
     protected void onCreate() {

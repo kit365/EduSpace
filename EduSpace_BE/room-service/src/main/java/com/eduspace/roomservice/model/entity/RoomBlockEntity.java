@@ -51,7 +51,7 @@ public class RoomBlockEntity {
     String blockType;
 
     @Column(name = "created_by")
-    String createdBy; // UUID from account-service, no FK
+    String createdBy;
 
     @Column(name = "created_at")
     LocalDateTime createdAt;

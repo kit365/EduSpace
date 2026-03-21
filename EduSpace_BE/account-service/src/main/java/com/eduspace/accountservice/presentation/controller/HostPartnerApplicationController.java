@@ -6,6 +6,7 @@ import com.eduspace.accountservice.model.dto.request.hostapplication.SubmitHostP
 import com.eduspace.accountservice.model.dto.response.ApiResponse;
 import com.eduspace.accountservice.model.dto.response.hostapplication.HostPartnerApplicationAdminResponse;
 import com.eduspace.accountservice.model.dto.response.hostapplication.MyHostApplicationStatusResponse;
+import com.eduspace.accountservice.model.dto.response.hostapplication.PendingBranchUpdateResponse;
 import com.eduspace.accountservice.presentation.constants.HostPartnerApplicationPaths;
 import com.eduspace.accountservice.presentation.constants.PreAuthorizeConstants;
 import jakarta.validation.Valid;
@@ -31,6 +32,11 @@ public class HostPartnerApplicationController {
     @GetMapping(HostPartnerApplicationPaths.ME)
     public ApiResponse<MyHostApplicationStatusResponse> getMyApplicationStatus(@AuthenticationPrincipal Jwt jwt) {
         return ApiResponse.success(hostPartnerApplicationService.getMyStatus(jwt));
+    }
+
+    @GetMapping(HostPartnerApplicationPaths.ME_PENDING_BRANCH_UPDATES)
+    public ApiResponse<List<PendingBranchUpdateResponse>> getMyPendingBranchUpdates(@AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(hostPartnerApplicationService.listMyPendingBranchUpdates(jwt));
     }
 
     @PostMapping(HostPartnerApplicationPaths.ME)

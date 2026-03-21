@@ -1,11 +1,10 @@
 import { ReactNode, useState, useRef, useEffect } from 'react';
 import { RentalSidebar } from '../features/host/components/RentalSidebar';
 import { BranchProvider, useBranch } from '../features/host/context/BranchContext';
-import { MOCK_BRANCHES } from '../features/host/data/mockBranches';
 import { Building2, ChevronDown, MapPin, Globe } from 'lucide-react';
 
 function RentalLayoutInner({ children, title }: { children: ReactNode; title?: string }) {
-    const { selectedBranch, setSelectedBranch } = useBranch();
+    const { selectedBranch, setSelectedBranch, branches, loadingBranches } = useBranch();
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -38,7 +37,7 @@ function RentalLayoutInner({ children, title }: { children: ReactNode; title?: s
                                 </div>
                                 <div className="text-left">
                                     <div className="text-sm font-bold text-gray-900 leading-tight">
-                                        {selectedBranch ? selectedBranch.name : 'Tất cả chi nhánh'}
+                                        {selectedBranch ? selectedBranch.name : (loadingBranches ? 'Đang tải chi nhánh...' : 'Tất cả chi nhánh')}
                                     </div>
                                     <div className="text-[10px] font-bold text-gray-500 mt-0.5 max-w-[150px] truncate uppercase tracking-wider">
                                         {selectedBranch ? selectedBranch.address : 'Tổng hợp dữ liệu'}
@@ -68,7 +67,7 @@ function RentalLayoutInner({ children, title }: { children: ReactNode; title?: s
                                     <div className="h-px bg-gray-100 my-2 mx-2"></div>
 
                                     {/* Branch Options */}
-                                    {MOCK_BRANCHES.map(branch => {
+                                    {branches.map(branch => {
                                         const isSelected = selectedBranch?.id === branch.id;
                                         return (
                                             <button
@@ -86,6 +85,11 @@ function RentalLayoutInner({ children, title }: { children: ReactNode; title?: s
                                             </button>
                                         );
                                     })}
+                                    {!loadingBranches && branches.length === 0 && (
+                                        <div className="px-3 py-2 text-xs font-medium text-gray-500">
+                                            Chưa có chi nhánh nào từ backend.
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}

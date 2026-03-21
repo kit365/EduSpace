@@ -56,7 +56,8 @@ export const AMENITIES_LIST = [
 
 export const ROOM_TYPES = [
   { value: 'classroom', labelKey: 'customer.search.roomTypeOptions.classroom', count: 84 },
-  { value: 'auditorium', labelKey: 'customer.search.roomTypeOptions.auditorium', count: 12 },
   { value: 'meeting', labelKey: 'customer.search.roomTypeOptions.meeting', count: 36 },
+  { value: 'event-space', labelKey: 'customer.search.roomTypeOptions.eventSpace', count: 12 },
   { value: 'studio', labelKey: 'customer.search.roomTypeOptions.studio', count: 18 },
+  { value: 'coworking', labelKey: 'customer.search.roomTypeOptions.coworking', count: 27 },
 ] as const;

@@ -45,7 +45,7 @@ public class ReviewServiceImpl implements ReviewService {
     public ReviewResponse create(ReviewRequest request) {
         ReviewEntity entity = reviewMapper.toEntity(request);
         if (request.getRoomId() != null) {
-            RoomEntity room = roomRepository.findById(request.getRoomId())
+            RoomEntity room = roomRepository.findByIdAndDeletedAtIsNull(request.getRoomId())
                     .orElseThrow(() -> new AppException(ErrorCode.ROOM_NOT_FOUND));
             entity.setRoom(room);
         }
@@ -59,7 +59,7 @@ public class ReviewServiceImpl implements ReviewService {
                 .orElseThrow(() -> new AppException(ErrorCode.REVIEW_NOT_FOUND));
         reviewMapper.updateEntity(request, existing);
         if (request.getRoomId() != null) {
-            RoomEntity room = roomRepository.findById(request.getRoomId())
+            RoomEntity room = roomRepository.findByIdAndDeletedAtIsNull(request.getRoomId())
                     .orElseThrow(() -> new AppException(ErrorCode.ROOM_NOT_FOUND));
             existing.setRoom(room);
         }

@@ -19,7 +19,6 @@ export function SearchPage() {
   const [priceRange, setPriceRange] = useState<[number, number]>([PRICE_RANGE.MIN, PRICE_RANGE.MAX]);
   const [selectedCapacity, setSelectedCapacity] = useState<string>('10-20');
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>(['projector', 'wifi', 'ac']);
-  const [selectedRoomType, setSelectedRoomType] = useState<string>('classroom');
   const [selectedDistrict, setSelectedDistrict] = useState<string>('all');
   const [selectedTimeStart, setSelectedTimeStart] = useState<string>('');
   const [selectedTimeEnd, setSelectedTimeEnd] = useState<string>('');
@@ -28,8 +27,7 @@ export function SearchPage() {
   const { data: spaces, loading } = useSearchSpaces({
     priceRange,
     capacity: selectedCapacity,
-    amenities: selectedAmenities,
-    roomType: selectedRoomType
+    amenities: selectedAmenities
   });
 
   return (
@@ -47,8 +45,6 @@ export function SearchPage() {
               onCapacityChange={setSelectedCapacity}
               selectedAmenities={selectedAmenities}
               onAmenitiesChange={setSelectedAmenities}
-              selectedRoomType={selectedRoomType}
-              onRoomTypeChange={setSelectedRoomType}
               selectedDistrict={selectedDistrict}
               onDistrictChange={setSelectedDistrict}
               selectedTimeStart={selectedTimeStart}
