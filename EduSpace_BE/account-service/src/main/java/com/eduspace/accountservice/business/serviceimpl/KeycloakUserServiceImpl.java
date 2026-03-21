@@ -18,6 +18,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
@@ -164,15 +165,20 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
         map.add("grant_type", "refresh_token");
         map.add("client_id", clientId);
         map.add("client_secret", clientSecret);
-        map.add("refresh_token", refreshToken);
+        map.add("refresh_token", sanitizeRefreshToken(refreshToken));
 
         HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(map, headers);
 
         try {
             return restTemplate.postForObject(tokenUrl, request, LoginResponse.class);
+        } catch (HttpClientErrorException e) {
+            log.error("Token refresh failed. Status: {}, Body: {}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw new com.eduspace.accountservice.exception.AppException(
+                    com.eduspace.accountservice.exception.ErrorCode.UNAUTHORIZED);
         } catch (Exception e) {
             log.error("Token refresh failed. Error: {}", e.getMessage());
-            throw new RuntimeException("Refresh token failed: " + e.getMessage());
+            throw new com.eduspace.accountservice.exception.AppException(
+                    com.eduspace.accountservice.exception.ErrorCode.UNAUTHORIZED);
         }
     }
 
@@ -186,7 +192,7 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
         MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
         map.add("client_id", clientId);
         map.add("client_secret", clientSecret);
-        map.add("refresh_token", refreshToken);
+        map.add("refresh_token", sanitizeRefreshToken(refreshToken));
 
         HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(map, headers);
 
@@ -197,6 +203,17 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
             log.error("Logout failed. Error: {}", e.getMessage());
             throw new RuntimeException("Logout failed: " + e.getMessage());
         }
+    }
+
+    private String sanitizeRefreshToken(String refreshToken) {
+        if (refreshToken == null) {
+            return null;
+        }
+        String sanitized = refreshToken.trim();
+        if (sanitized.regionMatches(true, 0, "Bearer ", 0, 7)) {
+            sanitized = sanitized.substring(7).trim();
+        }
+        return sanitized;
     }
 
     @Override

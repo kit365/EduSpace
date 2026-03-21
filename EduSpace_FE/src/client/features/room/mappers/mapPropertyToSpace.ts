@@ -1,5 +1,6 @@
 import type { Space, SpaceDetails, SpaceApprovalStatus, SpaceType } from '@/types/space';
 import type { PropertyDto, RoomDto, PropertyStatus, RoomType } from '../types';
+import { isRoomOpenForBooking } from '../utils/roomOperationalStatus';
 
 function mapPropertyStatus(s: PropertyStatus): SpaceApprovalStatus {
   switch (s) {
@@ -31,6 +32,13 @@ function mapRoomType(t: RoomType): SpaceType {
   }
 }
 
+/** Giá hiển thị trên card (VNĐ/giờ) — map từ BE `pricePerHour`. */
+function roomPricePerHour(room: RoomDto | null | undefined): number {
+  const v = room?.pricePerHour;
+  if (v == null || Number.isNaN(Number(v))) return 0;
+  return Number(v);
+}
+
 function parseImages(images: string | null): string[] {
   if (!images?.trim()) return [];
   try {
@@ -45,7 +53,7 @@ function parseImages(images: string | null): string[] {
 
 function pickPrimaryRoom(rooms: RoomDto[]): RoomDto | null {
   const active = rooms.filter(
-    (r) => r.status === 'ACTIVE' && r.approvalStatus === 'APPROVED' && r.isActive !== false,
+    (r) => isRoomOpenForBooking(r.status) && r.approvalStatus === 'APPROVED' && r.isActive !== false,
   );
   const pool = active.length ? active : rooms;
   if (!pool.length) return null;
@@ -70,7 +78,7 @@ export function propertyToSpace(property: PropertyDto, rooms: RoomDto[] = []): S
     address: property.address,
     capacity: primary?.capacity ?? 0,
     size: primary?.area != null ? Number(primary.area) : undefined,
-    price: 0,
+    price: roomPricePerHour(primary),
     rating: primary?.avgRating != null ? Number(primary.avgRating) : 0,
     reviewCount: primary?.reviewCount ?? 0,
     image: logo,
@@ -113,7 +121,7 @@ export function roomToSpaceCard(room: RoomDto, property: PropertyDto): Space {
     address: property.address,
     capacity: room.capacity,
     size: room.area != null ? Number(room.area) : undefined,
-    price: 0,
+    price: roomPricePerHour(room),
     rating: room.avgRating != null ? Number(room.avgRating) : 0,
     reviewCount: room.reviewCount ?? 0,
     image,

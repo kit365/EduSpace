@@ -1,6 +1,7 @@
 package com.eduspace.roomservice.presentation.controller;
 
 import com.eduspace.roomservice.business.service.PropertyService;
+import com.eduspace.roomservice.model.dto.request.PropertyModerationRequest;
 import com.eduspace.roomservice.model.dto.request.PropertyRequest;
 import com.eduspace.roomservice.model.dto.response.ApiResponse;
 import com.eduspace.roomservice.model.dto.response.PropertyResponse;
@@ -35,6 +36,16 @@ public class PropertyController {
     @PutMapping("/{id}")
     public ApiResponse<PropertyResponse> update(@PathVariable Integer id, @RequestBody PropertyRequest request) {
         return ApiResponse.success(propertyService.update(id, request));
+    }
+
+    @PostMapping("/{id}/approve")
+    public ApiResponse<PropertyResponse> approve(@PathVariable Integer id, @RequestBody PropertyModerationRequest request) {
+        return ApiResponse.success(propertyService.approve(id, request));
+    }
+
+    @PostMapping("/{id}/reject")
+    public ApiResponse<PropertyResponse> reject(@PathVariable Integer id, @RequestBody PropertyModerationRequest request) {
+        return ApiResponse.success(propertyService.reject(id, request));
     }
 
     @DeleteMapping("/{id}")

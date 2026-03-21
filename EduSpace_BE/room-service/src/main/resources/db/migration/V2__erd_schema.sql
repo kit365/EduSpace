@@ -1,5 +1,5 @@
 -- =============================================
--- V2: ERD schema - facilities, rooms, ads, slots, amenities, reviews, blocks
+-- V2: ERD schema - facilities, rooms, ads, custom prices, amenities, reviews, blocks
 -- Replaces V1 facilities/rooms with INT PK; adds all ERD tables.
 -- No FK to users, bookings, transactions (external services).
 -- =============================================
@@ -9,7 +9,7 @@ DROP TABLE IF EXISTS room_blocks CASCADE;
 DROP TABLE IF EXISTS room_ads CASCADE;
 DROP TABLE IF EXISTS reviews CASCADE;
 DROP TABLE IF EXISTS room_amenities CASCADE;
-DROP TABLE IF EXISTS room_slots CASCADE;
+DROP TABLE IF EXISTS room_custom_prices CASCADE;
 DROP TABLE IF EXISTS rooms CASCADE;
 DROP TABLE IF EXISTS facilities CASCADE;
 
@@ -54,7 +54,14 @@ CREATE TABLE rooms (
     name VARCHAR(255),
     capacity INT,
     area NUMERIC(10,2),
-    location VARCHAR(255),
+    room_number VARCHAR(50),
+    floor_number VARCHAR(50),
+    is_24_7 BOOLEAN DEFAULT FALSE,
+    open_time TIME,
+    close_time TIME,
+    price_per_hour NUMERIC(15,2),
+    price_per_day NUMERIC(15,2),
+    min_booking_hours INT DEFAULT 1,
     images VARCHAR(500),
     description TEXT,
     status VARCHAR(50),
@@ -69,20 +76,19 @@ CREATE TABLE rooms (
 CREATE INDEX idx_rooms_facility_id ON rooms (facility_id);
 CREATE INDEX idx_rooms_approval_status ON rooms (approval_status);
 
--- room_slots
-CREATE TABLE room_slots (
+-- room_custom_prices
+CREATE TABLE room_custom_prices (
     id SERIAL PRIMARY KEY,
     room_id INT NOT NULL,
-    name VARCHAR(255),
+    day_of_week VARCHAR(20),
+    specific_date DATE,
+    price_modifier NUMERIC(8,4) NOT NULL,
     start_time TIME,
     end_time TIME,
-    day_of_week VARCHAR(50),
-    base_price BIGINT,
-    status VARCHAR(50),
-    CONSTRAINT fk_room_slots_room FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
+    CONSTRAINT fk_room_custom_prices_room FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_room_slots_room_id ON room_slots (room_id);
+CREATE INDEX idx_room_custom_prices_room_id ON room_custom_prices (room_id);
 
 -- amenities
 CREATE TABLE amenities (
@@ -125,7 +131,7 @@ CREATE TABLE room_ads (
     room_id INT NOT NULL,
     ads_package_id INT,
     owner_id INT,
-    transaction_id INT,
+    transaction_id VARCHAR(100),
     start_date DATE,
     end_date DATE,
     paid_amount BIGINT,

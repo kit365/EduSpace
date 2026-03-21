@@ -36,4 +36,8 @@ public interface UserService {
     List<PublicUserProfileResponse> searchPublicProfiles(String query, int limit);
 
     PageResponse<UserResponse> getAllUsers(Pageable pageable, String search, List<String> roles, String status, String kyc, String identifier, boolean isEmail);
+
+    void approveUserKyc(String userId);
+
+    void rejectUserKyc(String userId, String reason);
 }

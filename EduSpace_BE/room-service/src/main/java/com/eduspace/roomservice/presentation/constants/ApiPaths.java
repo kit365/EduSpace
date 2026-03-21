@@ -27,12 +27,6 @@ public final class ApiPaths {
         public static final String BASE_PATH = BASE + "/ads-packages";
     }
 
-    public static final class RoomSlots {
-        private RoomSlots() {
-        }
-        public static final String BASE_PATH = BASE + "/room-slots";
-    }
-
     public static final class Amenities {
         private Amenities() {
         }

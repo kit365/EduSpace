@@ -5,6 +5,7 @@ package com.eduspace.roomservice.common.enums;
  */
 public enum RoomType {
     MEETING_ROOM,
+    CLASSROOM,
     EVENT_SPACE,
     STUDIO,
     COWORKING

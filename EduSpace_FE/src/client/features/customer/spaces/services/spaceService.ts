@@ -6,6 +6,7 @@ import {
   roomAndPropertyToSpaceDetails,
   roomToSpaceCard,
 } from '@/client/features/room';
+import { isRoomOpenForBooking } from '@/client/features/room/utils/roomOperationalStatus';
 
 function parseSpaceRef(param: string): { kind: 'id'; id: number } | { kind: 'slug'; slug: string } | null {
   const t = param?.trim();
@@ -77,7 +78,7 @@ class SpaceService {
     const q = (query?.keyword ?? query?.q ?? '').toString().toLowerCase().trim();
     try {
       const rooms = await roomApiService.getAll();
-      let list = rooms.filter((r) => r.approvalStatus === 'APPROVED' && r.status === 'ACTIVE');
+      let list = rooms.filter((r) => r.approvalStatus === 'APPROVED' && isRoomOpenForBooking(r.status));
       if (q) {
         list = list.filter(
           (r) =>
@@ -102,7 +103,7 @@ class SpaceService {
     try {
       const rooms = await roomApiService.getAll();
       const approved = rooms.filter(
-        (r) => r.approvalStatus === 'APPROVED' && r.status === 'ACTIVE',
+        (r) => r.approvalStatus === 'APPROVED' && isRoomOpenForBooking(r.status),
       );
       const sorted = [...approved].sort(
         (a, b) => (Number(b.avgRating) || 0) - (Number(a.avgRating) || 0),

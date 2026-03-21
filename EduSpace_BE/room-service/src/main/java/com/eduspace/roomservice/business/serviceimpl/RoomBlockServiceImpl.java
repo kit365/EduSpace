@@ -45,7 +45,7 @@ public class RoomBlockServiceImpl implements RoomBlockService {
     public RoomBlockResponse create(RoomBlockRequest request) {
         RoomBlockEntity entity = roomBlockMapper.toEntity(request);
         if (request.getRoomId() != null) {
-            RoomEntity room = roomRepository.findById(request.getRoomId())
+            RoomEntity room = roomRepository.findByIdAndDeletedAtIsNull(request.getRoomId())
                     .orElseThrow(() -> new AppException(ErrorCode.ROOM_NOT_FOUND));
             entity.setRoom(room);
         }
@@ -59,7 +59,7 @@ public class RoomBlockServiceImpl implements RoomBlockService {
                 .orElseThrow(() -> new AppException(ErrorCode.ROOM_BLOCK_NOT_FOUND));
         roomBlockMapper.updateEntity(request, existing);
         if (request.getRoomId() != null) {
-            RoomEntity room = roomRepository.findById(request.getRoomId())
+            RoomEntity room = roomRepository.findByIdAndDeletedAtIsNull(request.getRoomId())
                     .orElseThrow(() -> new AppException(ErrorCode.ROOM_NOT_FOUND));
             existing.setRoom(room);
         }
