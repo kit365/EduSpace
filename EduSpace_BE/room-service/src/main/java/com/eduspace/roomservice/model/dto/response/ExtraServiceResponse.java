@@ -1,5 +1,6 @@
 package com.eduspace.roomservice.model.dto.response;
 
+import com.eduspace.roomservice.common.enums.PriceUnit;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,7 +22,7 @@ public class ExtraServiceResponse {
     String name;
     String description;
     Long price;
-    String priceUnit;
+    PriceUnit priceUnit;
     String status;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;

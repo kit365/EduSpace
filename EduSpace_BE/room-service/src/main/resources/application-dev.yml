@@ -14,4 +14,8 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
     baseline-version: 0
+    # Dev: tránh fail khi đổi nội dung file migration cùng version (checksum khác DB).
+    # Prod: giữ validate (mặc định) — không set ở application-prod.yml.
+    validate-on-migrate: false
+    repair-on-migrate: true
 

@@ -56,7 +56,7 @@ public class RoomAmenityServiceImpl implements RoomAmenityService {
         if (request.getRoomId() == null || request.getAmenityId() == null) {
             throw new AppException(ErrorCode.INVALID_KEY);
         }
-        RoomEntity room = roomRepository.findById(request.getRoomId())
+        RoomEntity room = roomRepository.findByIdAndDeletedAtIsNull(request.getRoomId())
                 .orElseThrow(() -> new AppException(ErrorCode.ROOM_NOT_FOUND));
         AmenityEntity amenity = amenityRepository.findById(request.getAmenityId())
                 .orElseThrow(() -> new AppException(ErrorCode.AMENITY_NOT_FOUND));
