@@ -17,7 +17,7 @@ class UserMapperTest {
                 .fullName("Full Name")
                 .build();
 
-        UserResponse response = userMapper.toUserResponse(entity);
+        com.eduspace.accountservice.model.dto.response.user.UserResponse response = userMapper.toUserResponse(entity);
 
         assertThat(response.getEmail()).isEqualTo("test@email.com");
         assertThat(response.getFullName()).isEqualTo("Full Name");

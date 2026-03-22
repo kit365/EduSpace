@@ -1,6 +1,6 @@
 package com.eduspace.accountservice.model.entity;
 
-import com.eduspace.accountservice.common.enums.HostPartnerApplicationStatus;
+import com.eduspace.accountservice.common.enums.PartnerAppStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -54,7 +54,7 @@ public class HostPartnerApplicationEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    HostPartnerApplicationStatus status;
+    com.eduspace.accountservice.common.enums.PartnerAppStatus status;
 
     @Column(name = "admin_note", columnDefinition = "TEXT")
     String adminNote;
@@ -77,7 +77,7 @@ public class HostPartnerApplicationEntity {
         createdAt = now;
         updatedAt = now;
         if (status == null) {
-            status = HostPartnerApplicationStatus.PENDING;
+            status = com.eduspace.accountservice.common.enums.PartnerAppStatus.PENDING;
         }
     }
 

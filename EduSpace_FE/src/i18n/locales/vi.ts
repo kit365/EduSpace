@@ -190,6 +190,8 @@ export const vi = {
     customer: {
         nav: {
             findSpace: "Tìm không gian",
+            favorites: "Yêu thích",
+            myBookings: "Lịch đặt",
             listSpace: "Đăng ký Host",
             forHosts: "Dành cho Host",
             help: "Trợ giúp"
@@ -234,6 +236,7 @@ export const vi = {
             topRated: {
                 title: "Không Gian Được Đánh Giá Cao",
                 subtitle: "Phòng học được cộng đồng giảng viên đánh giá cao nhất.",
+                viewDetails: "Xem chi tiết",
                 perHour: "/ giờ",
                 pax: "chỗ",
                 verified: "Đã xác thực",
@@ -263,7 +266,9 @@ export const vi = {
             capacity: "Sức chứa",
             size: "Diện tích",
             aboutSpace: "Giới thiệu không gian",
+            whatOffers: "Không gian này có gì?",
             amenities: "Tiện nghi",
+            amenity: "tiện ích",
             location: "Vị trí",
             reviews: "Đánh giá",
             seeAllReviews: "Xem tất cả {{count}} đánh giá",
@@ -278,7 +283,22 @@ export const vi = {
             hours: "giờ",
             cleaningFee: "Phí vệ sinh",
             serviceFee: "Phí dịch vụ",
-            total: "Tổng cộng"
+            total: "Tổng cộng",
+            gallery: {
+                viewAllPhotos: "Xem thêm"
+            },
+            tabs: {
+                details: "Chi tiết không gian",
+                policies: "Chính sách",
+                reviews: "Đánh giá",
+                messages: "Tin nhắn"
+            },
+            policiesTitle: "Chính sách đặt chỗ",
+            policyCancellation: "Hủy miễn phí trong vòng 24 giờ sau khi đặt.",
+            policyCheckIn: "Vui lòng check-in đúng khung giờ đã chọn để đảm bảo quyền sử dụng phòng.",
+            contactHostTitle: "Liên hệ Host",
+            contactHostDesc: "Bạn cần thêm thông tin về tiện nghi, thời gian hoặc hỗ trợ đặt chỗ? Hãy nhắn trực tiếp cho host.",
+            contactHostBtn: "Nhắn host ngay"
         },
         search: {
             title: "Tìm kiếm không gian",
@@ -515,6 +535,9 @@ export const vi = {
                 default: "Mặc định",
                 remove: "Gỡ bỏ",
                 noMethods: "Bạn chưa thêm phương thức thanh toán nào."
+            },
+            support: {
+                chatWithStaff: "Chat với nhân viên hỗ trợ"
             }
         }
     },
@@ -540,6 +563,7 @@ export const vi = {
     },
     admin_sidebar: {
         dashboard: "Dashboard",
+        messages: "Tin nhắn",
         finance: "Tài chính & Thanh toán",
         approvals: "Duyệt & KYC",
         disputes: "Tranh chấp & Báo cáo",

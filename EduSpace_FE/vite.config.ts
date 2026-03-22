@@ -9,9 +9,18 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  // sockjs-client references `global` which isn't defined in browsers by default.
+  // Vite replaces this at bundle time.
+  define: {
+    global: 'globalThis',
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
+  },
+  test: {
+    environment: 'node',
+    include: ['src/**/*.test.ts'],
   },
 })

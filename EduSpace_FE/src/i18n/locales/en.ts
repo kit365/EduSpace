@@ -190,6 +190,8 @@ export const en = {
     customer: {
         nav: {
             findSpace: "Find Space",
+            favorites: "Favorites",
+            myBookings: "My Bookings",
             listSpace: "List Your Space",
             forHosts: "For Hosts",
             help: "Help"
@@ -234,6 +236,7 @@ export const en = {
             topRated: {
                 title: "Top Rated Spaces",
                 subtitle: "Highly recommended classrooms by our community of teachers.",
+                viewDetails: "View Details",
                 perHour: "/ hr",
                 pax: "pax",
                 verified: "Verified",
@@ -263,7 +266,9 @@ export const en = {
             capacity: "Capacity",
             size: "Size",
             aboutSpace: "About this space",
+            whatOffers: "What this place offers",
             amenities: "Amenities",
+            amenity: "amenity",
             location: "Location",
             reviews: "Reviews",
             seeAllReviews: "See all {{count}} reviews",
@@ -278,7 +283,22 @@ export const en = {
             hours: "hours",
             cleaningFee: "Cleaning fee",
             serviceFee: "Service fee",
-            total: "Total"
+            total: "Total",
+            gallery: {
+                viewAllPhotos: "See all photos ({{count}})"
+            },
+            tabs: {
+                details: "Property details",
+                policies: "Policies",
+                reviews: "Reviews",
+                messages: "Messages"
+            },
+            policiesTitle: "Booking Policies",
+            policyCancellation: "Free cancellation within 24 hours after booking.",
+            policyCheckIn: "Please check in within your selected time slot to guarantee room access.",
+            contactHostTitle: "Contact Host",
+            contactHostDesc: "Need more information about amenities, schedule, or booking support? Message the host directly.",
+            contactHostBtn: "Message host"
         },
         search: {
             title: "Search Spaces",
@@ -515,6 +535,9 @@ export const en = {
                 default: "Default",
                 remove: "Remove",
                 noMethods: "You haven't added any payment methods yet."
+            },
+            support: {
+                chatWithStaff: "Chat with support staff",
             }
         }
     },
@@ -540,6 +563,7 @@ export const en = {
     },
     admin_sidebar: {
         dashboard: "Dashboard",
+        messages: "Messages",
         finance: "Finance & Payouts",
         approvals: "Approvals & KYC",
         disputes: "Disputes & Reports",

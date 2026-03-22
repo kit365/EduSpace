@@ -1,27 +1,24 @@
 package com.eduspace.accountservice.business.serviceimpl;
 
 import com.eduspace.accountservice.model.dto.request.user.UpdateProfileRequest;
+import com.eduspace.accountservice.model.dto.response.PublicUserProfileResponse;
 import com.eduspace.accountservice.model.dto.response.user.TwoFactorResponse;
 import com.eduspace.accountservice.model.dto.response.PageResponse;
 import com.eduspace.accountservice.model.dto.response.user.UserResponse;
-import com.eduspace.accountservice.model.entity.RoleEntity;
 import com.eduspace.accountservice.model.entity.UserEntity;
 import com.eduspace.accountservice.model.mapper.UserMapper;
 import com.eduspace.accountservice.business.service.KeycloakUserService;
+import com.eduspace.accountservice.business.service.SupportStaffPresenceService;
 import com.eduspace.accountservice.business.service.UserService;
 import com.eduspace.accountservice.exception.AppException;
 import com.eduspace.accountservice.exception.ErrorCode;
 import com.eduspace.accountservice.persistence.repository.UserRepository;
-
-import jakarta.persistence.criteria.Join;
-import jakarta.persistence.criteria.Predicate;
-import jakarta.persistence.criteria.Root;
-import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import dev.samstevens.totp.code.CodeVerifier;
 import dev.samstevens.totp.code.DefaultCodeGenerator;
@@ -43,6 +40,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final KeycloakUserService keycloakUserService;
+    private final SupportStaffPresenceService supportStaffPresenceService;
 
     @Override
     public UserResponse getProfile(String keycloakId) {
@@ -160,6 +158,105 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public PublicUserProfileResponse getPublicProfileByUserId(String userId) {
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        return userMapper.toPublicUserProfile(user);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PublicUserProfileResponse> getPublicProfilesByUserIds(List<String> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return List.of();
+        }
+        return userRepository.findAllById(userIds).stream()
+                .map(userMapper::toPublicUserProfile)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PublicUserProfileResponse getPublicProfileByKeycloakId(String keycloakId) {
+        UserEntity user = userRepository.findByKeycloakId(keycloakId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        return userMapper.toPublicUserProfile(user);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PublicUserProfileResponse getPublicProfileByIdentifier(String identifier) {
+        if (identifier == null) {
+            throw new AppException(ErrorCode.USER_NOT_FOUND);
+        }
+        
+        // Simple heuristic: if it contains '@', it's likely an email
+        if (identifier.contains("@")) {
+            return userRepository.findByEmail(identifier)
+                    .map(userMapper::toPublicUserProfile)
+                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        }
+        
+        // Otherwise assume it's a Keycloak ID (UUID)
+        return userRepository.findByKeycloakId(identifier)
+                .map(userMapper::toPublicUserProfile)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PublicUserProfileResponse> getPublicProfilesByKeycloakIds(List<String> keycloakIds) {
+        if (keycloakIds == null || keycloakIds.isEmpty()) {
+            return List.of();
+        }
+        return userRepository.findAllByKeycloakIdIn(keycloakIds).stream()
+                .map(userMapper::toPublicUserProfile)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PublicUserProfileResponse> getPublicProfilesByIdentifiers(List<String> identifiers) {
+        if (identifiers == null || identifiers.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> emails = identifiers.stream()
+                .filter(id -> id != null && id.contains("@"))
+                .toList();
+        List<String> keycloakIds = identifiers.stream()
+                .filter(id -> id != null && !id.contains("@"))
+                .toList();
+
+        List<UserEntity> users = new java.util.ArrayList<>();
+        if (!emails.isEmpty()) {
+            users.addAll(userRepository.findAllByEmailIn(emails));
+        }
+        if (!keycloakIds.isEmpty()) {
+            users.addAll(userRepository.findAllByKeycloakIdIn(keycloakIds));
+        }
+
+        return users.stream()
+                .distinct()
+                .map(userMapper::toPublicUserProfile)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PublicUserProfileResponse> searchPublicProfiles(String query, int limit) {
+        if (query == null || query.isBlank()) {
+            return List.of();
+        }
+        int safeLimit = Math.min(Math.max(limit, 1), 50);
+        return userRepository.searchByEmailOrFullName(query).stream()
+                .limit(safeLimit)
+                .map(userMapper::toPublicUserProfile)
+                .toList();
+    }
+
+    @Override
     public PageResponse<UserResponse> getAllUsers(Pageable pageable, String search, List<String> roles, String status, String kyc, String identifier, boolean isEmail) {
         UserEntity requester;
         if (isEmail) {
@@ -172,67 +269,17 @@ public class UserServiceImpl implements UserService {
 
         boolean isSuperAdmin = requester.getRoles().stream().anyMatch(r -> "SUPER_ADMIN".equals(r.getName()));
 
-        Specification<UserEntity> spec = (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
-
-            // 1. Search Logic
-            if (search != null && !search.trim().isEmpty()) {
-                String pattern = "%" + search.trim().toLowerCase() + "%";
-                predicates.add(cb.or(
-                        cb.like(cb.lower(root.get("fullName")), pattern),
-                        cb.like(cb.lower(root.get("email")), pattern)
-                ));
-            }
-
-            // 2. Role Filter (optional: filter by role name)
-            if (roles != null && !roles.isEmpty()) {
-                List<String> mapped = roles.stream()
+        List<String> mappedRoles = (roles != null && !roles.isEmpty())
+                ? roles.stream()
                         .filter(r -> r != null && !"Tất cả".equals(r.trim()))
-                        .map(r -> mapRole(r.trim()))
+                        .map(this::mapRole)
                         .distinct()
-                        .toList();
-                if (!mapped.isEmpty()) {
-                    Join<UserEntity, RoleEntity> joinRole = root.join("roles");
-                    predicates.add(joinRole.get("name").in(mapped));
-                }
-            }
+                        .toList()
+                : null;
 
-            // 3. Hierarchy: exclude users by role (subquery so we exclude the whole user, not just a row)
-            if (!isSuperAdmin) {
-                // Admin must not see any user that has ADMIN or SUPER_ADMIN
-                Subquery<String> subq = query.subquery(String.class);
-                Root<UserEntity> subRoot = subq.from(UserEntity.class);
-                Join<UserEntity, RoleEntity> subJoin = subRoot.join("roles");
-                subq.select(subRoot.get("id"))
-                    .where(cb.or(
-                        cb.equal(subJoin.get("name"), "ADMIN"),
-                        cb.equal(subJoin.get("name"), "SUPER_ADMIN")
-                    ));
-                predicates.add(cb.not(root.get("id").in(subq)));
-            } else {
-                // Super admin must not see other super admins (only themselves)
-                Subquery<String> subq = query.subquery(String.class);
-                Root<UserEntity> subRoot = subq.from(UserEntity.class);
-                Join<UserEntity, RoleEntity> subJoin = subRoot.join("roles");
-                subq.select(subRoot.get("id"))
-                    .where(cb.equal(subJoin.get("name"), "SUPER_ADMIN"));
-                predicates.add(cb.or(
-                    cb.not(root.get("id").in(subq)),
-                    cb.equal(root.get("id"), requester.getId())
-                ));
-            }
-
-            // 4. Status Filter
-            if (status != null && !"Tất cả".equals(status)) {
-                predicates.add(cb.equal(root.get("isActive"), "Active".equalsIgnoreCase(status)));
-            }
-
-            if (roles != null && !roles.isEmpty()) {
-                query.distinct(true);
-            }
-
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
+        Specification<UserEntity> spec = com.eduspace.accountservice.persistence.specification.UserSpecification.hasFilters(
+                search, mappedRoles, status, isSuperAdmin, requester
+        );
 
         Page<UserEntity> pageResult = userRepository.findAll(spec, pageable);
 
@@ -244,6 +291,59 @@ public class UserServiceImpl implements UserService {
                 .totalPages(pageResult.getTotalPages())
                 .last(pageResult.isLast())
                 .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countEligibleSupportStaff() {
+        return userRepository.countDistinctActiveUsersWithSupportRoles();
+    }
+
+    @Override
+    public String assignStaff(String customerId) {
+        log.info("Assigning staff for customerId: {}", customerId);
+        
+        // Try to find a user with role ADMIN (or STAFF if you prefer)
+        List<UserEntity> admins = userRepository.findByRoleName("ADMIN");
+        
+        if (admins.isEmpty()) {
+            // Fallback to SUPER_ADMIN if no ADMIN found
+            admins = userRepository.findByRoleName("SUPER_ADMIN");
+        }
+
+        if (admins.isEmpty()) {
+            log.warn("No users with ADMIN or SUPER_ADMIN role found. Attempting developer fallback...");
+            admins = userRepository.findAll().stream()
+                    .filter(u -> u.getEmail() != null && 
+                                (u.getEmail().contains("admin") || u.getEmail().contains("kietops")))
+                    .toList();
+            
+            if (admins.isEmpty()) {
+                // Absolute last resort: just pick the first user available except the customer
+                admins = userRepository.findAll().stream()
+                        .filter(u -> !u.getKeycloakId().equals(customerId))
+                        .toList();
+            }
+
+            if (admins.isEmpty()) {
+                log.error("Absolutely no staff available to assign for customer: {}", customerId);
+                return null;
+            }
+        }
+
+        Set<String> online = supportStaffPresenceService.getOnlineMemberIds();
+        Optional<UserEntity> onlineFirst = admins.stream()
+                .filter(a -> a.getKeycloakId() != null && online.contains(a.getKeycloakId()))
+                .findFirst();
+        if (onlineFirst.isPresent()) {
+            UserEntity assigned = onlineFirst.get();
+            log.info("Assigned online admin {} to customer {}", assigned.getEmail(), customerId);
+            return assigned.getKeycloakId();
+        }
+
+        UserEntity assigned = admins.get(0);
+        log.info("Assigned admin (pool order, none online in Redis) {} to customer {}", assigned.getEmail(), customerId);
+        return assigned.getKeycloakId();
     }
 
     private String mapRole(String uiRole) {
