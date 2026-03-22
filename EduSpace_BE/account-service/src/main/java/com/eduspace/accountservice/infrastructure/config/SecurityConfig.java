@@ -38,6 +38,7 @@ public class SecurityConfig {
                         .requestMatchers(AuthPaths.BASE_PATH + "/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
                                 "/swagger-resources/**")
                         .permitAll()
+                        .requestMatchers("/api/v1/accounts/public/**").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers("/api/v1/accounts/admin/**").hasAnyRole(
                                 Role.ADMIN.name(),

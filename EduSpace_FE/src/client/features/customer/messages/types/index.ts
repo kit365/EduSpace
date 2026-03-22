@@ -7,6 +7,13 @@ export interface PublicUserProfile {
     avatarUrl?: string | null;
 }
 
+export interface SearchUserResult {
+    keycloakId: string;
+    fullName?: string | null;
+    email?: string | null;
+    avatarUrl?: string | null;
+}
+
 export interface Conversation {
     conversationId: string;
     conversationName?: string | null;
@@ -63,6 +70,7 @@ export interface WebSocketMessagePayload {
 }
 
 export interface WebSocketReadReceiptPayload {
+    conversationId: string;
     readerId: string;
     readAt: string;
 }

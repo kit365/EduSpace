@@ -1,5 +1,6 @@
 package com.eduspace.conversationservice.model.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -13,15 +14,20 @@ import java.time.LocalDateTime;
 public class ConversationResponse {
     String conversationId;
     String conversationName;
-    boolean isActive;
-    boolean isAdminConversation;
-    boolean videoCallEnabled;
+    @JsonProperty("isActive")
+    Boolean isActive;
+    @JsonProperty("isAdminConversation")
+    Boolean isAdminConversation;
+    @JsonProperty("videoCallEnabled")
+    Boolean videoCallEnabled;
     int totalMessageCount;
     int callHistoryCount;
     LocalDateTime lastActivity;
     LocalDateTime createdAt;
-    boolean isBlocked;
-    boolean isBlockedByMe;
+    @JsonProperty("isBlocked")
+    Boolean isBlocked;
+    @JsonProperty("isBlockedByMe")
+    Boolean isBlockedByMe;
     int unreadCount;
     String lastMessage;
     OtherUser otherUser;

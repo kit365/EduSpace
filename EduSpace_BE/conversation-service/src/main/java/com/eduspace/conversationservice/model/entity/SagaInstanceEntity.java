@@ -23,7 +23,6 @@ public class SagaInstanceEntity {
     }
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "saga_id")
     String id;
 

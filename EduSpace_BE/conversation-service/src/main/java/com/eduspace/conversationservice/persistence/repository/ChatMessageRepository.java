@@ -21,22 +21,9 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessageEntity, 
             Pageable pageable
     );
 
-    @Query("""
-            select m from ChatMessageEntity m
-            where m.conversation = :conversation
-              and m.isDeleted = false
-            order by m.sentAt desc
-            """)
-    List<ChatMessageEntity> findLatestMessages(@Param("conversation") ConversationEntity conversation, Pageable pageable);
+    List<ChatMessageEntity> findByConversationAndIsDeletedFalseAndIsReadFalseAndSenderIdNot(ConversationEntity conversation, String senderId);
 
-    @Query("""
-            select count(m) from ChatMessageEntity m
-            where m.conversation = :conversation
-              and m.isDeleted = false
-              and m.isRead = false
-              and m.senderId <> :userId
-            """)
-    int countUnreadMessages(@Param("conversation") ConversationEntity conversation, @Param("userId") String userId);
+    int countByConversationAndIsDeletedFalseAndIsReadFalseAndSenderIdNot(ConversationEntity conversation, String senderId);
 
     @Modifying
     @Query("""
@@ -53,5 +40,11 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessageEntity, 
             @Param("readerId") String readerId,
             @Param("readAt") LocalDateTime readAt
     );
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE ChatMessageEntity m SET m.senderId = :newId WHERE m.senderId = :guestId")
+    int updateSenderIdForGuest(@Param("guestId") String guestId, @Param("newId") String newId);
+
+    List<ChatMessageEntity> findBySenderIdContaining(String fragment);
 }
 

@@ -12,6 +12,7 @@ import com.eduspace.accountservice.model.dto.response.PublicUserProfileResponse;
 import com.eduspace.accountservice.model.dto.response.user.TwoFactorResponse;
 import com.eduspace.accountservice.model.dto.response.PageResponse;
 import com.eduspace.accountservice.model.dto.response.user.UserResponse;
+import com.eduspace.accountservice.business.service.SupportStaffPresenceService;
 import com.eduspace.accountservice.business.service.UserService;
 import com.eduspace.accountservice.presentation.constants.AccountPaths;
 import com.eduspace.accountservice.presentation.constants.PreAuthorizeConstants;
@@ -36,6 +37,7 @@ import java.util.List;
 public class UserController {
 
         private final UserService userService;
+        private final SupportStaffPresenceService supportStaffPresenceService;
         private final MessageSource messageSource;
 
         @GetMapping(AccountPaths.ME)
@@ -88,9 +90,25 @@ public class UserController {
                 return ApiResponse.success(response, SuccessCode.USER_PROFILE_GET_SUCCESS, message);
         }
 
+        @GetMapping(AccountPaths.PUBLIC_BY_IDENTIFIER)
+        public ApiResponse<PublicUserProfileResponse> getPublicByIdentifier(@PathVariable String identifier) {
+                PublicUserProfileResponse response = userService.getPublicProfileByIdentifier(identifier);
+                String message = messageSource.getMessage(SuccessCode.USER_PROFILE_GET_SUCCESS.getMessageKey(), null,
+                                SuccessCode.USER_PROFILE_GET_SUCCESS.getMessageKey(), LocaleContextHolder.getLocale());
+                return ApiResponse.success(response, SuccessCode.USER_PROFILE_GET_SUCCESS, message);
+        }
+
         @PostMapping(AccountPaths.PUBLIC_BY_KEYCLOAK_BATCH)
         public ApiResponse<List<PublicUserProfileResponse>> getPublicByKeycloakBatch(@RequestBody PublicKeycloakBatchRequest request) {
                 List<PublicUserProfileResponse> response = userService.getPublicProfilesByKeycloakIds(request.getKeycloakIds());
+                String message = messageSource.getMessage(SuccessCode.USER_PROFILE_GET_SUCCESS.getMessageKey(), null,
+                                SuccessCode.USER_PROFILE_GET_SUCCESS.getMessageKey(), LocaleContextHolder.getLocale());
+                return ApiResponse.success(response, SuccessCode.USER_PROFILE_GET_SUCCESS, message);
+        }
+
+        @PostMapping(AccountPaths.PUBLIC_BY_IDENTIFIER_BATCH)
+        public ApiResponse<List<PublicUserProfileResponse>> getPublicByIdentifierBatch(@RequestBody PublicKeycloakBatchRequest request) {
+                List<PublicUserProfileResponse> response = userService.getPublicProfilesByIdentifiers(request.getKeycloakIds());
                 String message = messageSource.getMessage(SuccessCode.USER_PROFILE_GET_SUCCESS.getMessageKey(), null,
                                 SuccessCode.USER_PROFILE_GET_SUCCESS.getMessageKey(), LocaleContextHolder.getLocale());
                 return ApiResponse.success(response, SuccessCode.USER_PROFILE_GET_SUCCESS, message);
@@ -103,6 +121,29 @@ public class UserController {
                 String message = messageSource.getMessage(SuccessCode.USER_PROFILE_GET_SUCCESS.getMessageKey(), null,
                                 SuccessCode.USER_PROFILE_GET_SUCCESS.getMessageKey(), LocaleContextHolder.getLocale());
                 return ApiResponse.success(response, SuccessCode.USER_PROFILE_GET_SUCCESS, message);
+        }
+
+        @GetMapping(AccountPaths.PUBLIC_SUPPORT_ELIGIBLE_STAFF_COUNT)
+        public ApiResponse<Long> getEligibleSupportStaffCount() {
+                long count = userService.countEligibleSupportStaff();
+                return ApiResponse.success(count, SuccessCode.USER_PROFILE_GET_SUCCESS,
+                                "Eligible support staff count");
+        }
+
+        @GetMapping(AccountPaths.PUBLIC_SUPPORT_ONLINE_STAFF_COUNT)
+        public ApiResponse<Long> getOnlineSupportStaffCount() {
+                long count = supportStaffPresenceService.countOnline();
+                return ApiResponse.success(count, SuccessCode.USER_PROFILE_GET_SUCCESS,
+                                "Online support staff count");
+        }
+
+        @PostMapping(AccountPaths.ME_SUPPORT_PRESENCE)
+        @PreAuthorize(PreAuthorizeConstants.HAS_ANY_ROLE_ADMIN_OR_SUPER)
+        public ApiResponse<Void> recordSupportPresence(@AuthenticationPrincipal Jwt jwt) {
+                String keycloakId = jwt.getSubject();
+                supportStaffPresenceService.recordPresence(keycloakId);
+                return ApiResponse.success(null, SuccessCode.USER_PROFILE_UPDATE_SUCCESS,
+                                "Support presence recorded");
         }
 
         @PutMapping(AccountPaths.ME)

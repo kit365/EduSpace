@@ -21,6 +21,12 @@ public class SagaServiceImpl implements SagaService {
     @Override
     @Transactional
     public SagaInstanceEntity startSaga(String sagaType, String currentStep, Object payload) {
+        return startSaga(java.util.UUID.randomUUID().toString(), sagaType, currentStep, payload);
+    }
+
+    @Override
+    @Transactional
+    public SagaInstanceEntity startSaga(String sagaId, String sagaType, String currentStep, Object payload) {
         String json = null;
         if (payload != null) {
             try {
@@ -31,6 +37,7 @@ public class SagaServiceImpl implements SagaService {
         }
 
         SagaInstanceEntity saga = SagaInstanceEntity.builder()
+                .id(sagaId)
                 .sagaType(sagaType)
                 .status(SagaInstanceEntity.Status.STARTED)
                 .currentStep(currentStep)

@@ -27,5 +27,17 @@ public interface UserRepository extends JpaRepository<UserEntity, String>, JpaSp
 
     Optional<UserEntity> findByEmail(String email);
 
+    List<UserEntity> findAllByEmailIn(List<String> emails);
+
     boolean existsByEmail(String email);
+
+    @Query("SELECT u FROM UserEntity u JOIN u.roles r WHERE r.name = :roleName AND u.isActive = true")
+    List<UserEntity> findByRoleName(@Param("roleName") String roleName);
+
+    @Query("""
+            SELECT COUNT(DISTINCT u) FROM UserEntity u
+            JOIN u.roles r
+            WHERE u.isActive = true AND r.name IN ('ADMIN', 'SUPER_ADMIN')
+            """)
+    long countDistinctActiveUsersWithSupportRoles();
 }

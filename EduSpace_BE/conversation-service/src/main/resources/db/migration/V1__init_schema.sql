@@ -7,6 +7,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE TABLE conversations (
     conversation_id         VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    saga_id                 VARCHAR(36),
     user1_id                VARCHAR(36) NOT NULL,
     user2_id                VARCHAR(36) NOT NULL,
     conversation_name       VARCHAR(255),

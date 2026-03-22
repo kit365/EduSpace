@@ -7,19 +7,24 @@ import com.eduspace.conversationservice.model.enums.MessageType;
 import java.util.List;
 
 public interface ChatService {
-    ConversationResponse getOrCreateConversation(String currentUserId, String otherUserId, boolean isAdminConversation, String bearerToken);
+    ConversationResponse getOrCreateConversation(String currentUserId, String otherUserId, boolean isAdminConversation);
 
-    ConversationResponse getConversationById(String conversationId, String currentUserId, String bearerToken);
+    ConversationResponse getConversationById(String conversationId, String currentUserId);
 
-    List<ConversationResponse> getUserConversations(String currentUserId, String bearerToken);
+    List<ConversationResponse> getUserConversations(String currentUserId);
 
-    List<ConversationResponse> getAdminConversations(String currentUserId, String bearerToken);
+    List<ConversationResponse> getAdminConversations(String currentUserId);
 
-    ChatMessageResponse sendMessage(String conversationId, String senderUserId, String content, MessageType messageType, String bearerToken);
+    /** Reassign guest-owned support rows to Keycloak user after login. Returns number of conversations updated. */
+    int claimGuestSupportConversations(String keycloakUserId, String guestId);
 
-    ChatMessageResponse sendMediaMessage(String conversationId, String senderUserId, String mediaUrl, String mediaType, MessageType messageType, String bearerToken);
+    ChatMessageResponse sendMessage(String conversationId, String senderUserId, String content, MessageType messageType);
 
-    List<ChatMessageResponse> getChatHistory(String conversationId, int page, int size, String bearerToken);
+    ChatMessageResponse sendMediaMessage(String conversationId, String senderUserId, String mediaUrl, String mediaType, MessageType messageType);
+
+    List<ChatMessageResponse> getChatHistory(String conversationId, int page, int size, String readerUserId);
+
+    void notifyStaffAssignmentFailed(String conversationId, String failureDetail);
 
     void markMessagesAsRead(String conversationId, String readerUserId);
 

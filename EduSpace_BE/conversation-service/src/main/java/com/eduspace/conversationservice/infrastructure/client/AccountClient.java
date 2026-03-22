@@ -1,64 +1,37 @@
 package com.eduspace.conversationservice.infrastructure.client;
 
+import com.eduspace.conversationservice.infrastructure.config.client.FeignConfig;
 import com.eduspace.conversationservice.model.dto.response.ApiResponse;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.List;
-import java.util.Objects;
 
-@Component
-public class AccountClient {
+@FeignClient(name = "account-service", configuration = FeignConfig.class)
+public interface AccountClient {
 
-    public record PublicUserProfile(
+    record PublicUserProfile(
             String keycloakId,
             String fullName,
             String email,
             String avatarUrl
-    ) {
-    }
+    ) {}
 
-    private final RestClient restClient;
+    record BatchRequest(List<String> keycloakIds) {}
 
-    public AccountClient(
-            RestClient.Builder builder,
-            @Value("${app.clients.account.base-url:http://ACCOUNT-SERVICE}") String baseUrl
-    ) {
-        this.restClient = builder.baseUrl(baseUrl).build();
-    }
+    @GetMapping("/api/v1/accounts/public/by-keycloak/{keycloakId}")
+    ApiResponse<PublicUserProfile> getPublicProfileByKeycloakId(@PathVariable("keycloakId") String keycloakId);
 
-    public PublicUserProfile getPublicProfileByKeycloakId(String keycloakId, String bearerToken) {
-        ApiResponse<PublicUserProfile> response = restClient.get()
-                .uri("/api/v1/accounts/public/by-keycloak/{keycloakId}", keycloakId)
-                .header("Authorization", "Bearer " + bearerToken)
-                .retrieve()
-                .body(new org.springframework.core.ParameterizedTypeReference<>() {
-                });
-        if (response == null || !response.success() || response.data() == null) {
-            return null;
-        }
-        return response.data();
-    }
+    @GetMapping("/api/v1/accounts/public/by-identifier/{identifier}")
+    ApiResponse<PublicUserProfile> getPublicProfileByIdentifier(@PathVariable("identifier") String identifier);
 
-    public List<PublicUserProfile> getPublicProfilesByKeycloakIds(List<String> keycloakIds, String bearerToken) {
-        if (keycloakIds == null || keycloakIds.isEmpty()) return List.of();
+    @PostMapping("/api/v1/accounts/public/by-keycloak/batch")
+    ApiResponse<List<PublicUserProfile>> getPublicProfilesByKeycloakIds(@RequestBody BatchRequest request);
 
-        ApiResponse<List<PublicUserProfile>> response = restClient.post()
-                .uri("/api/v1/accounts/public/by-keycloak/batch")
-                .header("Authorization", "Bearer " + bearerToken)
-                .body(new BatchRequest(keycloakIds))
-                .retrieve()
-                .body(new org.springframework.core.ParameterizedTypeReference<>() {
-                });
-
-        if (response == null || !response.success() || response.data() == null) {
-            return List.of();
-        }
-        return Objects.requireNonNullElse(response.data(), List.of());
-    }
-
-    public record BatchRequest(List<String> keycloakIds) {
-    }
+    @PostMapping("/api/v1/accounts/public/by-identifier/batch")
+    ApiResponse<List<PublicUserProfile>> getPublicProfilesByIdentifiers(@RequestBody BatchRequest request);
 }
 

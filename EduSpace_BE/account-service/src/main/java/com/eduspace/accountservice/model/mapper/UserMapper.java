@@ -61,6 +61,7 @@ public class UserMapper {
 
         return UserResponse.builder()
                 .id(entity.getId())
+                .keycloakId(entity.getKeycloakId())
                 .email(entity.getEmail())
                 .fullName(entity.getFullName())
                 .phoneNumber(entity.getPhoneNumber())

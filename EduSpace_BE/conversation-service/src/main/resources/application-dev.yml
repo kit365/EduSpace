@@ -1,8 +1,16 @@
-# Local DB — PostgreSQL on this machine (localhost:5432).
-# Create DB: psql -U postgres -c "CREATE DATABASE eduspace_conversation;"
-# Override with SPRING_DATASOURCE_* or POSTGRES_* env if needed.
+server:
+  port: ${CONVERSATION_SERVICE_PORT:8084}
+
 spring:
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/eduspace_conversation}
-    username: ${SPRING_DATASOURCE_USERNAME:${POSTGRES_USER:postgres}}
-    password: ${SPRING_DATASOURCE_PASSWORD:${POSTGRES_PASSWORD:Linhvovip}}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:${POSTGRES_CONVERSATION_HOST_PORT:5435}/eduspace_conversation}
+    username: ${SPRING_DATASOURCE_USERNAME:eduspace}
+    password: ${SPRING_DATASOURCE_PASSWORD:eduspace_dev_123}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    show-sql: false
+
+app:
+  outbox:
+    enabled: false

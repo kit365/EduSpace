@@ -1,6 +1,9 @@
 package com.eduspace.conversationservice.presentation.controller;
 
+import com.eduspace.conversationservice.business.service.JwtConversationUserIdResolver;
 import com.eduspace.conversationservice.business.service.VideoCallService;
+import com.eduspace.conversationservice.exception.AppException;
+import com.eduspace.conversationservice.exception.ErrorCode;
 import com.eduspace.conversationservice.model.dto.response.ApiResponse;
 import com.eduspace.conversationservice.model.dto.response.VideoCallResponse;
 import com.eduspace.conversationservice.model.entity.VideoCallEntity;
@@ -19,6 +22,7 @@ import java.util.Map;
 public class AzureCommunicationController {
 
     private final VideoCallService videoCallService;
+    private final JwtConversationUserIdResolver jwtUserIdResolver;
 
     @GetMapping("/status")
     public ApiResponse<Map<String, Object>> status() {
@@ -29,12 +33,13 @@ public class AzureCommunicationController {
     @PostMapping("/calls/initiate")
     public ApiResponse<Map<String, Object>> initiate(@RequestBody Map<String, String> request,
                                                      @org.springframework.security.core.annotation.AuthenticationPrincipal Jwt jwt) {
+        String uid = requireUserId(jwt);
         String conversationId = request.get("conversationId");
-        VideoCallEntity call = videoCallService.initiate(conversationId, jwt.getSubject());
+        VideoCallEntity call = videoCallService.initiate(conversationId, uid);
 
         // Stub tokens (so FE can keep flow); replace with real ACS integration later.
         Map<String, Object> yourToken = Map.of(
-                "userId", jwt.getSubject(),
+                "userId", uid,
                 "token", "stub-token-" + call.getCallSessionId(),
                 "expiresOn", Instant.now().plus(60, ChronoUnit.MINUTES).toString()
         );
@@ -57,9 +62,10 @@ public class AzureCommunicationController {
     @PostMapping("/calls/{callSessionId}/answer")
     public ApiResponse<Map<String, Object>> answer(@PathVariable String callSessionId,
                                                    @org.springframework.security.core.annotation.AuthenticationPrincipal Jwt jwt) {
-        VideoCallEntity call = videoCallService.answer(callSessionId, jwt.getSubject());
+        String uid = requireUserId(jwt);
+        VideoCallEntity call = videoCallService.answer(callSessionId, uid);
         Map<String, Object> yourToken = Map.of(
-                "userId", jwt.getSubject(),
+                "userId", uid,
                 "token", "stub-token-" + call.getCallSessionId() + "-answer",
                 "expiresOn", Instant.now().plus(60, ChronoUnit.MINUTES).toString()
         );
@@ -75,8 +81,9 @@ public class AzureCommunicationController {
     public ApiResponse<Map<String, Object>> decline(@PathVariable String callSessionId,
                                                     @RequestBody(required = false) Map<String, String> request,
                                                     @org.springframework.security.core.annotation.AuthenticationPrincipal Jwt jwt) {
+        String uid = requireUserId(jwt);
         String reason = request != null ? request.get("reason") : null;
-        videoCallService.decline(callSessionId, jwt.getSubject(), reason);
+        videoCallService.decline(callSessionId, uid, reason);
         return ApiResponse.success(Map.of("message", "Call declined"));
     }
 
@@ -84,15 +91,17 @@ public class AzureCommunicationController {
     public ApiResponse<Map<String, Object>> end(@PathVariable String callSessionId,
                                                 @RequestBody(required = false) Map<String, String> request,
                                                 @org.springframework.security.core.annotation.AuthenticationPrincipal Jwt jwt) {
+        String uid = requireUserId(jwt);
         String reason = request != null ? request.get("reason") : null;
-        videoCallService.end(callSessionId, jwt.getSubject(), reason);
+        videoCallService.end(callSessionId, uid, reason);
         return ApiResponse.success(Map.of("message", "Call ended"));
     }
 
     @GetMapping("/calls/conversation/{conversationId}")
     public ApiResponse<Map<String, Object>> history(@PathVariable String conversationId,
                                                     @org.springframework.security.core.annotation.AuthenticationPrincipal Jwt jwt) {
-        List<VideoCallResponse> calls = videoCallService.history(conversationId, jwt.getSubject()).stream()
+        String uid = requireUserId(jwt);
+        List<VideoCallResponse> calls = videoCallService.history(conversationId, uid).stream()
                 .map(this::toResponse)
                 .toList();
         return ApiResponse.success(Map.of("calls", calls));
@@ -101,13 +110,22 @@ public class AzureCommunicationController {
     @GetMapping("/calls/{callSessionId}/join-info")
     public ApiResponse<Map<String, Object>> joinInfo(@PathVariable String callSessionId,
                                                      @org.springframework.security.core.annotation.AuthenticationPrincipal Jwt jwt) {
-        VideoCallEntity call = videoCallService.getBySessionId(callSessionId, jwt.getSubject());
+        String uid = requireUserId(jwt);
+        VideoCallEntity call = videoCallService.getBySessionId(callSessionId, uid);
         return ApiResponse.success(Map.of(
                 "success", true,
                 "callSessionId", call.getCallSessionId(),
                 "token", "stub-token-" + call.getCallSessionId() + "-join",
                 "expiresOn", Instant.now().plus(60, ChronoUnit.MINUTES).toString()
         ));
+    }
+
+    private String requireUserId(Jwt jwt) {
+        String uid = jwtUserIdResolver.resolveUserId(jwt);
+        if (uid == null) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+        return uid;
     }
 
     private VideoCallResponse toResponse(VideoCallEntity call) {

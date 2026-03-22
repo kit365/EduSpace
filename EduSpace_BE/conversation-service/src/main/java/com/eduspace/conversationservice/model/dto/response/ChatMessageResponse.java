@@ -1,9 +1,12 @@
 package com.eduspace.conversationservice.model.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 
 @Data
 @Builder
@@ -16,13 +19,15 @@ public class ChatMessageResponse {
     String content;
     String messageType;
     LocalDateTime sentAt;
-    boolean isRead;
+    @JsonProperty("isRead")
+    Boolean isRead;
     LocalDateTime readAt;
-    boolean isDeleted;
+    @JsonProperty("isDeleted")
+    Boolean isDeleted;
     LocalDateTime editedAt;
     String mediaUrl;
     String mediaType;
-    String reactions;
+    Map<String, List<String>> reactions;
     String replyToMessageId;
     Sender sender;
 

@@ -68,14 +68,14 @@ apiClient.interceptors.response.use(
 
             // If we reach here, refresh failed or no token was found
             useAuthStore.getState().clearTokens();
-            window.location.href = '/auth';
+            // window.location.href = '/auth'; // Disable forced redirect for guest viewing
             return Promise.reject(error);
         }
 
         // Common handling for 401 status when no refresh is possible/attempted
         if (error.response?.status === 401 && !isAuthRequest) {
             useAuthStore.getState().clearTokens();
-            window.location.href = '/auth';
+            // window.location.href = '/auth'; // Disable forced redirect for guest viewing
         }
 
         return Promise.reject(error);

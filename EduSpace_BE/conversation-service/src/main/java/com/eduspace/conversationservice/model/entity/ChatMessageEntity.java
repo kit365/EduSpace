@@ -1,11 +1,14 @@
 package com.eduspace.conversationservice.model.entity;
 
 import com.eduspace.conversationservice.model.enums.MessageType;
+import com.eduspace.conversationservice.infrastructure.persistence.converter.JsonMapConverter;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 
 @Entity
 @Table(name = "chat_messages")
@@ -26,7 +29,7 @@ public class ChatMessageEntity {
     @JoinColumn(name = "conversation_id", nullable = false)
     ConversationEntity conversation;
 
-    @Column(name = "sender_id", nullable = false, length = 36)
+    @Column(name = "sender_id", nullable = false, length = 100)
     String senderId;
 
     @Column(name = "content", columnDefinition = "TEXT")
@@ -66,7 +69,8 @@ public class ChatMessageEntity {
     LocalDateTime deletedAt;
 
     @Column(name = "reactions", columnDefinition = "TEXT")
-    String reactions;
+    @Convert(converter = JsonMapConverter.class)
+    Map<String, List<String>> reactions;
 
     @Column(name = "reply_to_message_id", length = 36)
     String replyToMessageId;

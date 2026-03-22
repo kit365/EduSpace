@@ -59,6 +59,9 @@ public class OutboxEventEntity {
     @Column(name = "last_error", columnDefinition = "TEXT")
     String lastError;
 
+    @Column(name = "target_user_id", length = 60)
+    String targetUserId;
+
     @PrePersist
     void onCreate() {
         if (createdAt == null) createdAt = LocalDateTime.now();

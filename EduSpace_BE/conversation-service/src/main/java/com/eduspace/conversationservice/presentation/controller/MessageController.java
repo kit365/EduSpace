@@ -1,45 +1,59 @@
 package com.eduspace.conversationservice.presentation.controller;
 
 import com.eduspace.conversationservice.business.service.ChatService;
+import com.eduspace.conversationservice.business.service.JwtConversationUserIdResolver;
+import com.eduspace.conversationservice.exception.AppException;
+import com.eduspace.conversationservice.exception.ErrorCode;
+import com.eduspace.conversationservice.exception.SuccessCode;
 import com.eduspace.conversationservice.model.dto.request.AddReactionRequest;
 import com.eduspace.conversationservice.model.dto.request.EditMessageRequest;
 import com.eduspace.conversationservice.model.dto.response.ApiResponse;
-import com.eduspace.conversationservice.presentation.constants.ApiPaths;
+import com.eduspace.conversationservice.presentation.constants.ConversationPaths;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
-
 @RestController
-@RequestMapping(ApiPaths.Message.BASE_PATH)
+@RequestMapping(ConversationPaths.Message.BASE_PATH)
 @RequiredArgsConstructor
 public class MessageController {
 
     private final ChatService chatService;
+    private final JwtConversationUserIdResolver jwtUserIdResolver;
 
-    @DeleteMapping(ApiPaths.Message.BY_ID)
-    public ApiResponse<Map<String, Object>> deleteMessage(@PathVariable String messageId,
-                                                          @org.springframework.security.core.annotation.AuthenticationPrincipal Jwt jwt) {
-        chatService.deleteMessage(messageId, jwt.getSubject());
-        return ApiResponse.success(Map.of("message", "Message deleted"));
+    @DeleteMapping(ConversationPaths.Message.BY_ID)
+    public ApiResponse<Void> deleteMessage(@PathVariable String messageId,
+                                           @org.springframework.security.core.annotation.AuthenticationPrincipal Jwt jwt) {
+        String uid = requireUserId(jwt);
+        chatService.deleteMessage(messageId, uid);
+        return ApiResponse.success(null, SuccessCode.MESSAGE_DELETE_SUCCESS, "Message deleted");
     }
 
-    @PutMapping(ApiPaths.Message.BY_ID)
-    public ApiResponse<Map<String, Object>> editMessage(@PathVariable String messageId,
-                                                        @Valid @RequestBody EditMessageRequest request,
-                                                        @org.springframework.security.core.annotation.AuthenticationPrincipal Jwt jwt) {
-        chatService.editMessage(messageId, request.getContent(), jwt.getSubject());
-        return ApiResponse.success(Map.of("message", "Message edited"));
+    @PutMapping(ConversationPaths.Message.BY_ID)
+    public ApiResponse<Void> editMessage(@PathVariable String messageId,
+                                         @Valid @RequestBody EditMessageRequest request,
+                                         @org.springframework.security.core.annotation.AuthenticationPrincipal Jwt jwt) {
+        String uid = requireUserId(jwt);
+        chatService.editMessage(messageId, request.getContent(), uid);
+        return ApiResponse.success(null, SuccessCode.MESSAGE_EDIT_SUCCESS, "Message edited");
     }
 
-    @PostMapping(ApiPaths.Message.REACTIONS)
-    public ApiResponse<Map<String, Object>> addReaction(@PathVariable String messageId,
-                                                        @Valid @RequestBody AddReactionRequest request,
-                                                        @org.springframework.security.core.annotation.AuthenticationPrincipal Jwt jwt) {
-        chatService.addReactionToMessage(messageId, jwt.getSubject(), request.getEmoji());
-        return ApiResponse.success(Map.of("message", "Reaction added"));
+    @PostMapping(ConversationPaths.Message.REACTIONS)
+    public ApiResponse<Void> addReaction(@PathVariable String messageId,
+                                         @Valid @RequestBody AddReactionRequest request,
+                                         @org.springframework.security.core.annotation.AuthenticationPrincipal Jwt jwt) {
+        String uid = requireUserId(jwt);
+        chatService.addReactionToMessage(messageId, uid, request.getEmoji());
+        return ApiResponse.success(null, SuccessCode.REACTION_ADD_SUCCESS, "Reaction added");
+    }
+
+    private String requireUserId(Jwt jwt) {
+        String uid = jwtUserIdResolver.resolveUserId(jwt);
+        if (uid == null) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+        return uid;
     }
 }
 

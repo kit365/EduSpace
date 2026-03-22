@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CustomerLayout } from '../../../../layouts/CustomerLayout';
-import { Send, Search, MoreVertical, Paperclip, Smile, Loader2 } from 'lucide-react';
+import { Send, Search, MoreVertical, Paperclip, Smile, Loader2, Headphones } from 'lucide-react';
 import { useConversations } from '../hooks/useMessages';
 import { messageService } from '../services/messageService';
 import type { ChatMessage, Conversation } from '../types';
@@ -20,7 +20,7 @@ function decodeUserIdFromToken(token: string | null): string | null {
 }
 
 export function MessagesPage() {
-    const { conversations, loading } = useConversations();
+    const { conversations, loading, setConversations } = useConversations();
     const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [messageInput, setMessageInput] = useState('');
@@ -110,6 +110,23 @@ export function MessagesPage() {
         }
     };
 
+    const handleCreateSupport = async () => {
+        try {
+            // Initiate the Saga to assign a real staff member
+            // The UUID here is a placeholder required by the path variable/DTO, 
+            // the backend will override it with a real staff Keycloak ID
+            const newConv = await messageService.createConversation('admin-keycloak-id-0000', true);
+            setConversations((prev) => {
+                const filtered = prev.filter(c => c.conversationId !== newConv.conversationId);
+                return [newConv, ...filtered];
+            });
+            setSelectedConversation(newConv);
+        } catch (error) {
+            console.error('Failed to create support chat', error);
+            alert('Failed to connect to support');
+        }
+    };
+
     const handleEditMessage = async (messageId: string, currentContent: string) => {
         const next = window.prompt('Edit message', currentContent);
         if (next == null || next.trim() === '' || next === currentContent) return;
@@ -166,7 +183,16 @@ export function MessagesPage() {
                     {/* Contacts Sidebar */}
                     <div className="w-1/3 border-r border-gray-100 flex flex-col bg-white">
                         <div className="p-8 border-b border-gray-50">
-                            <h1 className="text-3xl font-black text-gray-900 mb-6 tracking-tight">Messages</h1>
+                            <div className="flex justify-between items-center mb-6">
+                                <h1 className="text-3xl font-black text-gray-900 tracking-tight">Messages</h1>
+                                <button
+                                    onClick={handleCreateSupport}
+                                    title="Contact Support"
+                                    className="p-2 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all shadow-sm active:scale-95"
+                                >
+                                    <Headphones className="w-5 h-5" />
+                                </button>
+                            </div>
                             <div className="relative group">
                                 <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 transition-colors group-focus-within:text-red-500" />
                                 <input

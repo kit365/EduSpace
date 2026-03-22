@@ -32,6 +32,10 @@ public interface UserService {
     PublicUserProfileResponse getPublicProfileByKeycloakId(String keycloakId);
 
     List<PublicUserProfileResponse> getPublicProfilesByKeycloakIds(List<String> keycloakIds);
+    
+    PublicUserProfileResponse getPublicProfileByIdentifier(String identifier);
+
+    List<PublicUserProfileResponse> getPublicProfilesByIdentifiers(List<String> identifiers);
 
     List<PublicUserProfileResponse> searchPublicProfiles(String query, int limit);
 
@@ -40,4 +44,9 @@ public interface UserService {
     void approveUserKyc(String userId);
 
     void rejectUserKyc(String userId, String reason);
+
+    String assignStaff(String customerId);
+
+    /** Active users with ADMIN or SUPER_ADMIN (same pool assignStaff draws from first). */
+    long countEligibleSupportStaff();
 }

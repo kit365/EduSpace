@@ -38,10 +38,10 @@ public class VideoCallEntity {
     @JoinColumn(name = "conversation_id", nullable = false)
     ConversationEntity conversation;
 
-    @Column(name = "caller_id", nullable = false, length = 36)
+    @Column(name = "caller_id", nullable = false, length = 100)
     String callerId;
 
-    @Column(name = "receiver_id", nullable = false, length = 36)
+    @Column(name = "receiver_id", nullable = false, length = 100)
     String receiverId;
 
     @Enumerated(EnumType.STRING)

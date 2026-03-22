@@ -1,13 +1,18 @@
 package com.eduspace.conversationservice.presentation.controller;
 
 import com.eduspace.conversationservice.business.service.ChatService;
+import com.eduspace.conversationservice.business.service.JwtConversationUserIdResolver;
 import com.eduspace.conversationservice.business.service.MediaStorageService;
-import com.eduspace.conversationservice.model.dto.request.*;
+import com.eduspace.conversationservice.exception.AppException;
+import com.eduspace.conversationservice.exception.ErrorCode;
+import com.eduspace.conversationservice.exception.SuccessCode;
+import com.eduspace.conversationservice.model.dto.request.CreateConversationRequest;
+import com.eduspace.conversationservice.model.dto.request.SendMessageRequest;
 import com.eduspace.conversationservice.model.dto.response.ApiResponse;
 import com.eduspace.conversationservice.model.dto.response.ChatMessageResponse;
 import com.eduspace.conversationservice.model.dto.response.ConversationResponse;
 import com.eduspace.conversationservice.model.enums.MessageType;
-import com.eduspace.conversationservice.presentation.constants.ApiPaths;
+import com.eduspace.conversationservice.presentation.constants.ConversationPaths;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -16,16 +21,19 @@ import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping(ApiPaths.Chat.BASE_PATH)
+@RequestMapping(ConversationPaths.BASE_PATH)
 @RequiredArgsConstructor
 @Slf4j
 public class ChatController {
@@ -33,76 +41,134 @@ public class ChatController {
     private final ChatService chatService;
     private final MediaStorageService mediaStorageService;
     private final ObjectMapper objectMapper;
+    private final HttpServletRequest httpServletRequest;
+    private final JwtConversationUserIdResolver jwtUserIdResolver;
 
-    private String currentUserId(Jwt jwt) {
-        return jwt.getSubject();
-    }
+    private String currentUserId(org.springframework.security.core.Authentication authentication) {
+        if (authentication != null) {
+            if (authentication instanceof JwtAuthenticationToken jwtToken) {
+                Jwt jwt = jwtToken.getToken();
+                String uid = jwtUserIdResolver.resolveUserId(jwt);
+                if (uid != null && !uid.isBlank()) {
+                    return uid.trim();
+                }
+            } else if (authentication.getPrincipal() instanceof String principal && principal.startsWith("GUEST-")) {
+                log.debug("Using Guest ID from authentication principal: {}", principal);
+                return principal;
+            }
+        }
 
-    private String bearer(Jwt jwt) {
-        return jwt.getTokenValue();
+        // Fallback to header for REST requests where authentication might be null or anonymous
+        String guestId = httpServletRequest.getHeader("X-Guest-ID");
+        if (guestId == null) guestId = httpServletRequest.getHeader("x-guest-id");
+        
+        if (guestId != null && !guestId.isBlank()) {
+            log.debug("Using Guest ID from header: {}", guestId);
+            return guestId;
+        }
+        
+        return null;
     }
 
     @PostMapping
-    public ApiResponse<Map<String, Object>> createConversation(@Valid @RequestBody CreateConversationRequest request,
-                                                              @org.springframework.security.core.annotation.AuthenticationPrincipal Jwt jwt) {
+    public ApiResponse<ConversationResponse> createConversation(@Valid @RequestBody CreateConversationRequest request) {
+        String userId = currentUserId(SecurityContextHolder.getContext().getAuthentication());
+        if (userId == null) {
+            throw new IllegalArgumentException("User identification missing (No JWT and no Guest ID)");
+        }
+
+        if (SecurityContextHolder.getContext().getAuthentication() instanceof JwtAuthenticationToken == false && !request.isAdminConversation()) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Guests can only create support conversations");
+        }
+
         ConversationResponse conversation = chatService.getOrCreateConversation(
-                currentUserId(jwt),
+                userId,
                 request.getOtherUserId(),
-                request.isAdminConversation(),
-                bearer(jwt)
-        );
-        return ApiResponse.success(Map.of(
-                "conversationId", conversation.getConversationId(),
-                "conversation", conversation
-        ));
+                request.isAdminConversation());
+        return ApiResponse.success(conversation, SuccessCode.CONVERSATION_CREATE_SUCCESS,
+                "Conversation created/retrieved");
     }
 
     @GetMapping
-    public ApiResponse<Map<String, Object>> getUserConversations(@org.springframework.security.core.annotation.AuthenticationPrincipal Jwt jwt) {
-        List<ConversationResponse> conversations = chatService.getUserConversations(currentUserId(jwt), bearer(jwt));
-        return ApiResponse.success(Map.of("conversations", conversations));
+    public ApiResponse<List<ConversationResponse>> getUserConversations() {
+        String userId = currentUserId(SecurityContextHolder.getContext().getAuthentication());
+        if (userId == null)
+            return ApiResponse.success(List.of(), SuccessCode.CONVERSATION_GET_SUCCESS,
+                    "No conversations for guest without ID");
+        List<ConversationResponse> conversations = chatService.getUserConversations(userId);
+        return ApiResponse.success(conversations, SuccessCode.CONVERSATION_GET_SUCCESS, "User conversations retrieved");
     }
 
-    @GetMapping(ApiPaths.Chat.ADMIN)
-    public ApiResponse<Map<String, Object>> getAdminConversations(@org.springframework.security.core.annotation.AuthenticationPrincipal Jwt jwt) {
-        List<ConversationResponse> conversations = chatService.getAdminConversations(currentUserId(jwt), bearer(jwt));
-        return ApiResponse.success(Map.of("conversations", conversations));
+    @GetMapping(ConversationPaths.ADMIN)
+    public ApiResponse<List<ConversationResponse>> getAdminConversations() {
+        String userId = currentUserId(SecurityContextHolder.getContext().getAuthentication());
+        if (userId == null) {
+            return ApiResponse.success(List.of(), SuccessCode.CONVERSATION_GET_SUCCESS,
+                    "Admin conversations retrieved");
+        }
+        List<ConversationResponse> conversations = chatService.getAdminConversations(userId);
+        return ApiResponse.success(conversations, SuccessCode.CONVERSATION_GET_SUCCESS,
+                "Admin conversations retrieved");
+    }
+
+    @PostMapping(ConversationPaths.CLAIM_GUEST)
+    public ApiResponse<Integer> claimGuestSupportConversations(@AuthenticationPrincipal Jwt jwt) {
+        String keycloakUserId = jwt != null ? jwtUserIdResolver.resolveUserId(jwt) : null;
+        if (jwt == null || keycloakUserId == null) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+        String guestId = httpServletRequest.getHeader("X-Guest-ID");
+        if (guestId == null) {
+            guestId = httpServletRequest.getHeader("x-guest-id");
+        }
+        if (guestId == null || guestId.isBlank()) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+        int updated = chatService.claimGuestSupportConversations(keycloakUserId, guestId.trim());
+        return ApiResponse.success(updated, SuccessCode.CONVERSATION_GET_SUCCESS,
+                "Guest support conversations claimed");
     }
 
     @GetMapping("/{conversationId}")
-    public ApiResponse<Map<String, Object>> getConversation(@PathVariable String conversationId,
-                                                            @org.springframework.security.core.annotation.AuthenticationPrincipal Jwt jwt) {
-        ConversationResponse conversation = chatService.getConversationById(conversationId, currentUserId(jwt), bearer(jwt));
-        return ApiResponse.success(Map.of("conversation", conversation));
+    public ApiResponse<ConversationResponse> getConversation(@PathVariable String conversationId) {
+        String userId = currentUserId(SecurityContextHolder.getContext().getAuthentication());
+        ConversationResponse conversation = chatService.getConversationById(conversationId, userId);
+        return ApiResponse.success(conversation, SuccessCode.CONVERSATION_GET_SUCCESS,
+                "Conversation details retrieved");
     }
 
-    @PostMapping("/{conversationId}/messages")
-    public ApiResponse<Map<String, Object>> sendMessage(@PathVariable String conversationId,
-                                                        @Valid @RequestBody SendMessageRequest request,
-                                                        @org.springframework.security.core.annotation.AuthenticationPrincipal Jwt jwt) {
+    @PostMapping(ConversationPaths.MESSAGES)
+    public ApiResponse<ChatMessageResponse> sendMessage(@PathVariable String conversationId,
+            @Valid @RequestBody SendMessageRequest request) {
+        String userId = currentUserId(SecurityContextHolder.getContext().getAuthentication());
+        if (userId == null)
+            throw new IllegalArgumentException("User identification missing");
         MessageType type = MessageType.valueOf(request.getMessageType());
-        ChatMessageResponse message = chatService.sendMessage(conversationId, currentUserId(jwt), request.getContent(), type, bearer(jwt));
-        return ApiResponse.success(Map.of("message", message));
+        ChatMessageResponse message = chatService.sendMessage(conversationId, userId, request.getContent(), type);
+        return ApiResponse.success(message, SuccessCode.MESSAGE_SEND_SUCCESS, "Message sent");
     }
 
-    @PostMapping(value = "/{conversationId}/messages/image", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ApiResponse<Map<String, Object>> sendImageMessage(@PathVariable String conversationId,
-                                                             @RequestParam("image") MultipartFile image,
-                                                             @org.springframework.security.core.annotation.AuthenticationPrincipal Jwt jwt) {
+    @PostMapping(value = ConversationPaths.SEND_IMAGE, consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<ChatMessageResponse> sendImageMessage(@PathVariable String conversationId,
+            @RequestParam("image") MultipartFile image) {
+        String userId = currentUserId(SecurityContextHolder.getContext().getAuthentication());
+        if (userId == null)
+            throw new IllegalArgumentException("User identification missing");
         String imageUrl = mediaStorageService.storeImage(image);
-        ChatMessageResponse message = chatService.sendMediaMessage(conversationId, currentUserId(jwt), imageUrl, "image", MessageType.IMAGE, bearer(jwt));
-        return ApiResponse.success(Map.of("message", message));
+        ChatMessageResponse message = chatService.sendMediaMessage(conversationId, userId, imageUrl, "image",
+                MessageType.IMAGE);
+        return ApiResponse.success(message, SuccessCode.MESSAGE_SEND_SUCCESS, "Image message sent");
     }
 
-    @PostMapping(value = "/{conversationId}/messages/images", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ApiResponse<Map<String, Object>> sendMultipleImages(@PathVariable String conversationId,
-                                                               @RequestParam("images") MultipartFile[] images,
-                                                               @org.springframework.security.core.annotation.AuthenticationPrincipal Jwt jwt) {
+    @PostMapping(value = ConversationPaths.SEND_IMAGES, consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<ChatMessageResponse> sendMultipleImages(@PathVariable String conversationId,
+            @RequestParam("images") MultipartFile[] images) {
         if (images == null || images.length == 0) {
-            return ApiResponse.error(400, "BAD_REQUEST", "No images provided");
+            throw new IllegalArgumentException("No images provided");
         }
         if (images.length > 8) {
-            return ApiResponse.error(400, "BAD_REQUEST", "Maximum 8 images allowed");
+            throw new IllegalArgumentException("Maximum 8 images allowed");
         }
 
         try {
@@ -110,62 +176,75 @@ public class ChatController {
                     .map(mediaStorageService::storeImage)
                     .toList();
             String mediaUrlJson = objectMapper.writeValueAsString(urls);
-            ChatMessageResponse message = chatService.sendMediaMessage(conversationId, currentUserId(jwt), mediaUrlJson, "image", MessageType.IMAGE, bearer(jwt));
-            return ApiResponse.success(Map.of("message", message));
+            ChatMessageResponse message = chatService.sendMediaMessage(conversationId, currentUserId(SecurityContextHolder.getContext().getAuthentication()), mediaUrlJson,
+                    "image", MessageType.IMAGE);
+            return ApiResponse.success(message, SuccessCode.MESSAGE_SEND_SUCCESS, "Multiple images sent");
         } catch (Exception e) {
             log.error("Failed to send images", e);
-            return ApiResponse.error(500, "INTERNAL_ERROR", "Failed to send images");
+            throw new RuntimeException("Failed to send images", e);
         }
     }
 
-    @GetMapping("/{conversationId}/messages")
-    public ApiResponse<Map<String, Object>> getChatHistory(@PathVariable String conversationId,
-                                                           @RequestParam(defaultValue = "0") int page,
-                                                           @RequestParam(defaultValue = "50") int size,
-                                                           @org.springframework.security.core.annotation.AuthenticationPrincipal Jwt jwt) {
-        List<ChatMessageResponse> messages = chatService.getChatHistory(conversationId, page, size, bearer(jwt));
-        return ApiResponse.success(Map.of("messages", messages, "page", page, "size", size));
+    @GetMapping(ConversationPaths.MESSAGES)
+    public ApiResponse<List<ChatMessageResponse>> getChatHistory(@PathVariable String conversationId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        String userId = currentUserId(SecurityContextHolder.getContext().getAuthentication());
+        if (userId == null) {
+            throw new IllegalArgumentException("User identification missing");
+        }
+        List<ChatMessageResponse> messages = chatService.getChatHistory(conversationId, page, size, userId);
+        return ApiResponse.success(messages, SuccessCode.CONVERSATION_GET_SUCCESS, "Chat history retrieved");
     }
 
-    @PostMapping("/{conversationId}/read")
-    public ApiResponse<Map<String, Object>> markAsRead(@PathVariable String conversationId,
-                                                       @org.springframework.security.core.annotation.AuthenticationPrincipal Jwt jwt) {
-        chatService.markMessagesAsRead(conversationId, currentUserId(jwt));
-        return ApiResponse.success(Map.of("message", "Messages marked as read"));
+    @PostMapping(ConversationPaths.READ)
+    public ApiResponse<Void> markAsRead(@PathVariable String conversationId) {
+        String userId = currentUserId(SecurityContextHolder.getContext().getAuthentication());
+        if (userId != null) {
+            chatService.markMessagesAsRead(conversationId, userId);
+        }
+        return ApiResponse.success(null, SuccessCode.CONVERSATION_GET_SUCCESS, "Messages marked as read");
     }
 
-    @GetMapping("/{conversationId}/unread-count")
-    public ApiResponse<Map<String, Object>> unreadCount(@PathVariable String conversationId,
-                                                        @org.springframework.security.core.annotation.AuthenticationPrincipal Jwt jwt) {
-        int unread = chatService.getUnreadMessageCount(conversationId, currentUserId(jwt));
-        return ApiResponse.success(Map.of("unreadCount", unread));
+    @GetMapping(ConversationPaths.UNREAD_COUNT)
+    public ApiResponse<Integer> unreadCount(@PathVariable String conversationId) {
+        String userId = currentUserId(SecurityContextHolder.getContext().getAuthentication());
+        int unread = userId != null ? chatService.getUnreadMessageCount(conversationId, userId) : 0;
+        return ApiResponse.success(unread, SuccessCode.CONVERSATION_GET_SUCCESS, "Unread count retrieved");
     }
 
-    @PostMapping("/{conversationId}/block")
-    public ApiResponse<Map<String, Object>> block(@PathVariable String conversationId,
-                                                  @org.springframework.security.core.annotation.AuthenticationPrincipal Jwt jwt) {
-        chatService.blockUser(conversationId, currentUserId(jwt));
-        return ApiResponse.success(Map.of("message", "User blocked"));
+    @PostMapping(ConversationPaths.BLOCK)
+    public ApiResponse<Void> block(@PathVariable String conversationId) {
+        String userId = currentUserId(SecurityContextHolder.getContext().getAuthentication());
+        if (userId != null)
+            chatService.blockUser(conversationId, userId);
+        return ApiResponse.success(null, SuccessCode.CONVERSATION_GET_SUCCESS, "User blocked");
     }
 
-    @PostMapping("/{conversationId}/unblock")
-    public ApiResponse<Map<String, Object>> unblock(@PathVariable String conversationId,
-                                                    @org.springframework.security.core.annotation.AuthenticationPrincipal Jwt jwt) {
-        chatService.unblockUser(conversationId, currentUserId(jwt));
-        return ApiResponse.success(Map.of("message", "User unblocked"));
+    @PostMapping(ConversationPaths.UNBLOCK)
+    public ApiResponse<Void> unblock(@PathVariable String conversationId) {
+        String userId = currentUserId(SecurityContextHolder.getContext().getAuthentication());
+        if (userId != null)
+            chatService.unblockUser(conversationId, userId);
+        return ApiResponse.success(null, SuccessCode.CONVERSATION_GET_SUCCESS, "User unblocked");
     }
 
     // ==================== WebSocket Handlers ====================
     @MessageMapping("/chat/{conversationId}/send")
     @SendTo("/topic/conversation/{conversationId}")
     public Map<String, Object> handleWebSocketMessage(@DestinationVariable String conversationId,
-                                                      Map<String, String> message,
-                                                      Authentication authentication) {
+            Map<String, String> message,
+            Authentication authentication) {
         try {
-            Jwt jwt = jwtFromAuth(authentication);
+            String userId = currentUserId(authentication);
+
+            if (userId == null) {
+                return Map.of("error", true, "message", "User identification missing");
+            }
+
             String content = message.get("content");
             MessageType type = MessageType.valueOf(message.getOrDefault("messageType", "TEXT"));
-            ChatMessageResponse saved = chatService.sendMessage(conversationId, jwt.getSubject(), content, type, jwt.getTokenValue());
+            ChatMessageResponse saved = chatService.sendMessage(conversationId, userId, content, type);
 
             // WS payload shape compatible with GreenLoop FE useWebSocket transform
             return Map.of(
@@ -174,11 +253,10 @@ public class ChatController {
                     "content", saved.getContent(),
                     "messageType", saved.getMessageType(),
                     "sentAt", String.valueOf(saved.getSentAt()),
-                    "mediaUrl", saved.getMediaUrl(),
-                    "senderId", saved.getSender() != null ? saved.getSender().getUserId() : jwt.getSubject(),
-                    "senderUsername", saved.getSender() != null ? saved.getSender().getFullName() : jwt.getSubject(),
-                    "senderEmail", saved.getSender() != null ? saved.getSender().getEmail() : null
-            );
+                    "mediaUrl", saved.getMediaUrl() != null ? saved.getMediaUrl() : "",
+                    "senderId", saved.getSender() != null ? saved.getSender().getUserId() : userId,
+                    "senderUsername", saved.getSender() != null ? saved.getSender().getFullName() : userId,
+                    "senderEmail", saved.getSender() != null ? saved.getSender().getEmail() : "");
         } catch (Exception e) {
             log.error("Error handling WebSocket message", e);
             return Map.of("error", true, "message", "Failed to send message: " + e.getMessage());
@@ -192,4 +270,3 @@ public class ChatController {
         throw new IllegalStateException("WebSocket auth missing JWT");
     }
 }
-

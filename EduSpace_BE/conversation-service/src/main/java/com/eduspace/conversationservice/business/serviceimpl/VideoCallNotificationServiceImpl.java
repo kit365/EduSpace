@@ -2,6 +2,7 @@ package com.eduspace.conversationservice.business.serviceimpl;
 
 import com.eduspace.conversationservice.business.service.VideoCallNotificationService;
 import com.eduspace.conversationservice.model.entity.VideoCallEntity;
+import com.eduspace.conversationservice.infrastructure.constants.WebSocketTopics;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -17,22 +18,22 @@ public class VideoCallNotificationServiceImpl implements VideoCallNotificationSe
 
     @Override
     public void sendIncomingCall(VideoCallEntity call) {
-        messagingTemplate.convertAndSend("/topic/video-call/notifications", payload(call, "INCOMING_CALL", null));
+        messagingTemplate.convertAndSend(WebSocketTopics.VIDEO_CALL, payload(call, "INCOMING_CALL", null));
     }
 
     @Override
     public void sendCallAccepted(VideoCallEntity call) {
-        messagingTemplate.convertAndSend("/topic/video-call/notifications", payload(call, "CALL_ACCEPTED", null));
+        messagingTemplate.convertAndSend(WebSocketTopics.VIDEO_CALL, payload(call, "CALL_ACCEPTED", null));
     }
 
     @Override
     public void sendCallDeclined(VideoCallEntity call, String reason) {
-        messagingTemplate.convertAndSend("/topic/video-call/notifications", payload(call, "CALL_DECLINED", reason));
+        messagingTemplate.convertAndSend(WebSocketTopics.VIDEO_CALL, payload(call, "CALL_DECLINED", reason));
     }
 
     @Override
     public void sendCallEnded(VideoCallEntity call, String reason) {
-        messagingTemplate.convertAndSend("/topic/video-call/notifications", payload(call, "CALL_ENDED", reason));
+        messagingTemplate.convertAndSend(WebSocketTopics.VIDEO_CALL, payload(call, "CALL_ENDED", reason));
     }
 
     private Map<String, Object> payload(VideoCallEntity call, String type, String reason) {

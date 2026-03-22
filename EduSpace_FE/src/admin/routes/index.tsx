@@ -14,6 +14,7 @@ import { ReviewManagementPage } from '../features/reviews';
 import { AdsManagementPage } from '../features/ads';
 import { FacilityManagementPage } from '../features/facilities';
 import { PointManagementPage } from '../features/points';
+import { AdminMessagesPage } from '../features/messages';
 
 export const adminRoutes: RouteObject[] = [
     {
@@ -22,6 +23,7 @@ export const adminRoutes: RouteObject[] = [
             // ─── Dashboard ────────────────────────────────────
             { path: '', element: <DashboardPage /> },
             { path: 'dashboard', element: <DashboardPage /> },
+            { path: 'messages', element: <AdminMessagesPage /> },
 
             // ─── Host Management ──────────────────────────────
             { path: 'hosts', element: <HostManagementPage /> },

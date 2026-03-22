@@ -21,10 +21,13 @@ public class ConversationEntity {
     @Column(name = "conversation_id")
     String id;
 
-    @Column(name = "user1_id", nullable = false, length = 36)
+    @Column(name = "saga_id")
+    String sagaId;
+
+    @Column(name = "user1_id", nullable = false, length = 100)
     String user1Id;
 
-    @Column(name = "user2_id", nullable = false, length = 36)
+    @Column(name = "user2_id", nullable = false, length = 100)
     String user2Id;
 
     @Column(name = "conversation_name")

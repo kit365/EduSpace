@@ -19,6 +19,12 @@ public class OutboxServiceImpl implements OutboxService {
     @Override
     @Transactional
     public void addEvent(String aggregateType, String aggregateId, String eventType, Object payload) {
+        addEvent(aggregateType, aggregateId, eventType, payload, null);
+    }
+
+    @Override
+    @Transactional
+    public void addEvent(String aggregateType, String aggregateId, String eventType, Object payload, String targetUserId) {
         String json;
         try {
             json = objectMapper.writeValueAsString(payload);
@@ -32,6 +38,7 @@ public class OutboxServiceImpl implements OutboxService {
                 .eventType(eventType)
                 .payload(json)
                 .status(OutboxEventEntity.Status.PENDING)
+                .targetUserId(targetUserId)
                 .build();
         outboxEventRepository.save(event);
     }

@@ -17,5 +17,10 @@ public final class AccountPaths {
     public static final String PUBLIC_BATCH = "/public/batch";
     public static final String PUBLIC_BY_KEYCLOAK = "/public/by-keycloak/{keycloakId}";
     public static final String PUBLIC_BY_KEYCLOAK_BATCH = "/public/by-keycloak/batch";
+    public static final String PUBLIC_BY_IDENTIFIER = "/public/by-identifier/{identifier}";
+    public static final String PUBLIC_BY_IDENTIFIER_BATCH = "/public/by-identifier/batch";
     public static final String PUBLIC_SEARCH = "/public/search";
+    public static final String PUBLIC_SUPPORT_ELIGIBLE_STAFF_COUNT = "/public/support/eligible-staff-count";
+    public static final String PUBLIC_SUPPORT_ONLINE_STAFF_COUNT = "/public/support/online-staff-count";
+    public static final String ME_SUPPORT_PRESENCE = ME + "/support-presence";
 }

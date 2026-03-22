@@ -1,153 +1,304 @@
 package com.eduspace.conversationservice.business.serviceimpl;
-
 import com.eduspace.conversationservice.business.service.ChatService;
 import com.eduspace.conversationservice.business.service.OutboxService;
 import com.eduspace.conversationservice.business.service.SagaService;
 import com.eduspace.conversationservice.infrastructure.client.AccountClient;
+import com.eduspace.conversationservice.exception.AppException;
+import com.eduspace.conversationservice.exception.ErrorCode;
+import com.eduspace.conversationservice.infrastructure.messaging.producer.ChatEventProducer;
+import com.eduspace.conversationservice.model.dto.response.ApiResponse;
 import com.eduspace.conversationservice.model.dto.response.ChatMessageResponse;
 import com.eduspace.conversationservice.model.dto.response.ConversationResponse;
 import com.eduspace.conversationservice.model.entity.ChatMessageEntity;
 import com.eduspace.conversationservice.model.entity.ConversationEntity;
 import com.eduspace.conversationservice.model.entity.SagaInstanceEntity;
 import com.eduspace.conversationservice.model.enums.MessageType;
+import com.eduspace.conversationservice.model.enums.SagaStep;
+import com.eduspace.conversationservice.model.enums.SagaType;
 import com.eduspace.conversationservice.persistence.repository.ChatMessageRepository;
 import com.eduspace.conversationservice.persistence.repository.ConversationRepository;
 import com.eduspace.conversationservice.persistence.repository.VideoCallRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDateTime;
+import com.eduspace.conversationservice.infrastructure.mapper.ConversationMapper;
+import com.eduspace.conversationservice.infrastructure.mapper.ChatMessageMapper;
+import com.eduspace.conversationservice.model.event.DomainEventConstants;
+import com.eduspace.conversationservice.infrastructure.constants.WebSocketTopics;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 @Transactional
+@RequiredArgsConstructor
 public class ChatServiceImpl implements ChatService {
 
     private final ConversationRepository conversationRepository;
     private final ChatMessageRepository chatMessageRepository;
     @SuppressWarnings("unused")
     private final VideoCallRepository videoCallRepository;
-
     private final AccountClient accountClient;
     private final SimpMessagingTemplate messagingTemplate;
-    private final ObjectMapper objectMapper;
     private final OutboxService outboxService;
     private final SagaService sagaService;
+    private final ChatEventProducer chatEventProducer;
+    private final ConversationMapper conversationMapper;
+    private final ChatMessageMapper chatMessageMapper;
 
-    private final String supportAdminKeycloakId;
-
-    public ChatServiceImpl(
-            ConversationRepository conversationRepository,
-            ChatMessageRepository chatMessageRepository,
-            VideoCallRepository videoCallRepository,
-            AccountClient accountClient,
-            SimpMessagingTemplate messagingTemplate,
-            ObjectMapper objectMapper,
-            OutboxService outboxService,
-            SagaService sagaService,
-            @Value("${app.support.admin-keycloak-id}") String supportAdminKeycloakId
-    ) {
-        this.conversationRepository = conversationRepository;
-        this.chatMessageRepository = chatMessageRepository;
-        this.videoCallRepository = videoCallRepository;
-        this.accountClient = accountClient;
-        this.messagingTemplate = messagingTemplate;
-        this.objectMapper = objectMapper;
-        this.outboxService = outboxService;
-        this.sagaService = sagaService;
-        this.supportAdminKeycloakId = supportAdminKeycloakId;
-    }
+    @Value("${app.support.admin-keycloak-id:none}")
+    private String supportAdminKeycloakId;
 
     @Override
-    public ConversationResponse getOrCreateConversation(String currentUserId, String otherUserId, boolean isAdminConversation, String bearerToken) {
-        String targetOtherUserId = isAdminConversation ? resolveAdminTarget(currentUserId) : otherUserId;
+    @Transactional
+    public ConversationResponse getOrCreateConversation(String currentUserId, String otherUserId, boolean isAdminConversation) {
+        if (currentUserId == null) {
+            log.error("currentUserId is null in getOrCreateConversation. Cannot proceed.");
+            throw new AppException(ErrorCode.UNAUTHORIZED); 
+        }
+        final String userId = normalizeParticipantIdForStorage(currentUserId);
+        final String peerId = normalizeParticipantIdForStorage(otherUserId);
 
-        if (currentUserId.equals(targetOtherUserId) && !isAdminConversation) {
-            throw new IllegalArgumentException("Cannot create conversation with yourself");
+        boolean effectiveIsAdmin = isAdminConversation
+                || "admin-keycloak-id-0000".equals(peerId)
+                || "admin-support".equals(peerId);
+
+        if (peerId.equals(userId) && !effectiveIsAdmin) {
+            throw new AppException(ErrorCode.SELF_CHAT_NOT_ALLOWED);
         }
 
-        SagaInstanceEntity saga = sagaService.startSaga("CreateConversationSaga", "VALIDATE_USERS",
-                Map.of("currentUserId", currentUserId, "otherUserId", targetOtherUserId, "isAdminConversation", isAdminConversation));
+        if (effectiveIsAdmin) {
+            Optional<ConversationEntity> existingSupport = conversationRepository
+                    .findFirstByUser1IdAndIsAdminConversationTrueOrderByLastActivityDesc(userId);
+            if (existingSupport.isPresent()) {
+                return toConversationResponse(existingSupport.get(), userId);
+            }
+        }
+
+        return conversationRepository.findConversationBetween(userId, peerId, effectiveIsAdmin)
+                .map(conversation -> toConversationResponse(conversation, userId))
+                .orElseGet(() -> {
+                    try {
+                        UserProfiles profiles = validateAndGetProfiles(userId, peerId, effectiveIsAdmin);
+
+                        ConversationEntity conversation = effectiveIsAdmin
+                                ? createAdminSupportConversation(userId, peerId, profiles)
+                                : createNormalConversation(userId, peerId, profiles);
+
+                        emitConversationCreatedEvent(conversation);
+                        return toConversationResponse(conversation, userId);
+                    } catch (DataIntegrityViolationException ex) {
+                        log.warn("Duplicate admin support conversation prevented for user {}: {}", userId, ex.getMessage());
+                        return conversationRepository
+                                .findFirstByUser1IdAndIsAdminConversationTrueOrderByLastActivityDesc(userId)
+                                .map(c -> toConversationResponse(c, userId))
+                                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+                    }
+                });
+    }
+
+    private UserProfiles validateAndGetProfiles(String currentUserId, String otherUserId, boolean isAdminConversation) {
+        AccountClient.PublicUserProfile meProfile = fetchProfileSafe(currentUserId);
+        AccountClient.PublicUserProfile otherProfile = fetchProfileSafe(otherUserId);
+
+        // Fallback for admin conversations if profile fetching failed
+        if (isAdminConversation) {
+            if (meProfile == null) meProfile = new AccountClient.PublicUserProfile(currentUserId, "Guest User", null, null);
+            if (otherProfile == null) otherProfile = new AccountClient.PublicUserProfile(otherUserId, "Admin Support", null, null);
+        }
+
+        if (meProfile == null || otherProfile == null) {
+            log.error("Profile validation failed: me={} other={}", meProfile, otherProfile);
+            throw new AppException(ErrorCode.USER_NOT_FOUND);
+        }
+        
+        return new UserProfiles(meProfile, otherProfile);
+    }
+
+    private ConversationEntity createNormalConversation(String creatorId, String otherId, UserProfiles profiles) {
+        String otherKeycloakId = profiles.other().keycloakId() != null ? profiles.other().keycloakId() : otherId;
+        ConversationEntity conversation = conversationMapper.toEntity(
+                creatorId, 
+                otherKeycloakId, 
+                generateConversationName(profiles.me(), profiles.other(), false),
+                false,
+                true,
+                null
+        );
+        return conversationRepository.save(conversation);
+    }
+
+    private ConversationEntity createAdminSupportConversation(String userId, String adminId, UserProfiles profiles) {
+        String sagaId = UUID.randomUUID().toString();
+        
+        ConversationEntity conversation = conversationMapper.toEntity(
+                userId, 
+                profiles.other().keycloakId(), 
+                generateConversationName(profiles.me(), profiles.other(), true),
+                true,
+                true,
+                sagaId
+        );
+        
+        // Single save for both conversation and sagaId reference
+        conversation = conversationRepository.save(conversation);
+
+        // Start saga with the pre-generated ID
+        sagaService.startSaga(
+                sagaId,
+                SagaType.FIND_STAFF.getValue(), 
+                SagaStep.VALIDATE_USERS.getValue(),
+                Map.of("conversationId", conversation.getId(), "currentUserId", userId)
+        );
+
+        // Send immediate feedback message
+        sendSystemMessage(conversation, userId, "is looking for a specialist to help you...");
 
         try {
-            // Validate both users exist (Saga step)
-            AccountClient.PublicUserProfile me = accountClient.getPublicProfileByKeycloakId(currentUserId, bearerToken);
-            AccountClient.PublicUserProfile other = accountClient.getPublicProfileByKeycloakId(targetOtherUserId, bearerToken);
-            if (me == null || other == null) {
-                throw new IllegalStateException("User not found");
-            }
-
-            ConversationEntity conversation = conversationRepository.findBetweenUsers(currentUserId, targetOtherUserId, isAdminConversation)
-                    .orElseGet(() -> {
-                        ConversationEntity created = ConversationEntity.builder()
-                                .user1Id(currentUserId)
-                                .user2Id(targetOtherUserId)
-                                .conversationName(generateConversationName(me, other, isAdminConversation))
-                                .isAdminConversation(isAdminConversation)
-                                .isActive(true)
-                                .videoCallEnabled(true)
-                                .build();
-                        return conversationRepository.save(created);
-                    });
-
-            ConversationResponse response = toConversationResponse(conversation, currentUserId, bearerToken);
-            outboxService.addEvent("Conversation", conversation.getId(), "ConversationCreated",
-                    Map.of("conversationId", conversation.getId(), "user1Id", conversation.getUser1Id(), "user2Id", conversation.getUser2Id(),
-                            "isAdminConversation", conversation.getIsAdminConversation(), "createdAt", String.valueOf(conversation.getCreatedAt())));
-
-            sagaService.completeSaga(saga.getId());
-            return response;
+            //Giao tiếp bất đồng bộ(kafka)
+            chatEventProducer.sendAssignStaffRequest(sagaId, conversation.getId(), userId);
         } catch (Exception ex) {
-            sagaService.failSaga(saga.getId(), ex.getMessage());
+            sagaService.failSaga(sagaId, "Failed to send Kafka event: " + ex.getMessage());
             throw ex;
         }
+        
+        return conversation;
     }
+
+    private void emitConversationCreatedEvent(ConversationEntity conversation) {
+        outboxService.addEvent(
+                DomainEventConstants.AGGREGATE_CONVERSATION, 
+                conversation.getId(), 
+                DomainEventConstants.CONVERSATION_CREATED,
+                Map.of(
+                    "conversationId", conversation.getId(), 
+                    "user1Id", conversation.getUser1Id(), 
+                    "user2Id", conversation.getUser2Id(),
+                    "isAdminConversation", conversation.getIsAdminConversation(), 
+                    "createdAt", String.valueOf(conversation.getCreatedAt())
+                ));
+    }
+
+    private record UserProfiles(AccountClient.PublicUserProfile me, AccountClient.PublicUserProfile other) {}
+
 
     @Override
     @Transactional(readOnly = true)
-    public ConversationResponse getConversationById(String conversationId, String currentUserId, String bearerToken) {
+    public ConversationResponse getConversationById(String conversationId, String currentUserId) {
         ConversationEntity conversation = conversationRepository.findById(conversationId)
-                .orElseThrow(() -> new RuntimeException("Conversation not found"));
-        if (!conversation.isParticipant(currentUserId)) {
-            throw new RuntimeException("Forbidden");
+                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+        if (!canAccessConversation(conversation, currentUserId)) {
+            throw new AppException(ErrorCode.ACCESS_DENIED);
         }
-        return toConversationResponse(conversation, currentUserId, bearerToken);
+        return toConversationResponse(conversation, currentUserId);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<ConversationResponse> getUserConversations(String currentUserId, String bearerToken) {
-        return conversationRepository.findUserConversations(currentUserId).stream()
-                .map(c -> toConversationResponse(c, currentUserId, bearerToken))
+    public List<ConversationResponse> getUserConversations(String currentUserId) {
+        return conversationRepository.findByUser1IdOrUser2IdOrderByLastActivityDesc(currentUserId, currentUserId).stream()
+                .map(c -> toConversationResponse(c, currentUserId))
                 .toList();
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<ConversationResponse> getAdminConversations(String currentUserId, String bearerToken) {
-        return conversationRepository.findAdminConversations(currentUserId).stream()
-                .map(c -> toConversationResponse(c, currentUserId, bearerToken))
+    public List<ConversationResponse> getAdminConversations(String currentUserId) {
+        LinkedHashMap<String, ConversationResponse> byId = new LinkedHashMap<>();
+        conversationRepository.findByIsAdminConversationTrueAndUser1IdOrUser2IdOrderByLastActivityDesc(currentUserId, currentUserId)
+                .forEach(c -> byId.put(c.getId(), toConversationResponse(c, currentUserId)));
+        String placeholder = resolvePlaceholderAdminId();
+        if (placeholder != null && !placeholder.isBlank()) {
+            conversationRepository.findByIsAdminConversationTrueAndUser2IdOrderByLastActivityDesc(placeholder)
+                    .stream()
+                    .filter(c -> !byId.containsKey(c.getId()))
+                    .forEach(c -> byId.put(c.getId(), toConversationResponse(c, currentUserId)));
+        }
+        return byId.values().stream()
+                .sorted(Comparator.comparing(ConversationResponse::getLastActivity, Comparator.nullsLast(Comparator.reverseOrder())))
                 .toList();
     }
 
     @Override
-    public ChatMessageResponse sendMessage(String conversationId, String senderUserId, String content, MessageType messageType, String bearerToken) {
+    @Transactional
+    public int claimGuestSupportConversations(String keycloakUserId, String guestId) {
+        if (guestId == null || !guestId.startsWith("GUEST-")) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+        if (guestId.equals(keycloakUserId)) {
+            return 0;
+        }
+        int updated = conversationRepository.updateUser1IdForGuestSupport(guestId, keycloakUserId);
+        chatMessageRepository.updateSenderIdForGuest(guestId, keycloakUserId);
+        log.info("Claimed guest {} -> {} ({} conversations)", guestId, keycloakUserId, updated);
+        return updated;
+    }
+
+    private String resolvePlaceholderAdminId() {
+        if (supportAdminKeycloakId == null || supportAdminKeycloakId.isBlank()
+                || "none".equalsIgnoreCase(supportAdminKeycloakId)) {
+            return "admin-keycloak-id-0000";
+        }
+        return supportAdminKeycloakId;
+    }
+
+    private boolean isStaffJwt() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (!(auth instanceof JwtAuthenticationToken jwtAuth)) {
+            return false;
+        }
+        return jwtAuth.getAuthorities().stream().anyMatch(a -> {
+            String r = a.getAuthority();
+            return "ROLE_ADMIN".equals(r) || "ROLE_SUPER_ADMIN".equals(r);
+        });
+    }
+
+    private boolean isPlaceholderAdminQueue(ConversationEntity conversation) {
+        if (!Boolean.TRUE.equals(conversation.getIsAdminConversation())) {
+            return false;
+        }
+        String ph = resolvePlaceholderAdminId();
+        return ph != null && ph.equals(conversation.getUser2Id());
+    }
+
+    /** Participant, or staff JWT viewing an unassigned support queue item (user2 still placeholder). */
+    private boolean canAccessConversation(ConversationEntity conversation, String userId) {
+        if (conversation.isParticipant(userId)) {
+            return true;
+        }
+        return isStaffJwt() && isPlaceholderAdminQueue(conversation);
+    }
+
+    /**
+     * Same as read access for admin support queue: participants may send; staff may send while user2 is still
+     * the placeholder (before saga assigns a real admin), matching {@link #canAccessConversation}.
+     */
+    private boolean canSendMessage(ConversationEntity conversation, String senderUserId) {
+        if (conversation.isParticipant(senderUserId)) {
+            return true;
+        }
+        return isStaffJwt()
+                && Boolean.TRUE.equals(conversation.getIsAdminConversation())
+                && isPlaceholderAdminQueue(conversation);
+    }
+
+    @Override
+    public ChatMessageResponse sendMessage(String conversationId, String senderUserId, String content, MessageType messageType) {
         ConversationEntity conversation = conversationRepository.findById(conversationId)
-                .orElseThrow(() -> new RuntimeException("Conversation not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
 
-        if (conversation.isBlocked()) throw new RuntimeException("Cannot send message - conversation is blocked");
-        if (!conversation.isParticipant(senderUserId)) throw new RuntimeException("User is not a participant");
+        if (conversation.isBlocked()) throw new AppException(ErrorCode.CONVERSATION_BLOCKED);
+        if (!canSendMessage(conversation, senderUserId)) throw new AppException(ErrorCode.ACCESS_DENIED);
 
-        SagaInstanceEntity saga = sagaService.startSaga("SendMessageSaga", "PERSIST_MESSAGE",
+        SagaInstanceEntity saga = sagaService.startSaga(SagaType.SEND_MESSAGE.getValue(), SagaStep.PERSIST_MESSAGE.getValue(),
                 Map.of("conversationId", conversationId, "senderUserId", senderUserId, "messageType", messageType.name()));
 
         try {
@@ -164,14 +315,14 @@ public class ChatServiceImpl implements ChatService {
             conversation.incrementMessageCount();
             conversationRepository.save(conversation);
 
-            sendRealTimeMessage(saved, bearerToken);
+            sendRealTimeMessage(saved);
 
-            outboxService.addEvent("ChatMessage", saved.getId(), "MessageSent",
+            outboxService.addEvent(DomainEventConstants.AGGREGATE_CHAT_MESSAGE, saved.getId(), DomainEventConstants.MESSAGE_SENT,
                     Map.of("messageId", saved.getId(), "conversationId", conversationId, "senderId", senderUserId,
                             "messageType", messageType.name(), "sentAt", String.valueOf(saved.getSentAt())));
 
             sagaService.completeSaga(saga.getId());
-            return toMessageResponse(saved, bearerToken);
+            return toMessageResponse(saved);
         } catch (Exception ex) {
             sagaService.failSaga(saga.getId(), ex.getMessage());
             throw ex;
@@ -179,12 +330,12 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
-    public ChatMessageResponse sendMediaMessage(String conversationId, String senderUserId, String mediaUrl, String mediaType, MessageType messageType, String bearerToken) {
+    public ChatMessageResponse sendMediaMessage(String conversationId, String senderUserId, String mediaUrl, String mediaType, MessageType messageType) {
         ConversationEntity conversation = conversationRepository.findById(conversationId)
-                .orElseThrow(() -> new RuntimeException("Conversation not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
 
-        if (conversation.isBlocked()) throw new RuntimeException("Cannot send message - conversation is blocked");
-        if (!conversation.isParticipant(senderUserId)) throw new RuntimeException("User is not a participant");
+        if (conversation.isBlocked()) throw new AppException(ErrorCode.CONVERSATION_BLOCKED);
+        if (!canSendMessage(conversation, senderUserId)) throw new AppException(ErrorCode.ACCESS_DENIED);
 
         ChatMessageEntity message = ChatMessageEntity.builder()
                 .conversation(conversation)
@@ -201,30 +352,33 @@ public class ChatServiceImpl implements ChatService {
         conversation.incrementMessageCount();
         conversationRepository.save(conversation);
 
-        sendRealTimeMessage(saved, bearerToken);
+        sendRealTimeMessage(saved);
 
-        outboxService.addEvent("ChatMessage", saved.getId(), "MediaMessageSent",
+        outboxService.addEvent(DomainEventConstants.AGGREGATE_CHAT_MESSAGE, saved.getId(), DomainEventConstants.MESSAGE_SENT,
                 Map.of("messageId", saved.getId(), "conversationId", conversationId, "senderId", senderUserId,
                         "messageType", messageType.name(), "mediaType", mediaType, "sentAt", String.valueOf(saved.getSentAt())));
 
-        return toMessageResponse(saved, bearerToken);
+        return toMessageResponse(saved);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<ChatMessageResponse> getChatHistory(String conversationId, int page, int size, String bearerToken) {
+    public List<ChatMessageResponse> getChatHistory(String conversationId, int page, int size, String readerUserId) {
+        if (readerUserId == null) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
         ConversationEntity conversation = conversationRepository.findById(conversationId)
-                .orElseThrow(() -> new RuntimeException("Conversation not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+        if (!canAccessConversation(conversation, readerUserId)) {
+            throw new AppException(ErrorCode.ACCESS_DENIED);
+        }
 
         List<ChatMessageEntity> messages = chatMessageRepository
                 .findByConversationAndIsDeletedFalseOrderBySentAtDesc(conversation, PageRequest.of(page, size))
                 .getContent();
 
-        // batch enrich senders (only two participants)
         Set<String> senderIds = messages.stream().map(ChatMessageEntity::getSenderId).collect(Collectors.toSet());
-        Map<String, AccountClient.PublicUserProfile> profiles = accountClient.getPublicProfilesByKeycloakIds(new ArrayList<>(senderIds), bearerToken)
-                .stream()
-                .collect(Collectors.toMap(AccountClient.PublicUserProfile::keycloakId, p -> p, (a, b) -> a));
+        Map<String, AccountClient.PublicUserProfile> profiles = fetchProfilesSafe(senderIds);
 
         return messages.stream()
                 .map(m -> toMessageResponse(m, profiles))
@@ -232,15 +386,40 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
+    public void notifyStaffAssignmentFailed(String conversationId, String failureDetail) {
+        ConversationEntity conversation = conversationRepository.findById(conversationId).orElse(null);
+        if (conversation == null) {
+            log.warn("notifyStaffAssignmentFailed: conversation {} not found", conversationId);
+            return;
+        }
+        String msg = "Hiện tại không có nhân viên trống, vui lòng để lại lời nhắn hoặc thử lại sau.";
+        if (failureDetail != null && !failureDetail.isBlank()) {
+            msg = msg + " (" + failureDetail + ")";
+        }
+        ChatMessageEntity systemMessage = ChatMessageEntity.builder()
+                .conversation(conversation)
+                .senderId(conversation.getUser1Id())
+                .content(msg)
+                .messageType(MessageType.SYSTEM)
+                .isRead(true)
+                .isDeleted(false)
+                .build();
+        ChatMessageEntity saved = chatMessageRepository.save(systemMessage);
+        conversation.incrementMessageCount();
+        conversationRepository.save(conversation);
+        sendRealTimeMessage(saved);
+    }
+
+    @Override
     public void markMessagesAsRead(String conversationId, String readerUserId) {
         ConversationEntity conversation = conversationRepository.findById(conversationId)
-                .orElseThrow(() -> new RuntimeException("Conversation not found"));
-        if (!conversation.isParticipant(readerUserId)) throw new RuntimeException("Forbidden");
+                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+        if (!canAccessConversation(conversation, readerUserId)) throw new AppException(ErrorCode.ACCESS_DENIED);
 
         int updated = chatMessageRepository.markMessagesAsRead(conversation, readerUserId, LocalDateTime.now());
         if (updated > 0) {
             sendReadReceiptNotification(conversationId, readerUserId);
-            outboxService.addEvent("Conversation", conversationId, "MessagesRead",
+            outboxService.addEvent(DomainEventConstants.AGGREGATE_CONVERSATION, conversationId, DomainEventConstants.MESSAGE_READ,
                     Map.of("conversationId", conversationId, "readerId", readerUserId, "readAt", LocalDateTime.now().toString()));
         }
     }
@@ -249,109 +428,101 @@ public class ChatServiceImpl implements ChatService {
     @Transactional(readOnly = true)
     public int getUnreadMessageCount(String conversationId, String userId) {
         ConversationEntity conversation = conversationRepository.findById(conversationId)
-                .orElseThrow(() -> new RuntimeException("Conversation not found"));
-        if (!conversation.isParticipant(userId)) throw new RuntimeException("Forbidden");
-        return chatMessageRepository.countUnreadMessages(conversation, userId);
+                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+        if (!canAccessConversation(conversation, userId)) throw new AppException(ErrorCode.ACCESS_DENIED);
+        return chatMessageRepository.countByConversationAndIsDeletedFalseAndIsReadFalseAndSenderIdNot(conversation, userId);
     }
 
     @Override
     public void deleteMessage(String messageId, String deleterUserId) {
         ChatMessageEntity message = chatMessageRepository.findById(messageId)
-                .orElseThrow(() -> new RuntimeException("Message not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.MESSAGE_NOT_FOUND));
 
         if (!Objects.equals(message.getSenderId(), deleterUserId)) {
-            throw new RuntimeException("You can only delete your own messages");
+            throw new AppException(ErrorCode.ONLY_OWNER_CAN_DELETE);
         }
         message.markAsDeleted();
         chatMessageRepository.save(message);
 
-        String destination = "/topic/conversation/" + message.getConversation().getId() + "/deleted";
+        String destination = WebSocketTopics.CONVERSATION + message.getConversation().getId() + WebSocketTopics.DELETED;
         Map<String, Object> deletionData = Map.of(
                 "messageId", messageId,
                 "deletedAt", LocalDateTime.now().toString()
         );
         messagingTemplate.convertAndSend(destination, deletionData);
-        outboxService.addEvent("ChatMessage", messageId, "MessageDeleted", deletionData);
+        outboxService.addEvent(DomainEventConstants.AGGREGATE_CHAT_MESSAGE, messageId, DomainEventConstants.MESSAGE_DELETED, deletionData);
     }
 
     @Override
     public void editMessage(String messageId, String newContent, String editorUserId) {
         ChatMessageEntity message = chatMessageRepository.findById(messageId)
-                .orElseThrow(() -> new RuntimeException("Message not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.MESSAGE_NOT_FOUND));
 
         if (!Objects.equals(message.getSenderId(), editorUserId)) {
-            throw new RuntimeException("You can only edit your own messages");
+            throw new AppException(ErrorCode.ONLY_OWNER_CAN_EDIT);
         }
         message.editContent(newContent);
         chatMessageRepository.save(message);
 
-        String destination = "/topic/conversation/" + message.getConversation().getId() + "/edited";
+        String destination = WebSocketTopics.CONVERSATION + message.getConversation().getId() + WebSocketTopics.EDITED;
         Map<String, Object> editData = Map.of(
                 "messageId", messageId,
                 "newContent", newContent,
                 "editedAt", String.valueOf(message.getEditedAt())
         );
         messagingTemplate.convertAndSend(destination, editData);
-        outboxService.addEvent("ChatMessage", messageId, "MessageEdited", editData);
+        outboxService.addEvent(DomainEventConstants.AGGREGATE_CHAT_MESSAGE, messageId, DomainEventConstants.MESSAGE_EDITED, editData);
     }
 
     @Override
     public void addReactionToMessage(String messageId, String reactorUserId, String emoji) {
         ChatMessageEntity message = chatMessageRepository.findById(messageId)
-                .orElseThrow(() -> new RuntimeException("Message not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.MESSAGE_NOT_FOUND));
 
-        try {
-            Map<String, List<String>> reactions;
-            if (message.getReactions() != null && !message.getReactions().isBlank()) {
-                @SuppressWarnings("unchecked")
-                Map<String, List<String>> temp = objectMapper.readValue(message.getReactions(), Map.class);
-                reactions = temp;
-            } else {
-                reactions = new HashMap<>();
-            }
-
-            reactions.computeIfAbsent(emoji, k -> new ArrayList<>()).add(reactorUserId);
-            message.setReactions(objectMapper.writeValueAsString(reactions));
-            chatMessageRepository.save(message);
-
-            String destination = "/topic/conversation/" + message.getConversation().getId() + "/reaction";
-            Map<String, Object> reactionData = Map.of(
-                    "messageId", messageId,
-                    "emoji", emoji,
-                    "reactorId", reactorUserId
-            );
-            messagingTemplate.convertAndSend(destination, reactionData);
-            outboxService.addEvent("ChatMessage", messageId, "ReactionAdded", reactionData);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to add reaction", e);
+        Map<String, List<String>> reactions = message.getReactions();
+        if (reactions == null) {
+            reactions = new HashMap<>();
         }
+
+        reactions.computeIfAbsent(emoji, k -> new ArrayList<>()).add(reactorUserId);
+        message.setReactions(reactions);
+        chatMessageRepository.save(message);
+
+        String destination = WebSocketTopics.CONVERSATION + message.getConversation().getId() + WebSocketTopics.REACTION;
+        Map<String, Object> reactionData = Map.of(
+                "messageId", messageId,
+                "emoji", emoji,
+                "reactorId", reactorUserId
+        );
+        messagingTemplate.convertAndSend(destination, reactionData);
+        outboxService.addEvent(DomainEventConstants.AGGREGATE_CHAT_MESSAGE, messageId, DomainEventConstants.REACTION_ADDED, reactionData);
     }
 
     @Override
     public void blockUser(String conversationId, String blockerUserId) {
         ConversationEntity conversation = conversationRepository.findById(conversationId)
-                .orElseThrow(() -> new RuntimeException("Conversation not found"));
-        if (!conversation.isParticipant(blockerUserId)) throw new RuntimeException("Forbidden");
+                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+        if (!conversation.isParticipant(blockerUserId)) throw new AppException(ErrorCode.ACCESS_DENIED);
 
         conversation.blockBy(blockerUserId);
         conversationRepository.save(conversation);
 
         sendSystemMessage(conversation, blockerUserId, "blocked this conversation");
-        outboxService.addEvent("Conversation", conversationId, "ConversationBlocked",
+        outboxService.addEvent(DomainEventConstants.AGGREGATE_CONVERSATION, conversationId, DomainEventConstants.CONVERSATION_BLOCKED,
                 Map.of("conversationId", conversationId, "blockedBy", blockerUserId, "blockedAt", LocalDateTime.now().toString()));
     }
 
     @Override
     public void unblockUser(String conversationId, String unblockerUserId) {
         ConversationEntity conversation = conversationRepository.findById(conversationId)
-                .orElseThrow(() -> new RuntimeException("Conversation not found"));
-        if (!conversation.isParticipant(unblockerUserId)) throw new RuntimeException("Forbidden");
+                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+        if (!conversation.isParticipant(unblockerUserId)) throw new AppException(ErrorCode.ACCESS_DENIED);
 
         conversation.unblockBy(unblockerUserId);
         conversationRepository.save(conversation);
 
         sendSystemMessage(conversation, unblockerUserId, "unblocked this conversation");
-        outboxService.addEvent("Conversation", conversationId, "ConversationUnblocked",
+        outboxService.addEvent(DomainEventConstants.AGGREGATE_CONVERSATION, conversationId, DomainEventConstants.CONVERSATION_UNBLOCKED,
                 Map.of("conversationId", conversationId, "unblockedBy", unblockerUserId, "unblockedAt", LocalDateTime.now().toString()));
     }
 
@@ -362,18 +533,31 @@ public class ChatServiceImpl implements ChatService {
         return "Chat: " + a + " & " + b;
     }
 
-    private ConversationResponse toConversationResponse(ConversationEntity conversation, String currentUserId, String bearerToken) {
+    private ConversationResponse toConversationResponse(ConversationEntity conversation, String currentUserId) {
         String otherId = conversation.otherUserId(currentUserId);
-        AccountClient.PublicUserProfile otherProfile = null;
-        if (otherId != null && bearerToken != null && !bearerToken.isBlank()) {
-            otherProfile = accountClient.getPublicProfileByKeycloakId(otherId, bearerToken);
+        if (otherId == null && Boolean.TRUE.equals(conversation.getIsAdminConversation())) {
+            String ph = resolvePlaceholderAdminId();
+            if (ph != null && ph.equals(conversation.getUser2Id())) {
+                otherId = conversation.getUser1Id();
+            }
+        }
+        AccountClient.PublicUserProfile otherProfile = fetchProfileSafe(otherId);
+
+        if (otherProfile == null && Boolean.TRUE.equals(conversation.getIsAdminConversation()) && otherId != null) {
+            if (otherId.startsWith("GUEST-")) {
+                otherProfile = new AccountClient.PublicUserProfile(otherId, "Guest", null, null);
+            } else if ("admin-keycloak-id-0000".equals(otherId) || "admin-support".equals(otherId)) {
+                otherProfile = new AccountClient.PublicUserProfile(otherId, "Admin Support", null, null);
+            } else {
+                otherProfile = new AccountClient.PublicUserProfile(otherId, "User", null, null);
+            }
         }
 
-        int unreadCount = chatMessageRepository.countUnreadMessages(conversation, currentUserId);
+        int unreadCount = chatMessageRepository.countByConversationAndIsDeletedFalseAndIsReadFalseAndSenderIdNot(conversation, currentUserId);
 
         // latest preview
         String preview = "";
-        List<ChatMessageEntity> latest = chatMessageRepository.findLatestMessages(conversation, PageRequest.of(0, 1, Sort.by(Sort.Direction.DESC, "sentAt")));
+        List<ChatMessageEntity> latest = chatMessageRepository.findByConversationAndIsDeletedFalseOrderBySentAtDesc(conversation, PageRequest.of(0, 1)).getContent();
         if (!latest.isEmpty()) {
             ChatMessageEntity last = latest.get(0);
             if (last.getMessageType() == MessageType.IMAGE) {
@@ -386,90 +570,29 @@ public class ChatServiceImpl implements ChatService {
             }
         }
 
-        ConversationResponse.OtherUser otherUser = null;
-        if (otherProfile != null) {
-            otherUser = ConversationResponse.OtherUser.builder()
-                    .userId(otherProfile.keycloakId())
-                    .fullName(otherProfile.fullName())
-                    .email(otherProfile.email())
-                    .avatarUrl(otherProfile.avatarUrl())
-                    .build();
-        } else if (Boolean.TRUE.equals(conversation.getIsAdminConversation())) {
-            otherUser = ConversationResponse.OtherUser.builder()
-                    .userId(supportAdminKeycloakId)
-                    .fullName("EduSpace Support")
-                    .email(null)
-                    .avatarUrl(null)
-                    .build();
-        }
-
-        return ConversationResponse.builder()
-                .conversationId(conversation.getId())
-                .conversationName(conversation.getConversationName())
-                .isActive(Boolean.TRUE.equals(conversation.getIsActive()))
-                .isAdminConversation(Boolean.TRUE.equals(conversation.getIsAdminConversation()))
-                .videoCallEnabled(Boolean.TRUE.equals(conversation.getVideoCallEnabled()))
-                .totalMessageCount(conversation.getTotalMessageCount() == null ? 0 : conversation.getTotalMessageCount())
-                .callHistoryCount(conversation.getCallHistoryCount() == null ? 0 : conversation.getCallHistoryCount())
-                .lastActivity(conversation.getLastActivity())
-                .createdAt(conversation.getCreatedAt())
-                .isBlocked(conversation.isBlocked())
-                .isBlockedByMe(conversation.isBlockedBy(currentUserId))
-                .unreadCount(unreadCount)
-                .lastMessage(preview)
-                .otherUser(otherUser)
-                .build();
+        ConversationResponse.OtherUser otherUser = conversationMapper.mapOtherUser(otherProfile, Boolean.TRUE.equals(conversation.getIsAdminConversation()), supportAdminKeycloakId);
+        return conversationMapper.toResponse(conversation, currentUserId, otherUser, unreadCount, preview);
     }
 
-    private ChatMessageResponse toMessageResponse(ChatMessageEntity message, String bearerToken) {
-        Map<String, AccountClient.PublicUserProfile> profiles = accountClient.getPublicProfilesByKeycloakIds(List.of(message.getSenderId()), bearerToken)
-                .stream()
-                .collect(Collectors.toMap(AccountClient.PublicUserProfile::keycloakId, p -> p, (a, b) -> a));
-        return toMessageResponse(message, profiles);
+    private ChatMessageResponse toMessageResponse(ChatMessageEntity message) {
+        Map<String, AccountClient.PublicUserProfile> profiles = fetchProfilesSafe(Set.of(message.getSenderId()));
+        return chatMessageMapper.toResponse(message, profiles);
     }
 
     private ChatMessageResponse toMessageResponse(ChatMessageEntity message, Map<String, AccountClient.PublicUserProfile> profiles) {
-        AccountClient.PublicUserProfile senderProfile = profiles.get(message.getSenderId());
-        ChatMessageResponse.Sender sender = null;
-        if (senderProfile != null) {
-            sender = ChatMessageResponse.Sender.builder()
-                    .userId(senderProfile.keycloakId())
-                    .fullName(senderProfile.fullName())
-                    .email(senderProfile.email())
-                    .avatarUrl(senderProfile.avatarUrl())
-                    .build();
-        }
-
-        return ChatMessageResponse.builder()
-                .messageId(message.getId())
-                .conversationId(message.getConversation().getId())
-                .content(message.getContent())
-                .messageType(message.getMessageType().name())
-                .sentAt(message.getSentAt())
-                .isRead(Boolean.TRUE.equals(message.getIsRead()))
-                .readAt(message.getReadAt())
-                .isDeleted(Boolean.TRUE.equals(message.getIsDeleted()))
-                .editedAt(message.getEditedAt())
-                .mediaUrl(message.getMediaUrl())
-                .mediaType(message.getMediaType())
-                .reactions(message.getReactions())
-                .replyToMessageId(message.getReplyToMessageId())
-                .sender(sender)
-                .build();
+        return chatMessageMapper.toResponse(message, profiles);
     }
 
-    private void sendRealTimeMessage(ChatMessageEntity message, String bearerToken) {
+    private void sendRealTimeMessage(ChatMessageEntity message) {
         try {
-            String destination = "/topic/conversation/" + message.getConversation().getId();
+            String destination = WebSocketTopics.CONVERSATION + message.getConversation().getId();
 
             Map<String, Object> messageData = new HashMap<>();
             messageData.put("messageId", message.getId());
             messageData.put("senderId", message.getSenderId());
-            // senderUsername + senderEmail are kept for GreenLoop FE compatibility; we map fullName/email.
-            AccountClient.PublicUserProfile sender = null;
-            if (bearerToken != null && !bearerToken.isBlank()) {
-                sender = accountClient.getPublicProfileByKeycloakId(message.getSenderId(), bearerToken);
-            }
+            
+            AccountClient.PublicUserProfile sender = fetchProfileSafe(message.getSenderId());
+            
             messageData.put("senderUsername", sender != null && sender.fullName() != null ? sender.fullName() : message.getSenderId());
             messageData.put("senderEmail", sender != null ? sender.email() : null);
             messageData.put("content", message.getContent());
@@ -479,13 +602,13 @@ public class ChatServiceImpl implements ChatService {
             messageData.put("conversationId", message.getConversation().getId());
 
             messagingTemplate.convertAndSend(destination, messageData);
-            sendConversationUpdateForParticipants(message, sender);
+            sendConversationUpdateForParticipants(message);
         } catch (Exception e) {
             log.error("Error sending real-time message", e);
         }
     }
 
-    private void sendConversationUpdateForParticipants(ChatMessageEntity message, AccountClient.PublicUserProfile senderProfile) {
+    private void sendConversationUpdateForParticipants(ChatMessageEntity message) {
         try {
             ConversationEntity conversation = message.getConversation();
 
@@ -507,8 +630,8 @@ public class ChatServiceImpl implements ChatService {
             event.put("senderId", message.getSenderId());
             event.put("messageType", message.getMessageType().name());
 
-            String topicUser1 = "/topic/user/" + conversation.getUser1Id() + "/conversations";
-            String topicUser2 = "/topic/user/" + conversation.getUser2Id() + "/conversations";
+            String topicUser1 = WebSocketTopics.USER + conversation.getUser1Id() + WebSocketTopics.CONVERSATIONS;
+            String topicUser2 = WebSocketTopics.USER + conversation.getUser2Id() + WebSocketTopics.CONVERSATIONS;
             messagingTemplate.convertAndSend(topicUser1, event);
             messagingTemplate.convertAndSend(topicUser2, event);
         } catch (Exception ex) {
@@ -517,18 +640,21 @@ public class ChatServiceImpl implements ChatService {
     }
 
     private String resolveAdminTarget(String currentUserId) {
-        if (supportAdminKeycloakId == null || supportAdminKeycloakId.isBlank()) {
-            return currentUserId;
+        if (supportAdminKeycloakId == null || supportAdminKeycloakId.isBlank() || "none".equals(supportAdminKeycloakId)) {
+            log.warn("Admin support ID not configured. Falling back to self-chat placeholder.");
+            return "system-admin-placeholder";
         }
+        
         if (currentUserId.equals(supportAdminKeycloakId)) {
-            // Admin is chatting with themselves; fallback to self conversation
-            return currentUserId;
+            log.info("Admin {} is initiating support chat. Using placeholder to avoid self-chat.", currentUserId);
+            return "system-admin-self-support";
         }
+        
         return supportAdminKeycloakId;
     }
 
     private void sendReadReceiptNotification(String conversationId, String readerUserId) {
-        String destination = "/topic/conversation/" + conversationId + "/read-receipt";
+        String destination = WebSocketTopics.CONVERSATION + conversationId + WebSocketTopics.READ_RECEIPT;
         Map<String, Object> readReceipt = new HashMap<>();
         readReceipt.put("readerId", readerUserId);
         readReceipt.put("readAt", LocalDateTime.now().toString());
@@ -545,7 +671,76 @@ public class ChatServiceImpl implements ChatService {
                 .isRead(true)
                 .build();
         ChatMessageEntity saved = chatMessageRepository.save(systemMessage);
-        sendRealTimeMessage(saved, null); // best-effort without enrichment
+        sendRealTimeMessage(saved);
+    }
+
+    /**
+     * Persist conversations with Keycloak {@code sub}, never raw email. Resolves email via account-service when needed.
+     */
+    private String normalizeParticipantIdForStorage(String id) {
+        if (id == null || !id.contains("@") || id.startsWith("GUEST-")) {
+            return id;
+        }
+        try {
+            ApiResponse<AccountClient.PublicUserProfile> res = accountClient.getPublicProfileByIdentifier(id);
+            if (res != null && res.success() && res.data() != null && res.data().keycloakId() != null) {
+                log.debug("Normalized participant id (email) to keycloakId for storage");
+                return res.data().keycloakId();
+            }
+        } catch (Exception ex) {
+            log.warn("Could not normalize participant id {}: {}", id, ex.getMessage());
+        }
+        return id;
+    }
+
+    private AccountClient.PublicUserProfile fetchProfileSafe(String userId) {
+        if (userId == null) return null;
+        
+        // Handle virtual IDs locally
+        if ("admin-support".equals(userId) || "admin-keycloak-id-0000".equals(userId)) {
+            return new AccountClient.PublicUserProfile(userId, "Admin Support", null, null);
+        }
+        if (userId.startsWith("GUEST-")) {
+            return new AccountClient.PublicUserProfile(userId, "Anonymous Guest", null, null);
+        }
+
+        try {
+            ApiResponse<AccountClient.PublicUserProfile> res = accountClient.getPublicProfileByIdentifier(userId);
+            if (res != null && res.success()) return res.data();
+        } catch (Exception ex) {
+            log.warn("Failed to fetch profile for user {}: {}", userId, ex.getMessage());
+        }
+        return null;
+    }
+
+    private Map<String, AccountClient.PublicUserProfile> fetchProfilesSafe(Set<String> userIds) {
+        if (userIds == null || userIds.isEmpty()) return Collections.emptyMap();
+
+        Map<String, AccountClient.PublicUserProfile> result = new HashMap<>();
+        Set<String> realIds = new HashSet<>();
+
+        for (String id : userIds) {
+            if ("admin-support".equals(id) || "admin-keycloak-id-0000".equals(id)) {
+                result.put(id, new AccountClient.PublicUserProfile(id, "Admin Support", null, null));
+            } else if (id != null && id.startsWith("GUEST-")) {
+                result.put(id, new AccountClient.PublicUserProfile(id, "Anonymous Guest", null, null));
+            } else {
+                realIds.add(id);
+            }
+        }
+
+        if (!realIds.isEmpty()) {
+            try {
+                ApiResponse<List<AccountClient.PublicUserProfile>> res = accountClient.getPublicProfilesByIdentifiers(new AccountClient.BatchRequest(new ArrayList<>(realIds)));
+                if (res != null && res.success() && res.data() != null) {
+                    res.data().forEach(p -> result.put(p.keycloakId(), p));
+                }
+            } catch (Exception ex) {
+                log.warn("Failed to batch fetch profiles: {}", ex.getMessage());
+            }
+        }
+
+        return result;
     }
 }
 
