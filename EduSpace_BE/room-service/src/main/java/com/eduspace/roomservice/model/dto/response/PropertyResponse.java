@@ -23,7 +23,10 @@ public class PropertyResponse {
     String propertyType;
     String contactPhone;
     String contactEmail;
-    String address;
+    String provinceCode;
+    String districtCode;
+    String wardCode;
+    String addressDetail;
     String logo;
     String description;
     PropertyStatus status;

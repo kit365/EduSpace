@@ -1,14 +1,11 @@
 package com.eduspace.roomservice.model.dto.request;
 
-import com.eduspace.roomservice.common.enums.PropertyStatus;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
-
-import java.time.LocalDateTime;
 
 @Data
 @Builder
@@ -19,15 +16,13 @@ public class PropertyRequest {
 
     String ownerId;
     String name;
-    String propertyType; // HOTEL, HOMESTAY, APARTMENT, PRIVATE_ROOM
+    String propertyType; // COMMERCIAL_BUILDING, CENTER_COWORKING, INDEPENDENT_SPACE
     String contactPhone;
     String contactEmail;
-    String address;
+    String provinceCode;
+    String districtCode;
+    String wardCode;
+    String addressDetail;
     String logo;
     String description;
-    PropertyStatus status;
-    String rejectionNote;
-    LocalDateTime submittedAt;
-    String approvedBy;
-    LocalDateTime approvedAt;
 }

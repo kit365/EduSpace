@@ -13,6 +13,7 @@ public final class HostPartnerApplicationPaths {
 
     /** GET/POST — user đã đăng nhập */
     public static final String ME = "/me";
+    public static final String ME_PENDING_BRANCH_UPDATES = ME + "/pending-branch-updates";
 
     /** Prefix admin — cần quyền ADMIN / SUPER_ADMIN */
     public static final String ADMIN = "/admin";

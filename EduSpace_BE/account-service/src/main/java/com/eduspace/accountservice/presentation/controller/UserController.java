@@ -11,6 +11,7 @@ import com.eduspace.accountservice.model.dto.response.PageResponse;
 import com.eduspace.accountservice.model.dto.response.user.UserResponse;
 import com.eduspace.accountservice.business.service.UserService;
 import com.eduspace.accountservice.presentation.constants.AccountPaths;
+import com.eduspace.accountservice.presentation.constants.PreAuthorizeConstants;
 
 import org.springframework.util.StringUtils;
 
@@ -142,5 +143,20 @@ public class UserController {
                 PageResponse<UserResponse> response = userService.getAllUsers(pageable, search, roles, status, kyc,
                                 identifier, isEmail);
                 return ApiResponse.success(response, SuccessCode.USER_PROFILE_GET_SUCCESS, "Users fetched successfully");
+        }
+
+        @PostMapping(AccountPaths.ADMIN + AccountPaths.USERS + "/{userId}/kyc/approve")
+        @PreAuthorize(PreAuthorizeConstants.HAS_ANY_ROLE_ADMIN_OR_SUPER)
+        public ApiResponse<Void> approveUserKyc(@PathVariable String userId) {
+                userService.approveUserKyc(userId);
+                return ApiResponse.success(null, SuccessCode.USER_PROFILE_UPDATE_SUCCESS, "User KYC approved");
+        }
+
+        @PostMapping(AccountPaths.ADMIN + AccountPaths.USERS + "/{userId}/kyc/reject")
+        @PreAuthorize(PreAuthorizeConstants.HAS_ANY_ROLE_ADMIN_OR_SUPER)
+        public ApiResponse<Void> rejectUserKyc(@PathVariable String userId,
+                        @RequestParam(required = false) String reason) {
+                userService.rejectUserKyc(userId, reason);
+                return ApiResponse.success(null, SuccessCode.USER_PROFILE_UPDATE_SUCCESS, "User KYC rejected");
         }
 }

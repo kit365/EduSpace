@@ -1,7 +1,10 @@
 package com.eduspace.roomservice.model.entity;
 
+import com.eduspace.roomservice.common.enums.PriceUnit;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -15,15 +18,13 @@ import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Getter;
+import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import lombok.experimental.FieldDefaults;
 
 @Entity
 @Table(name = "extra_services")
-@Getter
-@Setter
+@Data
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @NoArgsConstructor
@@ -47,8 +48,9 @@ public class ExtraServiceEntity {
     @Column(name = "price")
     Long price;
 
-    @Column(name = "price_unit")
-    String priceUnit; // PER_DAY, PER_HOUR, PER_STAY
+    @Enumerated(EnumType.STRING)
+    @Column(name = "price_unit", nullable = false, length = 30)
+    PriceUnit priceUnit;
 
     @Column(name = "status")
     String status; // ACTIVE, INACTIVE

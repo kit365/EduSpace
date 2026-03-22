@@ -1,4 +1,4 @@
-import { LayoutGrid, List, Calendar, DollarSign, Settings, LogOut, Shield, Users, ClipboardCheck, Clock, Megaphone, Building2, LayoutList } from 'lucide-react';
+import { LayoutGrid, List, Calendar, DollarSign, Settings, LogOut, Shield, Users, ClipboardCheck, Clock, Megaphone, Building2 } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 
 export function RentalSidebar() {
@@ -7,7 +7,7 @@ export function RentalSidebar() {
     const mainMenu = [
         { path: '/rental/dashboard', label: 'Dashboard', icon: LayoutGrid },
         { path: '/rental/spaces', label: 'Phòng của tôi', icon: List },
-        { path: '/rental/room-types', label: 'Loại phòng', icon: LayoutList },
+        { path: '/rental/branches', label: 'Chi nhánh', icon: Building2 },
         { path: '/rental/room-status', label: 'Trạng thái phòng', icon: Building2 },
         { path: '/rental/schedule', label: 'Lịch & Giờ', icon: Clock },
         { path: '/rental/calendar', label: 'Lịch đặt phòng', icon: Calendar },

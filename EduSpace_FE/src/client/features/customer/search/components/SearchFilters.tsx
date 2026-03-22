@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { PRICE_RANGE, CAPACITY_OPTIONS, AMENITIES_LIST, ROOM_TYPES, DISTRICT_OPTIONS, TIME_SLOTS } from '../../../../../config';
+import { PRICE_RANGE, CAPACITY_OPTIONS, AMENITIES_LIST, DISTRICT_OPTIONS, TIME_SLOTS } from '../../../../../config';
 
 interface SearchFiltersProps {
   priceRange: [number, number];
@@ -8,8 +8,6 @@ interface SearchFiltersProps {
   onCapacityChange: (capacity: string) => void;
   selectedAmenities: string[];
   onAmenitiesChange: (amenities: string[]) => void;
-  selectedRoomType: string;
-  onRoomTypeChange: (roomType: string) => void;
   selectedDistrict: string;
   onDistrictChange: (district: string) => void;
   selectedTimeStart: string;
@@ -25,8 +23,6 @@ export function SearchFilters({
   onCapacityChange,
   selectedAmenities,
   onAmenitiesChange,
-  selectedRoomType,
-  onRoomTypeChange,
   selectedDistrict,
   onDistrictChange,
   selectedTimeStart,
@@ -48,7 +44,6 @@ export function SearchFilters({
     onPriceRangeChange([PRICE_RANGE.MIN, PRICE_RANGE.MAX]);
     onCapacityChange('10-20');
     onAmenitiesChange(['projector', 'wifi', 'ac']);
-    onRoomTypeChange('classroom');
     onDistrictChange('all');
     onTimeStartChange('');
     onTimeEndChange('');
@@ -171,25 +166,6 @@ export function SearchFilters({
           </div>
         </div>
 
-        {/* Loại phòng */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-          <h4 className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em] mb-3">🏢 {t('customer.search.roomType')}</h4>
-          <div className="space-y-2.5">
-            {ROOM_TYPES.map((type) => (
-              <label key={type.value} className="flex items-center gap-3 cursor-pointer group">
-                <input
-                  type="radio"
-                  name="roomType"
-                  checked={selectedRoomType === type.value}
-                  onChange={() => onRoomTypeChange(type.value)}
-                  className="w-4 h-4 accent-red-500"
-                />
-                <span className="flex-1 text-sm font-medium text-gray-600 group-hover:text-gray-900 transition-colors">{t(type.labelKey)}</span>
-                <span className="text-xs font-bold text-gray-300 bg-gray-50 px-2 py-0.5 rounded-lg">{type.count}</span>
-              </label>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );

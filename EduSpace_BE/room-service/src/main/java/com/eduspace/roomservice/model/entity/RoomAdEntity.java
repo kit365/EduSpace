@@ -16,15 +16,13 @@ import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Getter;
+import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import lombok.experimental.FieldDefaults;
 
 @Entity
 @Table(name = "room_ads")
-@Getter
-@Setter
+@Data
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @NoArgsConstructor
@@ -47,7 +45,7 @@ public class RoomAdEntity {
     String ownerId; // UUID from account-service, no FK
 
     @Column(name = "transaction_id")
-    Integer transactionId;
+    String transactionId;
 
     @Column(name = "start_date")
     LocalDate startDate;

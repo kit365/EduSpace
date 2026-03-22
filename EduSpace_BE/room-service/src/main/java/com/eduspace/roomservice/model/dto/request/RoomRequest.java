@@ -4,6 +4,7 @@ import com.eduspace.roomservice.common.enums.BookingType;
 import com.eduspace.roomservice.common.enums.RoomApprovalStatus;
 import com.eduspace.roomservice.common.enums.RoomStatus;
 import com.eduspace.roomservice.common.enums.RoomType;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,6 +19,7 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class RoomRequest {
 
@@ -25,9 +27,16 @@ public class RoomRequest {
     RoomType roomType;
     BookingType bookingType;
     String name;
+    /** Tuỳ chọn; nếu null BE gán từ địa chỉ property + số phòng / tầng. */
+    String location;
     Integer capacity;
     BigDecimal area;
-    String location;
+    String roomNumber;
+    String floorNumber;
+    Boolean is24_7;
+    BigDecimal pricePerHour;
+    BigDecimal pricePerDay;
+    Integer minBookingHours;
     String images;
     String description;
     RoomStatus status;

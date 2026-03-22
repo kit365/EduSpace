@@ -256,4 +256,22 @@ public class UserServiceImpl implements UserService {
             default -> uiRole.toUpperCase();
         };
     }
+
+    @Override
+    @Transactional
+    public void approveUserKyc(String userId) {
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        user.setVerificationStatus("VERIFIED");
+        userRepository.save(user);
+    }
+
+    @Override
+    @Transactional
+    public void rejectUserKyc(String userId, String reason) {
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        user.setVerificationStatus("REJECTED");
+        userRepository.save(user);
+    }
 }
