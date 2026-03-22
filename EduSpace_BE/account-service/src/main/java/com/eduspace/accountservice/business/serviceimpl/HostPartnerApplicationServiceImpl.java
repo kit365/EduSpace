@@ -2,7 +2,7 @@ package com.eduspace.accountservice.business.serviceimpl;
 
 import com.eduspace.accountservice.business.service.HostPartnerApplicationService;
 import com.eduspace.accountservice.business.service.KeycloakUserService;
-import com.eduspace.accountservice.common.enums.HostPartnerApplicationStatus;
+import com.eduspace.accountservice.common.enums.PartnerAppStatus;
 import com.eduspace.accountservice.common.enums.HostPartnerApplicationUserStatus;
 import com.eduspace.accountservice.common.enums.Role;
 import com.eduspace.accountservice.exception.AppException;
@@ -106,7 +106,7 @@ public class HostPartnerApplicationServiceImpl implements HostPartnerApplication
         }
 
         Optional<HostPartnerApplicationEntity> pending = applicationRepository
-                .findByUserIdAndStatus(user.getId(), HostPartnerApplicationStatus.PENDING);
+                .findByUserIdAndStatus(user.getId(), com.eduspace.accountservice.common.enums.PartnerAppStatus.PENDING);
         if (pending.isPresent()) {
             HostPartnerApplicationEntity app = pending.get();
             return MyHostApplicationStatusResponse.builder()
@@ -117,7 +117,7 @@ public class HostPartnerApplicationServiceImpl implements HostPartnerApplication
         }
 
         List<HostPartnerApplicationEntity> rejected = applicationRepository
-                .findByUserIdAndStatusOrderByCreatedAtDesc(user.getId(), HostPartnerApplicationStatus.REJECTED);
+                .findByUserIdAndStatusOrderByCreatedAtDesc(user.getId(), com.eduspace.accountservice.common.enums.PartnerAppStatus.REJECTED);
         if (!rejected.isEmpty()) {
             HostPartnerApplicationEntity last = rejected.get(0);
             return MyHostApplicationStatusResponse.builder()
@@ -137,7 +137,7 @@ public class HostPartnerApplicationServiceImpl implements HostPartnerApplication
     public List<PendingBranchUpdateResponse> listMyPendingBranchUpdates(Jwt jwt) {
         UserEntity user = resolveUserFromJwt(jwt);
         List<HostPartnerApplicationEntity> pendingBranches = applicationRepository
-                .findByUserIdAndStatusOrderByCreatedAtDesc(user.getId(), HostPartnerApplicationStatus.PENDING)
+                .findByUserIdAndStatusOrderByCreatedAtDesc(user.getId(), PartnerAppStatus.PENDING)
                 .stream()
                 .filter(e -> isBranchApplication(e.getApplicantType()))
                 .toList();
@@ -186,13 +186,13 @@ public class HostPartnerApplicationServiceImpl implements HostPartnerApplication
         }
 
         if (!branchApplication) {
-            if (applicationRepository.findByUserIdAndStatus(user.getId(), HostPartnerApplicationStatus.PENDING).isPresent()) {
+            if (applicationRepository.findByUserIdAndStatus(user.getId(), PartnerAppStatus.PENDING).isPresent()) {
                 throw new AppException(ErrorCode.HOST_APPLICATION_PENDING_EXISTS);
             }
         } else {
             // For BRANCH applications, allow multiple pending requests as long as branch identity differs.
             List<HostPartnerApplicationEntity> pendingBranches = applicationRepository
-                    .findByUserIdAndStatusOrderByCreatedAtDesc(user.getId(), HostPartnerApplicationStatus.PENDING)
+                    .findByUserIdAndStatusOrderByCreatedAtDesc(user.getId(), PartnerAppStatus.PENDING)
                     .stream()
                     .filter(e -> isBranchApplication(e.getApplicantType()))
                     .toList();
@@ -224,7 +224,7 @@ public class HostPartnerApplicationServiceImpl implements HostPartnerApplication
                 .documentFrontUrl(trimToNull(request.getDocumentFrontUrl()))
                 .documentBackUrl(trimToNull(request.getDocumentBackUrl()))
                 .businessLicenseUrl(trimToNull(request.getBusinessLicenseUrl()))
-                .status(HostPartnerApplicationStatus.PENDING)
+                .status(PartnerAppStatus.PENDING)
                 .build();
         try {
             applicationRepository.save(entity);
@@ -236,7 +236,7 @@ public class HostPartnerApplicationServiceImpl implements HostPartnerApplication
 
     @Override
     public List<HostPartnerApplicationAdminResponse> listPendingForAdmin() {
-        return applicationRepository.findByStatusOrderByCreatedAtDesc(HostPartnerApplicationStatus.PENDING).stream()
+        return applicationRepository.findByStatusOrderByCreatedAtDesc(PartnerAppStatus.PENDING).stream()
                 .map(this::toAdminResponse)
                 .toList();
     }
@@ -246,7 +246,7 @@ public class HostPartnerApplicationServiceImpl implements HostPartnerApplication
     public void approve(UUID applicationId, String adminKeycloakId) {
         HostPartnerApplicationEntity app = applicationRepository.findById(applicationId)
                 .orElseThrow(() -> new AppException(ErrorCode.HOST_APPLICATION_NOT_FOUND));
-        if (app.getStatus() != HostPartnerApplicationStatus.PENDING) {
+        if (app.getStatus() != PartnerAppStatus.PENDING) {
             throw new AppException(ErrorCode.HOST_APPLICATION_BAD_STATE);
         }
 
@@ -265,7 +265,7 @@ public class HostPartnerApplicationServiceImpl implements HostPartnerApplication
             }
         }
 
-        app.setStatus(HostPartnerApplicationStatus.APPROVED);
+        app.setStatus(PartnerAppStatus.APPROVED);
         app.setReviewedAt(LocalDateTime.now());
         app.setReviewedBy(adminKeycloakId);
         applicationRepository.save(app);
@@ -284,10 +284,10 @@ public class HostPartnerApplicationServiceImpl implements HostPartnerApplication
     public void reject(UUID applicationId, String adminKeycloakId, RejectHostPartnerApplicationRequest request) {
         HostPartnerApplicationEntity app = applicationRepository.findById(applicationId)
                 .orElseThrow(() -> new AppException(ErrorCode.HOST_APPLICATION_NOT_FOUND));
-        if (app.getStatus() != HostPartnerApplicationStatus.PENDING) {
+        if (app.getStatus() != PartnerAppStatus.PENDING) {
             throw new AppException(ErrorCode.HOST_APPLICATION_BAD_STATE);
         }
-        app.setStatus(HostPartnerApplicationStatus.REJECTED);
+        app.setStatus(PartnerAppStatus.REJECTED);
         app.setAdminNote(request.getAdminNote());
         app.setReviewedAt(LocalDateTime.now());
         app.setReviewedBy(adminKeycloakId);

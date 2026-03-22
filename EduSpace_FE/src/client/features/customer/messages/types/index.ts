@@ -1,18 +1,76 @@
-export interface Message {
-  id: number;
-  conversationId: number;
-  senderId: number;
-  text: string;
-  timestamp: string;
-  read: boolean;
+export type MessageType = 'TEXT' | 'IMAGE' | 'SYSTEM' | 'AUDIO';
+
+export interface PublicUserProfile {
+    userId: string; // keycloakId
+    fullName?: string | null;
+    email?: string | null;
+    avatarUrl?: string | null;
+}
+
+export interface SearchUserResult {
+    keycloakId: string;
+    fullName?: string | null;
+    email?: string | null;
+    avatarUrl?: string | null;
 }
 
 export interface Conversation {
-  id: number;
-  participantName: string;
-  participantAvatar: string;
-  lastMessage: string;
-  lastMessageTime: string;
-  unreadCount: number;
-  spaceName?: string;
+    conversationId: string;
+    conversationName?: string | null;
+    isActive: boolean;
+    isAdminConversation: boolean;
+    videoCallEnabled: boolean;
+    totalMessageCount: number;
+    callHistoryCount: number;
+    lastActivity?: string | null;
+    createdAt?: string | null;
+    isBlocked: boolean;
+    isBlockedByMe: boolean;
+    unreadCount: number;
+    lastMessage?: string | null;
+    otherUser?: PublicUserProfile | null;
+}
+
+export interface ChatMessage {
+    messageId: string;
+    conversationId: string;
+    content: string;
+    messageType: MessageType;
+    sentAt: string;
+    isRead: boolean;
+    readAt?: string | null;
+    isDeleted: boolean;
+    editedAt?: string | null;
+    mediaUrl?: string | null;
+    mediaType?: string | null;
+    reactions?: string | null;
+    replyToMessageId?: string | null;
+    sender?: PublicUserProfile | null;
+}
+
+export interface ConversationActivityEvent {
+    type: 'CONVERSATION_ACTIVITY';
+    conversationId: string;
+    lastMessage: string;
+    lastActivity: string;
+    senderId: string;
+    messageType: MessageType;
+}
+
+export interface WebSocketMessagePayload {
+    messageId: string;
+    senderId: string;
+    senderUsername?: string | null;
+    senderEmail?: string | null;
+    content: string;
+    messageType: MessageType;
+    sentAt: string;
+    mediaUrl?: string | null;
+    conversationId: string;
+}
+
+export interface WebSocketReadReceiptPayload {
+    conversationId: string;
+    readerId: string;
+    readAt: string;
 }

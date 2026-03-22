@@ -82,7 +82,7 @@
       {
         "id": "e204bb47-62c1-4ab3-8f44-41a878c8586b",
         "name": "admin",
-        "description": "${role_admin}",
+        "description": "Legacy admin role",
         "composite": true,
         "composites": {
           "realm": [
@@ -114,6 +114,33 @@
         "clientRole": false,
         "containerId": "c354498e-7897-4b4c-8eb9-6d28675c610d",
         "attributes": {}
+      },
+      {
+        "id": "admin-role-uuid",
+        "name": "ADMIN",
+        "description": "System admin role",
+        "composite": true,
+        "composites": {
+          "realm": [
+            "admin"
+          ]
+        },
+        "clientRole": false,
+        "containerId": "c354498e-7897-4b4c-8eb9-6d28675c610d"
+      },
+      {
+        "id": "super-admin-role-uuid",
+        "name": "SUPER_ADMIN",
+        "description": "Super admin role with full access",
+        "composite": true,
+        "composites": {
+          "realm": [
+            "admin",
+            "ADMIN"
+          ]
+        },
+        "clientRole": false,
+        "containerId": "c354498e-7897-4b4c-8eb9-6d28675c610d"
       },
       {
         "id": "bb223c66-a3d2-4ba6-b47b-9b673dcaa06f",
@@ -574,6 +601,7 @@
         "acr",
         "profile",
         "roles",
+        "basic",
         "email"
       ],
       "optionalClientScopes": [
@@ -2436,6 +2464,82 @@
   "adminPermissionsEnabled": false,
   "users": [
     {
+      "id": "super-admin-keycloak-id-0000",
+      "username": "superadmin",
+      "email": "superadmin@eduspace.vn",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Root",
+      "lastName": "Super Admin",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "SUPER_ADMIN"
+      ],
+      "clientRoles": {
+        "account": [
+          "manage-account",
+          "view-profile"
+        ]
+      }
+    },
+    {
+      "id": "admin-keycloak-id-0000",
+      "username": "admin",
+      "email": "admin@eduspace.vn",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "System",
+      "lastName": "Admin",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ADMIN"
+      ],
+      "clientRoles": {
+        "account": [
+          "manage-account",
+          "view-profile"
+        ]
+      }
+    },
+    {
+      "id": "kiet-admin-keycloak-id",
+      "username": "kietadmin",
+      "email": "kietops365@gmail.com",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Kiet",
+      "lastName": "Super Admin",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "SUPER_ADMIN"
+      ],
+      "clientRoles": {
+        "account": [
+          "manage-account",
+          "view-profile"
+        ]
+      }
+    },
+    {
+      "id": "eduspace-be-service-account",
       "username": "service-account-eduspace-be",
       "enabled": true,
       "serviceAccountClientId": "eduspace-be",

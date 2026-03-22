@@ -10,7 +10,6 @@ import com.eduspace.accountservice.model.dto.request.auth.LoginRequest;
 import com.eduspace.accountservice.model.dto.request.auth.RegisterRequest;
 import com.eduspace.accountservice.model.dto.response.auth.LoginResponse;
 import com.eduspace.accountservice.model.dto.response.user.UserResponse;
-import com.eduspace.accountservice.common.enums.HostPartnerApplicationStatus;
 import com.eduspace.accountservice.model.entity.HostPartnerApplicationEntity;
 import com.eduspace.accountservice.model.entity.RoleEntity;
 import com.eduspace.accountservice.model.entity.UserEntity;
@@ -138,7 +137,7 @@ public class AuthServiceImpl implements AuthService {
                     .documentFrontUrl(documentFrontUrl)
                     .documentBackUrl(documentBackUrl)
                     .businessLicenseUrl(businessLicenseUrl)
-                    .status(HostPartnerApplicationStatus.PENDING)
+                    .status(com.eduspace.accountservice.common.enums.PartnerAppStatus.PENDING)
                     .build();
             hostPartnerApplicationRepository.save(app);
             log.info("Host partner application created at register for user {}", user.getEmail());

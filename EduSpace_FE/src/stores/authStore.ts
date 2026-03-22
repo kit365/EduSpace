@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { GUEST_ID_KEY } from '../utils/guest';
 
 // ==========================================
 // Global Auth Store
@@ -7,10 +8,14 @@ import { persist } from 'zustand/middleware';
 // Feature auth cũng re-export từ đây
 // ==========================================
 
+/** Matches BE LoginResponse (snake_case); camelCase tolerated if a proxy changes JSON */
 export interface AuthTokens {
-    access_token: string;
-    refresh_token: string;
-    expires_in: number;
+    access_token?: string;
+    refresh_token?: string;
+    expires_in?: number;
+    accessToken?: string;
+    refreshToken?: string;
+    expiresIn?: number;
 }
 
 export interface AuthState {
@@ -39,13 +44,39 @@ export const useAuthStore = create<AuthStore>()(
             isAuthenticated: false,
 
             // --- Actions ---
-            setTokens: (tokens: AuthTokens) =>
+            setTokens: (tokens: AuthTokens) => {
+                const rawAccess = tokens.access_token ?? tokens.accessToken;
+                const rawRefresh = tokens.refresh_token ?? tokens.refreshToken;
+                const accessToken =
+                    typeof rawAccess === 'string'
+                        ? rawAccess.replace(/^Bearer\s+/i, '').trim()
+                        : rawAccess;
+                const refreshToken =
+                    typeof rawRefresh === 'string' ? rawRefresh.trim() : rawRefresh;
+                const expiresRaw = tokens.expires_in ?? tokens.expiresIn;
+                if (typeof accessToken !== 'string' || typeof refreshToken !== 'string') {
+                    console.warn('[authStore] setTokens: missing access or refresh token');
+                    return;
+                }
+                let expiresIn: number | null = null;
+                if (typeof expiresRaw === 'number' && Number.isFinite(expiresRaw)) {
+                    expiresIn = expiresRaw;
+                } else if (expiresRaw != null && expiresRaw !== '') {
+                    const n = Number(expiresRaw);
+                    if (Number.isFinite(n)) expiresIn = n;
+                }
                 set({
-                    accessToken: tokens.access_token,
-                    refreshToken: tokens.refresh_token,
-                    expiresIn: tokens.expires_in,
+                    accessToken,
+                    refreshToken,
+                    expiresIn,
                     isAuthenticated: true,
-                }),
+                });
+                try {
+                    localStorage.removeItem(GUEST_ID_KEY);
+                } catch {
+                    /* ignore */
+                }
+            },
 
             clearTokens: () =>
                 set({

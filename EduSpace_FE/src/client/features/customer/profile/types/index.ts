@@ -3,6 +3,8 @@ import { User, ID, Timestamp, UserRole, KycStatus } from '@/types';
 // Interface mapped from backend DTO
 export interface UserResponse {
   id: string;
+  /** Keycloak subject; matches JWT `sub` and conversation participant ids. */
+  keycloakId?: string;
   email: string;
   fullName: string;
   phoneNumber: string;

@@ -1,6 +1,7 @@
 package com.eduspace.accountservice.model.mapper;
 
 import com.eduspace.accountservice.model.dto.request.user.UpdateProfileRequest;
+import com.eduspace.accountservice.model.dto.response.PublicUserProfileResponse;
 import com.eduspace.accountservice.model.dto.response.user.UserResponse;
 import com.eduspace.accountservice.model.entity.RoleEntity;
 import com.eduspace.accountservice.model.entity.UserEntity;
@@ -60,6 +61,7 @@ public class UserMapper {
 
         return UserResponse.builder()
                 .id(entity.getId())
+                .keycloakId(entity.getKeycloakId())
                 .email(entity.getEmail())
                 .fullName(entity.getFullName())
                 .phoneNumber(entity.getPhoneNumber())
@@ -82,6 +84,18 @@ public class UserMapper {
                 .roles(mapRoles(entity.getRoles()))
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
+                .build();
+    }
+
+    public PublicUserProfileResponse toPublicUserProfile(UserEntity entity) {
+        if (entity == null) {
+            return null;
+        }
+        return PublicUserProfileResponse.builder()
+                .keycloakId(entity.getKeycloakId())
+                .fullName(entity.getFullName())
+                .email(entity.getEmail())
+                .avatarUrl(entity.getAvatarUrl())
                 .build();
     }
 

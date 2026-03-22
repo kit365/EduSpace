@@ -1,7 +1,7 @@
 import { UserProfile, NotificationSettings, PaymentMethod } from '../types';
 
 export const USER_PROFILE: UserProfile = {
-  id: 1,
+  id: '1',
   name: 'Nguyễn Văn An',
   email: 'nguyenvanan@example.com',
   phone: '+84 901 234 567',
@@ -11,6 +11,7 @@ export const USER_PROFILE: UserProfile = {
   memberSince: 'Tháng 1, 2023',
   role: 'renter',
   verified: true,
+  is2faEnabled: false,
   kycStatus: 'not_submitted',
   totalBookings: 24,
   totalReviews: 18,

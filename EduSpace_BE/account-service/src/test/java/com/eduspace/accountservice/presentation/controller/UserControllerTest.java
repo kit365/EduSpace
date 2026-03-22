@@ -1,5 +1,6 @@
 package com.eduspace.accountservice.presentation.controller;
 
+import com.eduspace.accountservice.business.service.SupportStaffPresenceService;
 import com.eduspace.accountservice.business.service.UserService;
 import com.eduspace.accountservice.exception.AppException;
 import com.eduspace.accountservice.exception.ErrorCode;
@@ -33,6 +34,9 @@ class UserControllerTest {
     private UserService userService;
 
     @MockitoBean
+    private SupportStaffPresenceService supportStaffPresenceService;
+
+    @MockitoBean
     private MessageSource messageSource;
 
     @BeforeEach
@@ -51,8 +55,8 @@ class UserControllerTest {
         when(userService.getProfile(anyString())).thenReturn(response);
 
         // Act & Assert
-        mockMvc.perform(get(com.eduspace.accountservice.presentation.constants.ApiPaths.Account.BASE_PATH
-                + com.eduspace.accountservice.presentation.constants.ApiPaths.Account.ME)
+        mockMvc.perform(get(com.eduspace.accountservice.presentation.constants.AccountPaths.BASE_PATH
+                + com.eduspace.accountservice.presentation.constants.AccountPaths.ME)
                 .with(jwt().jwt(j -> j.subject("test-sub"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.email").value("test@email.com"));
@@ -64,8 +68,8 @@ class UserControllerTest {
         when(userService.getProfile(anyString())).thenThrow(new AppException(ErrorCode.USER_NOT_FOUND));
 
         // Act & Assert
-        mockMvc.perform(get(com.eduspace.accountservice.presentation.constants.ApiPaths.Account.BASE_PATH
-                + com.eduspace.accountservice.presentation.constants.ApiPaths.Account.ME)
+        mockMvc.perform(get(com.eduspace.accountservice.presentation.constants.AccountPaths.BASE_PATH
+                + com.eduspace.accountservice.presentation.constants.AccountPaths.ME)
                 .with(jwt().jwt(j -> j.subject("unknown-sub"))))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false));
@@ -80,8 +84,8 @@ class UserControllerTest {
         when(userService.getProfileByEmail(anyString())).thenReturn(response);
         when(userService.getProfile(anyString())).thenReturn(response);
 
-        mockMvc.perform(get(com.eduspace.accountservice.presentation.constants.ApiPaths.Account.BASE_PATH
-                + com.eduspace.accountservice.presentation.constants.ApiPaths.Account.ME)
+        mockMvc.perform(get(com.eduspace.accountservice.presentation.constants.AccountPaths.BASE_PATH
+                + com.eduspace.accountservice.presentation.constants.AccountPaths.ME)
                 .with(jwt().jwt(j -> j.claim("email", "test@email.com")))) // No subject
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.email").value("test@email.com"));
@@ -92,8 +96,8 @@ class UserControllerTest {
         UserResponse response = UserResponse.builder().email("test@email.com").build();
         when(userService.updateProfile(any(), any(), any())).thenReturn(response);
 
-        mockMvc.perform(put(com.eduspace.accountservice.presentation.constants.ApiPaths.Account.BASE_PATH
-                + com.eduspace.accountservice.presentation.constants.ApiPaths.Account.ME)
+        mockMvc.perform(put(com.eduspace.accountservice.presentation.constants.AccountPaths.BASE_PATH
+                + com.eduspace.accountservice.presentation.constants.AccountPaths.ME)
                 .contentType("application/json")
                 .content("{\"fullName\":\"Updated Name\"}")
                 .with(jwt().jwt(j -> j.subject("test-sub").claim("email", "test@email.com"))))
@@ -102,10 +106,21 @@ class UserControllerTest {
 
     @Test
     void enable2fa_Success() throws Exception {
-        mockMvc.perform(post(com.eduspace.accountservice.presentation.constants.ApiPaths.Account.BASE_PATH
-                + com.eduspace.accountservice.presentation.constants.ApiPaths.Account.ME + "/2fa/enable")
+        mockMvc.perform(post(com.eduspace.accountservice.presentation.constants.AccountPaths.BASE_PATH
+                + com.eduspace.accountservice.presentation.constants.AccountPaths.ME + "/2fa/enable")
                 .param("code", "123456")
                 .with(jwt().jwt(j -> j.claim("email", "test@email.com"))))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void getOnlineSupportStaffCount_Success() throws Exception {
+        when(supportStaffPresenceService.countOnline()).thenReturn(3L);
+
+        mockMvc.perform(get(com.eduspace.accountservice.presentation.constants.AccountPaths.BASE_PATH
+                + com.eduspace.accountservice.presentation.constants.AccountPaths.PUBLIC_SUPPORT_ONLINE_STAFF_COUNT)
+                .with(jwt().jwt(j -> j.subject("any"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value(3));
     }
 }

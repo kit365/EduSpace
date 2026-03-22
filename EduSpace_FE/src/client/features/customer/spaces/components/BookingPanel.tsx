@@ -46,7 +46,7 @@ export function BookingPanel({ price, rating, reviewCount, spaceName, spaceImage
   };
 
   return (
-    <div className="sticky top-32 bg-white border border-gray-200 rounded-2xl p-6 shadow-lg animate-in slide-in-from-right-8 duration-700">
+    <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-lg">
       <div className="mb-6">
         <div className="flex items-baseline gap-2 mb-1">
           <span className="text-3xl font-black text-gray-900 tracking-tight">
