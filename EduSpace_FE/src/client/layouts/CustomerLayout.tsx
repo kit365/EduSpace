@@ -16,8 +16,8 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
             </main>
             <Footer />
             
-            {/* Floating Support Chat Widget */}
-            <ChatWidget />
+            {/* Floating Support Chat Widget (Hidden on /messages route) */}
+            {window.location.pathname !== '/messages' && <ChatWidget />}
         </div>
     );
 }

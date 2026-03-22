@@ -13,6 +13,20 @@ const apiClient = axios.create({
     timeout: 15000,
 });
 
+/** POST login/refresh/register — never clear session on 401 */
+function isAuthEndpointUrl(url: string): boolean {
+    return url.includes('/auth/') || url.includes('/login') || url.includes('/refresh');
+}
+
+/**
+ * Best-effort calls after login (e.g. claim guest threads). A 401 here must not wipe
+ * a session that was just established — interceptor used to call clearTokens() and left
+ * eduspace-auth null in localStorage.
+ */
+function isSessionClearExemptUrl(url: string): boolean {
+    return url.includes('/claim-guest');
+}
+
 // Request interceptor: auto-attach access token
 apiClient.interceptors.request.use(
     (config) => {
@@ -41,12 +55,24 @@ apiClient.interceptors.response.use(
         const originalRequest = error.config;
         if (!originalRequest) return Promise.reject(error);
 
-        // Determine if this is an authentication-related request to avoid redirect loops
         const url = originalRequest.url || '';
-        const isAuthRequest = url.includes('/auth/') || url.includes('/login') || url.includes('/refresh');
 
-        // If 401 and not already retried, try refresh (only for non-auth requests)
-        if (error.response?.status === 401 && !originalRequest._retry && !isAuthRequest) {
+        if (error.response?.status !== 401) {
+            return Promise.reject(error);
+        }
+
+        // Login/register/refresh failures — do not clear stored session
+        if (isAuthEndpointUrl(url)) {
+            return Promise.reject(error);
+        }
+
+        // Optional post-login calls: never clear session on 401
+        if (isSessionClearExemptUrl(url)) {
+            return Promise.reject(error);
+        }
+
+        // Retry once with refresh token
+        if (!originalRequest._retry) {
             originalRequest._retry = true;
 
             const refreshToken = useAuthStore.getState().refreshToken;
@@ -56,9 +82,13 @@ apiClient.interceptors.response.use(
                         refreshToken,
                     });
 
-                    if (data.success && data.data) {
-                        useAuthStore.getState().setTokens(data.data);
-                        originalRequest.headers.Authorization = `Bearer ${data.data.access_token}`;
+                    const payload = data.data;
+                    if (data.success && payload) {
+                        useAuthStore.getState().setTokens(payload);
+                        const bearer = payload.access_token ?? payload.accessToken;
+                        if (typeof bearer === 'string') {
+                            originalRequest.headers.Authorization = `Bearer ${bearer}`;
+                        }
                         return apiClient(originalRequest);
                     }
                 } catch (refreshError) {
@@ -66,18 +96,12 @@ apiClient.interceptors.response.use(
                 }
             }
 
-            // If we reach here, refresh failed or no token was found
             useAuthStore.getState().clearTokens();
-            // window.location.href = '/auth'; // Disable forced redirect for guest viewing
             return Promise.reject(error);
         }
 
-        // Common handling for 401 status when no refresh is possible/attempted
-        if (error.response?.status === 401 && !isAuthRequest) {
-            useAuthStore.getState().clearTokens();
-            // window.location.href = '/auth'; // Disable forced redirect for guest viewing
-        }
-
+        // Already retried and still 401
+        useAuthStore.getState().clearTokens();
         return Promise.reject(error);
     },
 );

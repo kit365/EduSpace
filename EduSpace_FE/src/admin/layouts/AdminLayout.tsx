@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { AdminSidebar } from '../features/admin/components/AdminSidebar';
+import { AdminSupportPresenceHeartbeat } from '../components/AdminSupportPresenceHeartbeat';
 import { useTranslation } from 'react-i18next';
 import { Globe } from 'lucide-react';
 
@@ -18,6 +19,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
 
     return (
         <div className="flex h-screen bg-white">
+            <AdminSupportPresenceHeartbeat />
             <AdminSidebar />
             <div className="flex-1 flex flex-col h-full overflow-hidden bg-gray-50">
                 <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 shrink-0 shadow-sm z-10 transition-all">

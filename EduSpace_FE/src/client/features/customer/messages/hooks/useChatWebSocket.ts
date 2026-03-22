@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '../../../../../stores/authStore';
+import { getKeycloakSubFromAccessToken } from '../../../../../config/chat';
 import { getOrCreateGuestId } from '../../../../../utils/guest';
 import type { ConversationActivityEvent, WebSocketMessagePayload, WebSocketReadReceiptPayload } from '../types';
 
@@ -7,10 +8,30 @@ import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+/** SockJS entry (gateway forwards /ws → conversation-service). Port is same as API_BASE_URL (e.g. 8080). */
 const WEBSOCKET_URL = API_BASE_URL + '/ws';
 
-export function useChatWebSocket(params: { conversationId: string | null; userId: string | null }) {
-    const { conversationId, userId } = params;
+function devWsLog(label: string, payload?: unknown) {
+    if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console
+        console.info(`[chat WS] ${label}`, payload ?? '');
+    }
+}
+
+export function useChatWebSocket(params: {
+    conversationId: string | null;
+    userId: string | null;
+    /**
+     * Extra `/topic/user/{id}/conversations` subscriptions (e.g. support queue placeholder).
+     * BE broadcasts unassigned admin threads to user2 = placeholder id; staff must subscribe there too.
+     */
+    extraInboxUserIds?: readonly string[];
+    /** Called when STOMP reconnects after a disconnect (e.g. elevator / flaky network). Refetch history in parent. */
+    onReconnect?: () => void;
+}) {
+    const { conversationId, userId, extraInboxUserIds = [], onReconnect } = params;
+    const extraKey = extraInboxUserIds.join('|');
+    const accessToken = useAuthStore((s) => s.accessToken);
 
     const [isConnected, setIsConnected] = useState(false);
     const [lastMessage, setLastMessage] = useState<WebSocketMessagePayload | null>(null);
@@ -18,80 +39,153 @@ export function useChatWebSocket(params: { conversationId: string | null; userId
     const [lastReadReceipt, setLastReadReceipt] = useState<WebSocketReadReceiptPayload | null>(null);
 
     const clientRef = useRef<Client | null>(null);
-    const subsRef = useRef<Record<string, any>>({}); // Track active subscriptions
+    const subsRef = useRef<Record<string, { unsubscribe: () => void }>>({});
 
-    // 1. Manage Connection Lifetime
+    const prevConnectedRef = useRef<boolean | undefined>(undefined);
+    const hadConnectedOnceRef = useRef(false);
+    const onReconnectRef = useRef(onReconnect);
+    onReconnectRef.current = onReconnect;
+
+    // 1. Manage connection: rehydrate auth first so STOMP uses the same identity as REST (Bearer + /topic/user/{sub}/...).
     useEffect(() => {
-        const token = useAuthStore.getState().accessToken;
-        
-        const stompClient = new Client({
-            webSocketFactory: () => new SockJS(WEBSOCKET_URL),
-            connectHeaders: token 
-                ? { Authorization: `Bearer ${token}` } 
-                : { 
-                    'X-Guest-ID': getOrCreateGuestId(),
-                    'x-guest-id': getOrCreateGuestId() 
-                  },
-            reconnectDelay: 5000,
-            heartbeatIncoming: 4000,
-            heartbeatOutgoing: 4000,
-            onConnect: () => {
-                setIsConnected(true);
-                
-                // Subscription to USER (Always active if userId exists)
-                if (userId) {
-                    stompClient.subscribe(`/topic/user/${userId}/conversations`, (msg: any) => {
+        let cancelled = false;
+
+        void (async () => {
+            await useAuthStore.persist.rehydrate();
+            if (cancelled) return;
+
+            const token = useAuthStore.getState().accessToken;
+            const guestIdForHeader = token ? null : getOrCreateGuestId();
+            const connectHeaders = token
+                ? { Authorization: `Bearer ${token}` }
+                : {
+                      'X-Guest-ID': guestIdForHeader!,
+                      'x-guest-id': guestIdForHeader!,
+                  };
+
+            const topicUserId = token
+                ? getKeycloakSubFromAccessToken(token) ?? userId
+                : userId ?? guestIdForHeader;
+
+            devWsLog('connecting', {
+                url: WEBSOCKET_URL,
+                apiBase: API_BASE_URL,
+                mode: token ? 'bearer' : 'guest',
+                topicUserId,
+                userIdTopic: topicUserId ? `/topic/user/${topicUserId}/conversations` : null,
+            });
+
+            const stompClient = new Client({
+                webSocketFactory: () => new SockJS(WEBSOCKET_URL),
+                connectHeaders,
+                reconnectDelay: 5000,
+                heartbeatIncoming: 4000,
+                heartbeatOutgoing: 4000,
+                onConnect: () => {
+                    if (cancelled) return;
+                    setIsConnected(true);
+                    devWsLog('STOMP connected', { topicUserId, mode: token ? 'bearer' : 'guest' });
+
+                    const inboxHandler = (msg: { body: string }) => {
                         try {
                             const data = JSON.parse(msg.body);
                             if (data?.type === 'CONVERSATION_ACTIVITY') {
+                                devWsLog('CONVERSATION_ACTIVITY', data?.conversationId);
                                 setLastConversationEvent(data);
                             }
                         } catch (err) {
                             console.error('User subscription error:', err);
                         }
-                    });
-                }
-            },
-            onDisconnect: () => setIsConnected(false),
-            onStompError: () => setIsConnected(false),
-            onWebSocketError: () => setIsConnected(false),
-        });
+                    };
 
-        stompClient.activate();
-        clientRef.current = stompClient;
+                    const subscribed = new Set<string>();
+                    if (topicUserId) {
+                        const topic = `/topic/user/${topicUserId}/conversations`;
+                        devWsLog('subscribe', topic);
+                        stompClient.subscribe(topic, inboxHandler);
+                        subscribed.add(topicUserId);
+                    }
+                    for (const extraId of extraInboxUserIds) {
+                        if (!extraId || subscribed.has(extraId)) continue;
+                        const t = `/topic/user/${extraId}/conversations`;
+                        devWsLog('subscribe extra inbox', t);
+                        stompClient.subscribe(t, inboxHandler);
+                        subscribed.add(extraId);
+                    }
+                },
+                onDisconnect: () => {
+                    devWsLog('STOMP disconnected');
+                    setIsConnected(false);
+                },
+                onStompError: (frame) => {
+                    devWsLog('STOMP error', frame?.headers?.message ?? frame);
+                    setIsConnected(false);
+                },
+                onWebSocketError: (e) => {
+                    devWsLog('WebSocket error', e);
+                    setIsConnected(false);
+                },
+            });
+
+            if (cancelled) return;
+            clientRef.current = stompClient;
+            stompClient.activate();
+        })();
 
         return () => {
-            stompClient.deactivate();
+            cancelled = true;
+            devWsLog('deactivate client');
+            clientRef.current?.deactivate();
             clientRef.current = null;
             setIsConnected(false);
         };
-    }, [userId]); // Only reconnect if user identity changes
+    }, [userId, accessToken, extraKey]);
+
+    // Reconnect → resync (skip first successful connection). Callback via ref so parent identity changes do not retrigger this effect.
+    useEffect(() => {
+        if (isConnected) {
+            if (hadConnectedOnceRef.current && prevConnectedRef.current === false) {
+                onReconnectRef.current?.();
+            }
+            hadConnectedOnceRef.current = true;
+        }
+        prevConnectedRef.current = isConnected;
+    }, [isConnected]);
 
     // 2. Manage Dynamic Conversation Subscriptions
     useEffect(() => {
         const client = clientRef.current;
         if (!client || !isConnected || !conversationId) return;
 
-        // Unsubscribe from previous conversation if any
         if (subsRef.current['chat']) subsRef.current['chat'].unsubscribe();
         if (subsRef.current['read']) subsRef.current['read'].unsubscribe();
 
-        // New Subscriptions
-        subsRef.current['chat'] = client.subscribe(`/topic/conversation/${conversationId}`, (msg: any) => {
+        const chatTopic = `/topic/conversation/${conversationId}`;
+        devWsLog('subscribe conversation', chatTopic);
+        subsRef.current['chat'] = client.subscribe(chatTopic, (msg: { body: string }) => {
             try {
                 setLastMessage(JSON.parse(msg.body));
-            } catch (err) { /* ignore */ }
+            } catch {
+                /* ignore */
+            }
         });
 
-        subsRef.current['read'] = client.subscribe(`/topic/conversation/${conversationId}/read-receipt`, (msg: any) => {
-            try {
-                const data = JSON.parse(msg.body);
-                setLastReadReceipt({
-                    ...data,
-                    conversationId: conversationId
-                });
-            } catch (err) { /* ignore */ }
-        });
+        const readTopic = `/topic/conversation/${conversationId}/read-receipt`;
+        devWsLog('subscribe read-receipt', readTopic);
+        subsRef.current['read'] = client.subscribe(
+            readTopic,
+            (msg: { body: string }) => {
+                try {
+                    const data = JSON.parse(msg.body);
+                    setLastReadReceipt({
+                        ...data,
+                        conversationId: conversationId,
+                    });
+                } catch {
+                    /* ignore */
+                }
+            },
+        );
 
         return () => {
             if (subsRef.current['chat']) subsRef.current['chat'].unsubscribe();
@@ -100,7 +194,4 @@ export function useChatWebSocket(params: { conversationId: string | null; userId
     }, [conversationId, isConnected]);
 
     return { isConnected, lastMessage, lastConversationEvent, lastReadReceipt };
-
-    return { isConnected, lastMessage, lastConversationEvent, lastReadReceipt };
 }
-

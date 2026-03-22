@@ -1,4 +1,4 @@
-export type MessageType = 'TEXT' | 'IMAGE' | 'SYSTEM';
+export type MessageType = 'TEXT' | 'IMAGE' | 'SYSTEM' | 'AUDIO';
 
 export interface PublicUserProfile {
     userId: string; // keycloakId
