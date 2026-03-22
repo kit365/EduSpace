@@ -3,12 +3,12 @@ import { AdminLayout } from '../../../layouts/AdminLayout';
 import { 
     Send, Search, MoreVertical, Paperclip, Smile, Loader2, 
     User, Image as ImageIcon, FileText, Download, Filter,
-    CheckCheck, Clock, ShieldCheck, ChevronRight, X
+    CheckCheck, Clock, ShieldCheck, ChevronRight, X, Share2, RefreshCw
 } from 'lucide-react';
 import { messageService } from '../../../../client/features/customer/messages/services/messageService';
 import { useConversations } from '../../../../client/features/customer/messages/hooks/useMessages';
 import { useChatWebSocket } from '../../../../client/features/customer/messages/hooks/useChatWebSocket';
-import type { ChatMessage, Conversation } from '../../../../client/features/customer/messages/types';
+import type { ChatMessage, Conversation, SearchUserResult } from '../../../../client/features/customer/messages/types';
 import { SUPPORT_PLACEHOLDER_USER_ID } from '../../../../config/chat';
 import { useResolvedChatUserId } from '../../../../hooks/useResolvedChatUserId';
 
@@ -43,6 +43,91 @@ export function AdminMessagesPage() {
         extraInboxUserIds: adminInboxExtraTopics,
         onReconnect: reloadMessages,
     });
+ 
+    const [activeTab, setActiveTab] = useState<'my' | 'queue'>('my');
+    const [unassignedConversations, setUnassignedConversations] = useState<Conversation[]>([]);
+    const [isClaiming, setIsClaiming] = useState(false);
+ 
+    // Transfer logic
+    const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+    const [onlineStaff, setOnlineStaff] = useState<SearchUserResult[]>([]);
+    const [transferLoading, setTransferLoading] = useState(false);
+ 
+    const loadQueue = useCallback(async () => {
+        try {
+            const data = await messageService.getUnassignedConversations();
+            setUnassignedConversations(data);
+        } catch (err) {
+            console.error('Failed to load queue:', err);
+        }
+    }, []);
+ 
+    const loadOnlineStaff = useCallback(async () => {
+        try {
+            setTransferLoading(true);
+            const profiles = await messageService.getOnlineSupportStaffProfiles();
+            // Filter out current user
+            setOnlineStaff(profiles.filter(p => p.keycloakId !== currentUserId));
+        } catch (err) {
+            console.error('Failed to load online staff:', err);
+        } finally {
+            setTransferLoading(false);
+        }
+    }, [currentUserId]);
+ 
+    useEffect(() => {
+        if (isTransferModalOpen) {
+            loadOnlineStaff();
+        }
+    }, [isTransferModalOpen, loadOnlineStaff]);
+ 
+    useEffect(() => {
+        if (activeTab === 'queue') {
+            loadQueue();
+        }
+    }, [activeTab, loadQueue]);
+ 
+    const handleClaim = async (conversationId: string) => {
+        if (isClaiming) return;
+        setIsClaiming(true);
+        try {
+            const conv = await messageService.claimConversation(conversationId);
+            setConversations(prev => [conv, ...prev]);
+            setUnassignedConversations(prev => prev.filter(c => c.conversationId !== conversationId));
+            setSelectedConversation(conv);
+            setActiveTab('my');
+        } catch (err) {
+            console.error('Claim failed:', err);
+        } finally {
+            setIsClaiming(false);
+        }
+    };
+ 
+    const handleTransfer = async (targetAdminId: string) => {
+        if (!selectedConversation) return;
+        try {
+            await messageService.transferConversation(selectedConversation.conversationId, targetAdminId);
+            setConversations(prev => prev.filter(c => c.conversationId !== selectedConversation.conversationId));
+            setSelectedConversation(null);
+            setIsTransferModalOpen(false);
+            alert('Cuộc trò chuyện đã được chuyển.');
+        } catch (err) {
+            console.error('Transfer failed:', err);
+            alert('Chuyển cuộc trò chuyện thất bại.');
+        }
+    };
+ 
+    const handleRequeue = async () => {
+        if (!selectedConversation) return;
+        try {
+            await messageService.requeueConversation(selectedConversation.conversationId);
+            setConversations(prev => prev.filter(c => c.conversationId !== selectedConversation.conversationId));
+            setSelectedConversation(null);
+            alert('Cuộc trò chuyện đã được đưa về hàng chờ.');
+        } catch (err) {
+            console.error('Requeue failed:', err);
+        }
+    };
 
     const activeChatIdRef = useRef<string | null>(null);
 
@@ -182,15 +267,16 @@ export function AdminMessagesPage() {
 
     const filteredConversations = useMemo(() => {
         const q = searchTerm.trim().toLowerCase();
-        if (!q) return conversations;
-        return conversations.filter((c) => {
+        const base = activeTab === 'my' ? conversations : unassignedConversations;
+        if (!q) return base;
+        return base.filter((c) => {
             const name = (c.otherUser?.fullName ?? '').toLowerCase();
             const last = (c.lastMessage ?? '').toLowerCase();
             const title = (c.conversationName ?? '').toLowerCase();
             return name.includes(q) || last.includes(q) || title.includes(q);
         });
-    }, [conversations, searchTerm]);
-
+    }, [conversations, unassignedConversations, searchTerm, activeTab]);
+ 
     if (loading) {
         return (
             <AdminLayout title="Messages">
@@ -200,7 +286,7 @@ export function AdminMessagesPage() {
             </AdminLayout>
         );
     }
-
+ 
     return (
         <AdminLayout title="Messages">
             <div className="h-[calc(100vh-140px)] bg-white rounded-3xl border border-gray-100 shadow-sm flex overflow-hidden">
@@ -209,10 +295,24 @@ export function AdminMessagesPage() {
                 <div className="w-80 border-r border-gray-100 flex flex-col">
                     <div className="p-6 border-b border-gray-50">
                         <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xl font-bold text-gray-900">Chats</h2>
-                            <button className="p-2 hover:bg-gray-50 rounded-xl transition-all">
-                                <Filter className="w-4 h-4 text-gray-400" />
-                            </button>
+                            <h2 className="text-xl font-bold text-gray-900">Support</h2>
+                            <div className="flex bg-gray-100 p-1 rounded-xl">
+                                <button 
+                                    onClick={() => setActiveTab('my')}
+                                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${activeTab === 'my' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                                >
+                                    My Chats
+                                </button>
+                                <button 
+                                    onClick={() => setActiveTab('queue')}
+                                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1 ${activeTab === 'queue' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                                >
+                                    Queue
+                                    {unassignedConversations.length > 0 && (
+                                        <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                                    )}
+                                </button>
+                            </div>
                         </div>
                         <div className="relative group">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
@@ -220,35 +320,38 @@ export function AdminMessagesPage() {
                                 type="text"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                placeholder="Search contacts..."
+                                placeholder={activeTab === 'my' ? "Search contacts..." : "Search queue..."}
                                 className="w-full pl-11 pr-4 py-3 bg-gray-50 rounded-2xl outline-none text-sm font-medium focus:ring-2 focus:ring-blue-100 transition-all"
                             />
                         </div>
                     </div>
                     
                     <div className="flex-1 overflow-y-auto p-4 space-y-1 custom-scrollbar">
-                        {conversations.length > 0 && filteredConversations.length === 0 && (
-                            <p className="text-xs text-center text-gray-400 px-2 py-6">
-                                Không có cuộc trò chuyện khớp tìm kiếm.
-                            </p>
+                        {filteredConversations.length === 0 && (
+                            <div className="flex flex-col items-center justify-center py-12 text-center">
+                                <Clock className="w-10 h-10 text-gray-200 mb-2" />
+                                <p className="text-xs text-gray-400 font-medium tracking-tight">
+                                    {activeTab === 'my' ? 'No active conversations.' : 'No pending support requests.'}
+                                </p>
+                            </div>
                         )}
                         {filteredConversations.map((chat) => {
                             const active = selectedConversation?.conversationId === chat.conversationId;
                             return (
                                 <div 
                                     key={chat.conversationId}
-                                    onClick={() => setSelectedConversation(chat)}
-                                    className={`p-4 rounded-2xl cursor-pointer transition-all flex items-center gap-4 ${
-                                        active ? 'bg-blue-50/50 border border-blue-100' : 'hover:bg-gray-50 border border-transparent'
+                                    onClick={() => activeTab === 'my' && setSelectedConversation(chat)}
+                                    className={`p-4 rounded-2xl cursor-pointer transition-all flex items-center gap-4 border ${
+                                        active ? 'bg-blue-50/50 border-blue-100' : 'hover:bg-gray-50 border-transparent'
                                     }`}
                                 >
                                     <div className="relative">
                                         <img 
-                                            src={chat.otherUser?.avatarUrl ?? `https://api.dicebear.com/7.x/avataaars/svg?seed=${chat.otherUser?.fullName}`}
+                                            src={chat.otherUser?.avatarUrl ?? `https://api.dicebear.com/7.x/avataaars/svg?seed=${chat.otherUser?.fullName || 'Guest'}`}
                                             className="w-12 h-12 rounded-2xl object-cover bg-gray-100 shadow-sm"
                                             alt=""
                                         />
-                                        <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></div>
+                                        {activeTab === 'my' && <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></div>}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex justify-between items-center mb-0.5">
@@ -260,20 +363,28 @@ export function AdminMessagesPage() {
                                             </span>
                                         </div>
                                         <p className="text-xs text-gray-500 truncate font-medium">
-                                            {chat.lastMessage?.trim() ? chat.lastMessage : '—'}
+                                            {chat.lastMessage?.trim() ? chat.lastMessage : 'Wait for assignment...'}
                                         </p>
                                     </div>
-                                    {chat.unreadCount > 0 && (
+                                    {activeTab === 'my' && chat.unreadCount > 0 && (
                                         <div className="w-5 h-5 bg-blue-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                                             {chat.unreadCount}
                                         </div>
+                                    )}
+                                    {activeTab === 'queue' && (
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); handleClaim(chat.conversationId); }}
+                                            className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold hover:bg-blue-700 transition-all shadow-sm active:scale-95"
+                                        >
+                                            Pick
+                                        </button>
                                     )}
                                 </div>
                             );
                         })}
                     </div>
                 </div>
-
+ 
                 {/* 2. Main Chat Window */}
                 <div className="flex-1 flex flex-col bg-slate-50/30">
                     {selectedConversation ? (
@@ -295,11 +406,27 @@ export function AdminMessagesPage() {
                                         </h3>
                                         <div className="flex items-center gap-1.5">
                                             <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Online</span>
+                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Active</span>
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-3">
+                                    <button 
+                                        onClick={() => setIsTransferModalOpen(true)}
+                                        title="Transfer to another staff"
+                                        className="flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-blue-50 text-gray-600 hover:text-blue-600 rounded-xl transition-all text-xs font-bold border border-gray-100 hover:border-blue-100"
+                                    >
+                                        <Share2 className="w-4 h-4" />
+                                        Transfer
+                                    </button>
+                                    <button 
+                                        onClick={handleRequeue}
+                                        title="Return to queue"
+                                        className="flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-red-600 rounded-xl transition-all text-xs font-bold border border-gray-100 hover:border-red-100"
+                                    >
+                                        <Clock className="w-4 h-4" />
+                                        Re-queue
+                                    </button>
                                     <button className="p-2.5 hover:bg-gray-50 rounded-xl text-gray-400 hover:text-gray-900 transition-all border border-transparent hover:border-gray-100">
                                         <MoreVertical className="w-5 h-5" />
                                     </button>
@@ -453,6 +580,78 @@ export function AdminMessagesPage() {
                     )}
                 </div>
             </div>
+ 
+            {/* 3. Transfer Modal */}
+            {isTransferModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="p-6 border-b border-gray-50 flex items-center justify-between">
+                            <div>
+                                <h2 className="text-xl font-bold text-gray-900">Transfer</h2>
+                                <p className="text-xs text-gray-500 font-medium mt-0.5">Hand over to another online staff</p>
+                            </div>
+                            <button 
+                                onClick={() => setIsTransferModalOpen(false)}
+                                className="p-2 hover:bg-gray-100 rounded-xl transition-all text-gray-400"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+ 
+                        <div className="p-4 max-h-[400px] overflow-y-auto custom-scrollbar space-y-2">
+                            {transferLoading ? (
+                                <div className="py-12 flex flex-col items-center justify-center text-center">
+                                    <Loader2 className="w-8 h-8 text-blue-500 animate-spin mb-3" />
+                                    <p className="text-sm font-bold text-gray-900">Finding online staff...</p>
+                                </div>
+                            ) : onlineStaff.length === 0 ? (
+                                <div className="py-12 flex flex-col items-center justify-center text-center">
+                                    <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                                        <RefreshCw className="w-8 h-8 text-gray-300" />
+                                    </div>
+                                    <p className="text-sm font-bold text-gray-900">No other staff online</p>
+                                    <p className="text-xs text-gray-500 mt-1">Try re-queueing instead.</p>
+                                </div>
+                            ) : (
+                                onlineStaff.map(staff => (
+                                    <div 
+                                        key={staff.keycloakId}
+                                        onClick={() => handleTransfer(staff.keycloakId)}
+                                        className="flex items-center gap-4 p-4 rounded-2xl hover:bg-blue-50 cursor-pointer transition-all border border-transparent hover:border-blue-100 group"
+                                    >
+                                        <img 
+                                            src={staff.avatarUrl ?? `https://api.dicebear.com/7.x/avataaars/svg?seed=${staff.fullName}`}
+                                            className="w-12 h-12 rounded-2xl object-cover bg-gray-100 shadow-sm"
+                                            alt=""
+                                        />
+                                        <div className="flex-1">
+                                            <h4 className="text-sm font-bold text-gray-900 group-hover:text-blue-700 transition-colors">
+                                                {staff.fullName}
+                                            </h4>
+                                            <div className="flex items-center gap-1.5 mt-0.5">
+                                                <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Available</span>
+                                            </div>
+                                        </div>
+                                        <button className="p-2 bg-white rounded-xl shadow-sm border border-gray-100 opacity-0 group-hover:opacity-100 transition-all text-blue-600">
+                                            <Share2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+ 
+                        <div className="p-6 bg-gray-50/50 flex justify-end gap-3">
+                            <button 
+                                onClick={() => setIsTransferModalOpen(false)}
+                                className="px-5 py-2.5 text-sm font-bold text-gray-600 hover:text-gray-900 transition-all"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <style dangerouslySetInnerHTML={{ __html: `
                 .custom-scrollbar::-webkit-scrollbar {

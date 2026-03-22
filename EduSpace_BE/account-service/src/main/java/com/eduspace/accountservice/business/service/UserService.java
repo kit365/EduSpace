@@ -49,4 +49,10 @@ public interface UserService {
 
     /** Active users with ADMIN or SUPER_ADMIN (same pool assignStaff draws from first). */
     long countEligibleSupportStaff();
+ 
+    void incrementActiveChatCount(String adminId);
+ 
+    void decrementActiveChatCount(String adminId);
+ 
+    List<PublicUserProfileResponse> getOnlineSupportStaffProfiles();
 }

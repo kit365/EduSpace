@@ -158,6 +158,12 @@ export class MessageService {
         const res = await apiClient.get<any, ApiResponse<number>>(ACCOUNT_API.PUBLIC_SUPPORT_ONLINE_STAFF_COUNT);
         return typeof res.data === 'number' ? res.data : 0;
     }
+ 
+    async getOnlineSupportStaffProfiles(): Promise<SearchUserResult[]> {
+        devChatLog('GET /accounts/public/support/online-staff-list');
+        const res = await apiClient.get<any, ApiResponse<SearchUserResult[]>>(`${API_PREFIX}/accounts/public/support/online-staff-list`);
+        return res.data ?? [];
+    }
 
     /**
      * After login: move support threads from browser guest id to Keycloak user.
@@ -178,6 +184,42 @@ export class MessageService {
             },
         );
         return typeof res.data === 'number' ? res.data : 0;
+    }
+ 
+    async getUnassignedConversations(): Promise<Conversation[]> {
+        devChatLog('GET /conversations/unassigned');
+        const res = await apiClient.get<any, ApiResponse<Conversation[]>>(`${this.BASE_PATH}/unassigned`, {
+            headers: this.getHeaders()
+        });
+        return res.data ?? [];
+    }
+ 
+    async claimConversation(conversationId: string): Promise<Conversation> {
+        devChatLog(`POST /conversations/${conversationId}/claim`);
+        const res = await apiClient.post<any, ApiResponse<Conversation>>(
+            `${this.BASE_PATH}/${conversationId}/claim`,
+            {},
+            { headers: this.getHeaders() }
+        );
+        return res.data;
+    }
+ 
+    async transferConversation(conversationId: string, targetAdminId: string): Promise<Conversation> {
+        devChatLog(`POST /conversations/${conversationId}/transfer`, { targetAdminId });
+        const res = await apiClient.post<any, ApiResponse<Conversation>>(
+            `${this.BASE_PATH}/${conversationId}/transfer`,
+            {},
+            { 
+                params: { targetAdminId },
+                headers: this.getHeaders() 
+            }
+        );
+        return res.data;
+    }
+ 
+    async requeueConversation(conversationId: string): Promise<void> {
+        devChatLog(`POST /conversations/${conversationId}/requeue`);
+        await apiClient.post(`${this.BASE_PATH}/${conversationId}/requeue`, {}, { headers: this.getHeaders() });
     }
 }
 

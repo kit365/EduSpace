@@ -40,4 +40,13 @@ public interface UserRepository extends JpaRepository<UserEntity, String>, JpaSp
             WHERE u.isActive = true AND r.name IN ('ADMIN', 'SUPER_ADMIN')
             """)
     long countDistinctActiveUsersWithSupportRoles();
+
+    @Query("""
+            SELECT u FROM UserEntity u
+            JOIN u.roles r
+            WHERE u.isActive = true 
+              AND r.name IN ('ADMIN', 'SUPER_ADMIN')
+            ORDER BY u.activeChatCount ASC
+            """)
+    List<UserEntity> findAdminsOrderByLoadAsc(org.springframework.data.domain.Pageable pageable);
 }

@@ -96,5 +96,18 @@ public class StaffAssignmentSagaHandler {
             eventPayload,
             conversation.getUser2Id()
         );
+
+        // Load Tracking Event for account-service (Push model)
+        java.util.Map<String, Object> loadEventPayload = new java.util.HashMap<>();
+        loadEventPayload.put("conversationId", conversation.getId());
+        loadEventPayload.put("adminId", conversation.getUser2Id());
+        loadEventPayload.put("assignedAt", java.time.LocalDateTime.now().toString());
+
+        outboxService.addEvent(
+            com.eduspace.conversationservice.model.event.DomainEventConstants.AGGREGATE_CONVERSATION,
+            conversation.getId(),
+            com.eduspace.conversationservice.model.event.DomainEventConstants.CONVERSATION_ASSIGNED,
+            loadEventPayload
+        );
     }
 }

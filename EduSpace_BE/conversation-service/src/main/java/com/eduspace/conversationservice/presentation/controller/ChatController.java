@@ -228,6 +228,41 @@ public class ChatController {
             chatService.unblockUser(conversationId, userId);
         return ApiResponse.success(null, SuccessCode.CONVERSATION_GET_SUCCESS, "User unblocked");
     }
+ 
+    @PostMapping(ConversationPaths.CLAIM)
+    public ApiResponse<ConversationResponse> claimConversation(@PathVariable String conversationId) {
+        String adminId = currentUserId(SecurityContextHolder.getContext().getAuthentication());
+        if (adminId == null) throw new AppException(ErrorCode.UNAUTHORIZED);
+        
+        ConversationResponse conversation = chatService.claimConversation(conversationId, adminId);
+        return ApiResponse.success(conversation, SuccessCode.CONVERSATION_GET_SUCCESS, "Conversation claimed");
+    }
+ 
+    @PostMapping(ConversationPaths.TRANSFER)
+    public ApiResponse<ConversationResponse> transferConversation(
+            @PathVariable String conversationId, 
+            @RequestParam String targetAdminId) {
+        String currentAdminId = currentUserId(SecurityContextHolder.getContext().getAuthentication());
+        if (currentAdminId == null) throw new AppException(ErrorCode.UNAUTHORIZED);
+ 
+        ConversationResponse conversation = chatService.transferConversation(conversationId, currentAdminId, targetAdminId);
+        return ApiResponse.success(conversation, SuccessCode.CONVERSATION_GET_SUCCESS, "Conversation transferred");
+    }
+ 
+    @PostMapping(ConversationPaths.REQUEUE)
+    public ApiResponse<Void> requeueConversation(@PathVariable String conversationId) {
+        String userId = currentUserId(SecurityContextHolder.getContext().getAuthentication());
+        if (userId == null) throw new AppException(ErrorCode.UNAUTHORIZED);
+ 
+        chatService.requeueConversation(conversationId, userId);
+        return ApiResponse.success(null, SuccessCode.CONVERSATION_GET_SUCCESS, "Conversation returned to queue");
+    }
+ 
+    @GetMapping(ConversationPaths.UNASSIGNED)
+    public ApiResponse<List<ConversationResponse>> getUnassignedConversations() {
+        List<ConversationResponse> conversations = chatService.getUnassignedConversations();
+        return ApiResponse.success(conversations, SuccessCode.CONVERSATION_GET_SUCCESS, "Unassigned conversations retrieved");
+    }
 
     // ==================== WebSocket Handlers ====================
     @MessageMapping("/chat/{conversationId}/send")

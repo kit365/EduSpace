@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
-import { MessageSquare, X, Send, Loader2, Headphones } from 'lucide-react';
+import { MessageSquare, X, Send, Loader2, Headphones, RefreshCw } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { messageService } from '../../client/features/customer/messages/services/messageService';
 import type { ChatMessage, Conversation } from '../../client/features/customer/messages/types';
@@ -39,6 +39,7 @@ export function ChatWidget() {
     const [loading, setLoading] = useState(false);
     const [isCreatingChat, setIsCreatingChat] = useState(false);
     const [isMatching, setIsMatching] = useState(false);
+    const [isRequeueing, setIsRequeueing] = useState(false);
     const [onlineStaffCount, setOnlineStaffCount] = useState<number | null>(null);
 
     const authHydrated = useAuthHydrated();
@@ -321,6 +322,24 @@ export function ChatWidget() {
         }
     };
 
+    const handleRequestNewStaff = async () => {
+        if (!conversation || isRequeueing) return;
+        const confirmResult = window.confirm('Bạn có muốn đổi nhân viên hỗ trợ khác không?');
+        if (!confirmResult) return;
+ 
+        setIsRequeueing(true);
+        try {
+            await messageService.requeueConversation(conversation.conversationId);
+            setIsMatching(true);
+            alert('Yêu cầu đã được gửi. Vui lòng đợi nhân viên mới.');
+        } catch (err) {
+            console.error('Failed to request new staff:', err);
+            alert('Yêu cầu đổi nhân viên thất bại. Vui lòng thử lại sau.');
+        } finally {
+            setIsRequeueing(false);
+        }
+    };
+ 
     return (
         <div className="fixed bottom-8 right-8 z-[70] flex flex-col items-end">
             <AnimatePresence>
@@ -337,10 +356,12 @@ export function ChatWidget() {
                                 <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
                                     <Headphones className="w-6 h-6" />
                                 </div>
-                                <div>
-                                    <h3 className="font-black text-lg leading-tight">Admin Support</h3>
-                                    <p className="text-[10px] text-red-100 font-bold uppercase tracking-widest">
-                                        {isMatching ? 'Matching you with staff...' : "We're here to help"}
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="font-black text-lg leading-tight truncate">
+                                        {isMatching ? 'Admin Support' : (conversation?.otherUser?.fullName ?? 'Admin Support')}
+                                    </h3>
+                                    <p className="text-[10px] text-red-100 font-bold uppercase tracking-widest truncate">
+                                        {isMatching ? 'Matching you with staff...' : "Assigned Support Specialist"}
                                     </p>
                                     {onlineStaffCount !== null && (
                                         <p className="text-[9px] text-red-50/90 font-semibold mt-0.5">
@@ -351,9 +372,22 @@ export function ChatWidget() {
                                     )}
                                 </div>
                             </div>
-                            <button type="button" onClick={() => setIsOpen(false)} className="hover:bg-white/20 p-2 rounded-xl transition-all">
-                                <X className="w-6 h-6" />
-                            </button>
+                            <div className="flex items-center gap-1">
+                                {!isMatching && conversation && (
+                                    <button 
+                                        type="button" 
+                                        onClick={handleRequestNewStaff}
+                                        disabled={isRequeueing}
+                                        title="Request new staff"
+                                        className="hover:bg-white/20 p-2 rounded-xl transition-all disabled:opacity-50"
+                                    >
+                                        {isRequeueing ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
+                                    </button>
+                                )}
+                                <button type="button" onClick={() => setIsOpen(false)} className="hover:bg-white/20 p-2 rounded-xl transition-all">
+                                    <X className="w-6 h-6" />
+                                </button>
+                            </div>
                         </div>
 
                         {/* Messages Area */}

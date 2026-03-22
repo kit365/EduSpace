@@ -742,5 +742,93 @@ public class ChatServiceImpl implements ChatService {
 
         return result;
     }
+ 
+    @Override
+    @Transactional
+    public ConversationResponse claimConversation(String conversationId, String adminId) {
+        ConversationEntity conversation = conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+ 
+        if (!Boolean.TRUE.equals(conversation.getIsAdminConversation())) {
+            throw new AppException(ErrorCode.INVALID_REQUEST, "Only support chats can be claimed");
+        }
+ 
+        String placeholder = resolvePlaceholderAdminId();
+        if (!placeholder.equals(conversation.getUser2Id())) {
+            throw new AppException(ErrorCode.INVALID_REQUEST, "Chat already claimed by another staff");
+        }
+ 
+        conversation.setUser2Id(adminId);
+        conversation.setIsActive(true);
+        conversationRepository.save(conversation);
+ 
+        sendSystemMessage(conversation, adminId, "đã tham gia hỗ trợ");
+ 
+        // Emit for Load Tracking
+        Map<String, Object> payload = Map.of("conversationId", conversationId, "adminId", adminId);
+        outboxService.addEvent(DomainEventConstants.AGGREGATE_CONVERSATION, conversationId, DomainEventConstants.CONVERSATION_ASSIGNED, payload);
+ 
+        return toConversationResponse(conversation, adminId);
+    }
+ 
+    @Override
+    @Transactional
+    public ConversationResponse transferConversation(String conversationId, String currentAdminId, String targetAdminId) {
+        ConversationEntity conversation = conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+ 
+        if (!currentAdminId.equals(conversation.getUser2Id())) {
+            throw new AppException(ErrorCode.ACCESS_DENIED, "Only current assigned staff can transfer");
+        }
+ 
+        conversation.setUser2Id(targetAdminId);
+        conversationRepository.save(conversation);
+ 
+        AccountClient.PublicUserProfile target = fetchProfileSafe(targetAdminId);
+        String targetName = target != null ? target.fullName() : targetAdminId;
+        sendSystemMessage(conversation, currentAdminId, "đã chuyển tiếp hỗ trợ cho " + targetName);
+ 
+        // Emit for Load Tracking (-1 old, +1 new)
+        Map<String, Object> payload = Map.of(
+            "conversationId", conversationId, 
+            "fromAdminId", currentAdminId, 
+            "toAdminId", targetAdminId
+        );
+        outboxService.addEvent(DomainEventConstants.AGGREGATE_CONVERSATION, conversationId, DomainEventConstants.STAFF_TRANSFERRED, payload);
+ 
+        return toConversationResponse(conversation, targetAdminId);
+    }
+ 
+    @Override
+    @Transactional
+    public void requeueConversation(String conversationId, String actorId) {
+        ConversationEntity conversation = conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+ 
+        String oldAdminId = conversation.getUser2Id();
+        String placeholder = resolvePlaceholderAdminId();
+        
+        conversation.setUser2Id(placeholder);
+        conversationRepository.save(conversation);
+ 
+        sendSystemMessage(conversation, actorId, "đã yêu cầu đổi nhân viên hỗ trợ");
+ 
+        // Emit for Load Tracking (-1 for old admin)
+        Map<String, Object> payload = Map.of("conversationId", conversationId, "adminId", oldAdminId);
+        outboxService.addEvent(DomainEventConstants.AGGREGATE_CONVERSATION, conversationId, DomainEventConstants.CONVERSATION_CLOSED, payload);
+        
+        // Trigger Staff Selection Saga again
+        chatEventProducer.sendAssignStaffRequest(UUID.randomUUID().toString(), conversationId, conversation.getUser1Id());
+    }
+ 
+    @Override
+    @Transactional(readOnly = true)
+    public List<ConversationResponse> getUnassignedConversations() {
+        String placeholder = resolvePlaceholderAdminId();
+        return conversationRepository.findAllByIsAdminConversationTrueAndUser2Id(placeholder)
+                .stream()
+                .map(c -> toConversationResponse(c, null))
+                .toList();
+    }
 }
 

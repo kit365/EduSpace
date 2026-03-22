@@ -17,6 +17,10 @@ public final class ConversationPaths {
     public static final String SEND_IMAGES = BY_ID + "/messages/images";
     public static final String BLOCK = BY_ID + "/block";
     public static final String UNBLOCK = BY_ID + "/unblock";
+    public static final String CLAIM = BY_ID + "/claim";
+    public static final String TRANSFER = BY_ID + "/transfer";
+    public static final String REQUEUE = BY_ID + "/requeue";
+    public static final String UNASSIGNED = "/unassigned";
 
     public static final class Message {
         private Message() {

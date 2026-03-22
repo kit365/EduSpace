@@ -8,6 +8,9 @@ public class DomainEventConstants {
 
     // --- TÊN SỰ KIỆN (EVENT TYPES) ---
     public static final String CONVERSATION_CREATED = "CONVERSATION_CREATED";
+    public static final String CONVERSATION_ASSIGNED = "CONVERSATION_ASSIGNED";
+    public static final String CONVERSATION_CLOSED = "CONVERSATION_CLOSED";
+    public static final String STAFF_TRANSFERRED = "STAFF_TRANSFERRED";
     public static final String CONVERSATION_BLOCKED = "CONVERSATION_BLOCKED";
     public static final String CONVERSATION_UNBLOCKED = "CONVERSATION_UNBLOCKED";
     

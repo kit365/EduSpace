@@ -22,5 +22,6 @@ public final class AccountPaths {
     public static final String PUBLIC_SEARCH = "/public/search";
     public static final String PUBLIC_SUPPORT_ELIGIBLE_STAFF_COUNT = "/public/support/eligible-staff-count";
     public static final String PUBLIC_SUPPORT_ONLINE_STAFF_COUNT = "/public/support/online-staff-count";
+    public static final String PUBLIC_SUPPORT_ONLINE_STAFF_LIST = "/public/support/online-staff-list";
     public static final String ME_SUPPORT_PRESENCE = ME + "/support-presence";
 }

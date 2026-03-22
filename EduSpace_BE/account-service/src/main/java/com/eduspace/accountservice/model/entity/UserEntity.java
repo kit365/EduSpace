@@ -100,6 +100,10 @@ public class UserEntity {
     @Column(name = "point_balance")
     Integer pointBalance;
 
+    @Builder.Default
+    @Column(name = "active_chat_count")
+    Integer activeChatCount = 0;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

@@ -23,6 +23,8 @@ public interface ConversationRepository extends JpaRepository<ConversationEntity
     List<ConversationEntity> findByIsAdminConversationTrueAndUser1IdOrUser2IdOrderByLastActivityDesc(String user1Id, String user2Id);
 
     List<ConversationEntity> findByIsAdminConversationTrueAndUser2IdOrderByLastActivityDesc(String user2Id);
+ 
+    List<ConversationEntity> findAllByIsAdminConversationTrueAndUser2Id(String user2Id);
 
     /** Rows where participant id was wrongly stored as an email (contains '@'). */
     List<ConversationEntity> findByUser1IdContainingOrUser2IdContaining(String user1Fragment, String user2Fragment);

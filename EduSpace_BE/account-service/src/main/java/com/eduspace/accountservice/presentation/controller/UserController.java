@@ -136,6 +136,13 @@ public class UserController {
                 return ApiResponse.success(count, SuccessCode.USER_PROFILE_GET_SUCCESS,
                                 "Online support staff count");
         }
+ 
+        @GetMapping(AccountPaths.PUBLIC_SUPPORT_ONLINE_STAFF_LIST)
+        public ApiResponse<List<PublicUserProfileResponse>> getOnlineSupportStaffProfiles() {
+                List<PublicUserProfileResponse> profiles = userService.getOnlineSupportStaffProfiles();
+                return ApiResponse.success(profiles, SuccessCode.USER_PROFILE_GET_SUCCESS,
+                                "Online support staff profiles");
+        }
 
         @PostMapping(AccountPaths.ME_SUPPORT_PRESENCE)
         @PreAuthorize(PreAuthorizeConstants.HAS_ANY_ROLE_ADMIN_OR_SUPER)

@@ -300,50 +300,31 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
     public String assignStaff(String customerId) {
-        log.info("Assigning staff for customerId: {}", customerId);
-        
-        // Try to find a user with role ADMIN (or STAFF if you prefer)
-        List<UserEntity> admins = userRepository.findByRoleName("ADMIN");
-        
-        if (admins.isEmpty()) {
-            // Fallback to SUPER_ADMIN if no ADMIN found
-            admins = userRepository.findByRoleName("SUPER_ADMIN");
-        }
-
-        if (admins.isEmpty()) {
-            log.warn("No users with ADMIN or SUPER_ADMIN role found. Attempting developer fallback...");
-            admins = userRepository.findAll().stream()
-                    .filter(u -> u.getEmail() != null && 
-                                (u.getEmail().contains("admin") || u.getEmail().contains("kietops")))
-                    .toList();
-            
-            if (admins.isEmpty()) {
-                // Absolute last resort: just pick the first user available except the customer
-                admins = userRepository.findAll().stream()
-                        .filter(u -> !u.getKeycloakId().equals(customerId))
-                        .toList();
-            }
-
-            if (admins.isEmpty()) {
-                log.error("Absolutely no staff available to assign for customer: {}", customerId);
-                return null;
-            }
-        }
-
-        Set<String> online = supportStaffPresenceService.getOnlineMemberIds();
-        Optional<UserEntity> onlineFirst = admins.stream()
-                .filter(a -> a.getKeycloakId() != null && online.contains(a.getKeycloakId()))
-                .findFirst();
-        if (onlineFirst.isPresent()) {
-            UserEntity assigned = onlineFirst.get();
-            log.info("Assigned online admin {} to customer {}", assigned.getEmail(), customerId);
-            return assigned.getKeycloakId();
-        }
-
-        UserEntity assigned = admins.get(0);
-        log.info("Assigned admin (pool order, none online in Redis) {} to customer {}", assigned.getEmail(), customerId);
-        return assigned.getKeycloakId();
+        // Luôn trả về placeholder để chat vào Queue trước, cho phép admin tự Pick
+        return "admin-keycloak-id-0000";
+    }
+ 
+    @Override
+    @Transactional
+    public void incrementActiveChatCount(String adminId) {
+        userRepository.findByKeycloakId(adminId).ifPresent(user -> {
+            user.setActiveChatCount(user.getActiveChatCount() + 1);
+            userRepository.save(user);
+            log.debug("Incremented activeChatCount for {}: now {}", adminId, user.getActiveChatCount());
+        });
+    }
+ 
+    @Override
+    @Transactional
+    public void decrementActiveChatCount(String adminId) {
+        userRepository.findByKeycloakId(adminId).ifPresent(user -> {
+            int current = user.getActiveChatCount();
+            user.setActiveChatCount(Math.max(0, current - 1));
+            userRepository.save(user);
+            log.debug("Decremented activeChatCount for {}: now {}", adminId, user.getActiveChatCount());
+        });
     }
 
     private String mapRole(String uiRole) {
@@ -357,6 +338,17 @@ public class UserServiceImpl implements UserService {
         };
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<PublicUserProfileResponse> getOnlineSupportStaffProfiles() {
+        Set<String> onlineIds = supportStaffPresenceService.getOnlineMemberIds();
+        if (onlineIds.isEmpty()) return List.of();
+ 
+        return userRepository.findAllByKeycloakIdIn(List.copyOf(onlineIds)).stream()
+                .map(userMapper::toPublicUserProfile)
+                .toList();
+    }
+ 
     @Override
     @Transactional
     public void approveUserKyc(String userId) {
