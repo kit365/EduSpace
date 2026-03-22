@@ -1,3 +1,4 @@
 .env
 .env.*
 !.env.example
+eduspace_mobile_v2/
