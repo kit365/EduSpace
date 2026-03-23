@@ -35,10 +35,13 @@ public class RoomResponse {
     String floorNumber;
     Boolean is24_7;
     List<RoomScheduleResponse> schedules;
+    List<RoomPolicyResponse> policies;
+    List<RoomAmenityResponse> amenities;
     BigDecimal pricePerHour;
     BigDecimal pricePerDay;
     Integer minBookingHours;
     String images;
+    String imagesAlt;
     String description;
     RoomStatus status;
     RoomApprovalStatus approvalStatus;
@@ -56,4 +59,11 @@ public class RoomResponse {
     String pendingEditRejectionNote;
     /** JSON RoomRequest — admin xem trước khi duyệt. */
     String pendingEditPayload;
+
+    BigDecimal latitude;
+    BigDecimal longitude;
+    String approvedBy;
+    LocalDateTime approvedAt;
+
+    RoomCategoryResponse category;
 }

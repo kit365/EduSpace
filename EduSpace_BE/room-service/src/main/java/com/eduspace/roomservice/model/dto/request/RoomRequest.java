@@ -14,6 +14,7 @@ import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -24,11 +25,13 @@ import java.time.LocalDateTime;
 public class RoomRequest {
 
     Integer propertyId;
+    String categorySlug;
     RoomType roomType;
     BookingType bookingType;
-    String name;
-    /** Tuỳ chọn; nếu null BE gán từ địa chỉ property + số phòng / tầng. */
-    String location;
+    String nameVi;
+    String nameEn;
+    String locationVi;
+    String locationEn;
     Integer capacity;
     BigDecimal area;
     String roomNumber;
@@ -38,7 +41,10 @@ public class RoomRequest {
     BigDecimal pricePerDay;
     Integer minBookingHours;
     String images;
-    String description;
+    String imagesAltVi;
+    String imagesAltEn;
+    String descriptionVi;
+    String descriptionEn;
     RoomStatus status;
     RoomApprovalStatus approvalStatus;
     String rejectionNote;
@@ -46,4 +52,10 @@ public class RoomRequest {
     Integer reviewCount;
     LocalDateTime deletedAt;
     Boolean isActive;
+    
+    BigDecimal latitude;
+    BigDecimal longitude;
+
+    List<RoomPolicyRequest> policies;
+    List<Integer> amenityIds;
 }

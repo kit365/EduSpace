@@ -26,16 +26,19 @@ interface PropertyApiDto {
 
 interface PropertyUpsertRequest {
     ownerId: string;
-    name: string;
+    nameVi: string;
+    nameEn: string;
     propertyType: string;
     contactPhone: string;
     contactEmail: string;
     provinceCode?: string | null;
     districtCode?: string | null;
     wardCode?: string | null;
-    addressDetail: string;
+    addressDetailVi: string;
+    addressDetailEn: string;
     logo?: string | null;
-    description?: string | null;
+    descriptionVi?: string | null;
+    descriptionEn?: string | null;
     status?: BranchApprovalStatus;
 }
 
@@ -133,16 +136,19 @@ function mapPropertyToBranch(dto: PropertyApiDto): HostBranch {
 function mapUpsertPayload(payload: BranchUpsertPayload): PropertyUpsertRequest {
     return {
         ownerId: payload.ownerId,
-        name: payload.name.trim(),
+        nameVi: payload.name.trim(),
+        nameEn: payload.name.trim(),
         propertyType: payload.propertyType.trim(),
         contactPhone: payload.phone.trim(),
         contactEmail: payload.email.trim(),
         provinceCode: payload.provinceCode?.trim() || null,
         districtCode: payload.districtCode?.trim() || null,
         wardCode: payload.wardCode?.trim() || null,
-        addressDetail: payload.address.trim(),
+        addressDetailVi: payload.address.trim(),
+        addressDetailEn: payload.address.trim(),
         logo: payload.logo?.trim() || null,
-        description: payload.manager?.trim() || payload.description?.trim() || null,
+        descriptionVi: payload.manager?.trim() || payload.description?.trim() || null,
+        descriptionEn: payload.manager?.trim() || payload.description?.trim() || null,
     };
 }
 

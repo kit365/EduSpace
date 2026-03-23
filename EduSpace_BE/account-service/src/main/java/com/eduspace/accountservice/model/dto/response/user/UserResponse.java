@@ -30,6 +30,7 @@ public class UserResponse {
     String postalCode;
     String taxId;
     String hostType;
+    String organizationName;
     String verificationDocument;
     String verificationStatus;
     Boolean isActive;

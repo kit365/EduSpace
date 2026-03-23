@@ -37,6 +37,8 @@ export const vi = {
         priceLowHigh: "Giá: Thấp → Cao",
         priceHighLow: "Giá: Cao → Thấp",
         rating: "Đánh giá",
+        capacityLowHigh: "Sức chứa: Thấp → Cao",
+        capacityHighLow: "Sức chứa: Cao → Thấp",
         verifiedSpace: "ĐÃ XÁC THỰC",
         spacesFound: "không gian tại TP. Hồ Chí Minh",
         showingResults: "Hiển thị kết quả cho",
@@ -298,12 +300,16 @@ export const vi = {
             policyCheckIn: "Vui lòng check-in đúng khung giờ đã chọn để đảm bảo quyền sử dụng phòng.",
             contactHostTitle: "Liên hệ Host",
             contactHostDesc: "Bạn cần thêm thông tin về tiện nghi, thời gian hoặc hỗ trợ đặt chỗ? Hãy nhắn trực tiếp cho host.",
-            contactHostBtn: "Nhắn host ngay"
+            contactHostBtn: "Nhắn host ngay",
+            verifiedHost: "Chủ phòng đã xác thực"
         },
         search: {
             title: "Tìm kiếm không gian",
             filters: "Bộ lọc",
             clearAll: "Xoá tất cả",
+            resultsFound: "kết quả tìm thấy",
+            sortCapacityLowHigh: "Sức chứa: Thấp → Cao",
+            sortCapacityHighLow: "Sức chứa: Cao → Thấp",
             district: "Khu vực",
             timeSlots: "Khung giờ",
             priceRange: "Mức giá (VNĐ/giờ)",

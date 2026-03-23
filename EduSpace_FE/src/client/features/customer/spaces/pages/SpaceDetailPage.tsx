@@ -159,18 +159,34 @@ export function SpaceDetailPage() {
               <section className="pt-4">
                 <h2 className="text-2xl font-bold text-gray-900 mb-5">{t('customer.spaceDetail.policiesTitle')}</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="rounded-2xl border border-gray-100 bg-white p-5">
-                    <div className="flex items-start gap-3">
-                      <ShieldCheck className="w-5 h-5 text-green-600 mt-0.5" />
-                      <p className="text-sm font-medium text-gray-700">{t('customer.spaceDetail.policyCancellation')}</p>
-                    </div>
-                  </div>
-                  <div className="rounded-2xl border border-gray-100 bg-white p-5">
-                    <div className="flex items-start gap-3">
-                      <ShieldCheck className="w-5 h-5 text-blue-600 mt-0.5" />
-                      <p className="text-sm font-medium text-gray-700">{t('customer.spaceDetail.policyCheckIn')}</p>
-                    </div>
-                  </div>
+                  {space.policies && space.policies.length > 0 ? (
+                    space.policies.map((policy) => (
+                      <div key={policy.id} className="rounded-2xl border border-gray-100 bg-white p-5">
+                        <div className="flex items-start gap-3">
+                          <ShieldCheck className="w-5 h-5 text-green-600 mt-0.5" />
+                          <div>
+                            <p className="text-sm font-bold text-gray-900">{policy.name}</p>
+                            <p className="text-xs text-gray-600 mt-1">{policy.description}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <>
+                      <div className="rounded-2xl border border-gray-100 bg-white p-5">
+                        <div className="flex items-start gap-3">
+                          <ShieldCheck className="w-5 h-5 text-green-600 mt-0.5" />
+                          <p className="text-sm font-medium text-gray-700">{t('customer.spaceDetail.policyCancellation')}</p>
+                        </div>
+                      </div>
+                      <div className="rounded-2xl border border-gray-100 bg-white p-5">
+                        <div className="flex items-start gap-3">
+                          <ShieldCheck className="w-5 h-5 text-blue-600 mt-0.5" />
+                          <p className="text-sm font-medium text-gray-700">{t('customer.spaceDetail.policyCheckIn')}</p>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </section>
             )}
@@ -185,7 +201,11 @@ export function SpaceDetailPage() {
               <section className="pt-4">
                 <div className="rounded-2xl border border-gray-100 bg-white p-6">
                   <h3 className="text-xl font-bold text-gray-900 mb-2">{t('customer.spaceDetail.contactHostTitle')}</h3>
-                  <p className="text-gray-600 mb-5">{t('customer.spaceDetail.contactHostDesc')}</p>
+                  <p className="text-gray-600 mb-5">
+                    {space.host?.isVerified 
+                      ? t('customer.spaceDetail.verifiedHost') 
+                      : t('customer.spaceDetail.contactHostDesc')}
+                  </p>
                   <button
                     onClick={() => navigate('/messages', {
                       state: {
@@ -213,19 +233,26 @@ export function SpaceDetailPage() {
               reviewCount={space.reviewCount || 0}
               spaceName={space.name}
               spaceImage={space.image}
+              capacity={space.capacity}
+              schedules={space.schedules}
+              is24_7={space.is24_7}
             />
 
             <div className="mt-5 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
               <p className="text-xs font-black uppercase tracking-widest text-gray-400 mb-3">{t('customer.spaceDetail.contactHostTitle')}</p>
               <div className="flex items-center gap-3 mb-4">
                 <img
-                  src="https://i.pravatar.cc/120?img=32"
-                  alt={hostName}
+                  src={space.host?.avatar || "https://i.pravatar.cc/120?img=32"}
+                  alt={space.host?.name || hostName}
                   className="w-12 h-12 rounded-full object-cover"
                 />
                 <div>
-                  <p className="font-bold text-gray-900 leading-tight">{hostName}</p>
-                  <p className="text-xs text-gray-500">{t('customer.spaceDetail.contactHostDesc')}</p>
+                  <p className="font-bold text-gray-900 leading-tight">{space.host?.name || hostName}</p>
+                  <p className="text-xs text-gray-500">
+                    {space.host?.isVerified 
+                      ? t('customer.spaceDetail.verifiedHost') 
+                      : t('customer.spaceDetail.contactHostDesc')}
+                  </p>
                 </div>
               </div>
               <button

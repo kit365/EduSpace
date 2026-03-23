@@ -13,15 +13,24 @@ public interface SystemCalendarRuleMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "blockType", expression = "java(toBlockTypeString(request.getBlockType()))")
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "createdBy", ignore = true)
+    @Mapping(target = "updatedBy", ignore = true)
     SystemCalendarRuleEntity toEntity(SystemCalendarRuleRequest request);
 
     @Mapping(target = "blockType", expression = "java(toBlockType(entity.getBlockType()))")
+    @Mapping(target = "name", source = "name")
     SystemCalendarRuleResponse toResponse(SystemCalendarRuleEntity entity);
 
     List<SystemCalendarRuleResponse> toResponseList(List<SystemCalendarRuleEntity> entities);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "blockType", expression = "java(toBlockTypeString(request.getBlockType()))")
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "createdBy", ignore = true)
+    @Mapping(target = "updatedBy", ignore = true)
     void updateEntity(SystemCalendarRuleRequest request, @MappingTarget SystemCalendarRuleEntity entity);
 
     default String toBlockTypeString(BlockType e) {

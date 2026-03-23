@@ -1,6 +1,6 @@
 import apiClient from '@/lib/axios';
 import { ROOM_API } from '@/config/api';
-import type { RoomCreateRequest, RoomDto, RoomOperationalStatus, RoomScheduleSaveItem } from '../types';
+import type { AmenityDto, PageResponse, RoomCategoryDto, RoomCreateRequest, RoomDto, RoomOperationalStatus, RoomScheduleSaveItem } from '../types';
 
 function unwrap<T>(res: unknown): T {
   if (res && typeof res === 'object' && 'data' in res && (res as { data: unknown }).data !== undefined) {
@@ -83,5 +83,50 @@ export const roomApiService = {
       : `${ROOM_API.ROOMS}/${roomId}/pending-edit/reject`;
     const res = await apiClient.post(url);
     return unwrap<RoomDto>(res);
+  },
+
+  /** Public endpoints */
+  getPublicRooms: async (params?: {
+    propertyId?: number;
+    category?: string;
+    keyword?: string;
+    minCapacity?: number;
+    minPrice?: number;
+    maxPrice?: number;
+    amenityIds?: number[];
+    districtCode?: string;
+    page?: number;
+    size?: number;
+    sortBy?: string;
+    sortDir?: string;
+  }): Promise<PageResponse<RoomDto>> => {
+    const res = await apiClient.get(ROOM_API.PUBLIC_ROOMS, { params });
+    return unwrap<PageResponse<RoomDto>>(res);
+  },
+
+  getPublicCategories: async (): Promise<RoomCategoryDto[]> => {
+    const res = await apiClient.get(ROOM_API.PUBLIC_ROOM_CATEGORIES);
+    return unwrap<RoomCategoryDto[]>(res);
+  },
+
+  getFeaturedCategories: async (): Promise<RoomCategoryDto[]> => {
+    const res = await apiClient.get(`${ROOM_API.PUBLIC_ROOM_CATEGORIES}/featured`);
+    return unwrap<RoomCategoryDto[]>(res);
+  },
+
+  /** Admin endpoints */
+  getAllCategories: async (): Promise<RoomCategoryDto[]> => {
+    const res = await apiClient.get(ROOM_API.ROOM_CATEGORIES);
+    return unwrap<RoomCategoryDto[]>(res);
+  },
+
+  updateCategory: async (id: number, body: Partial<RoomCategoryDto>): Promise<RoomCategoryDto> => {
+    const res = await apiClient.put(`${ROOM_API.ROOM_CATEGORIES}/${id}`, body);
+    return unwrap<RoomCategoryDto>(res);
+  },
+
+  getAllAmenities: async (): Promise<AmenityDto[]> => {
+    const res = await apiClient.get(ROOM_API.AMENITIES);
+    return unwrap<AmenityDto[]>(res);
   },
 };

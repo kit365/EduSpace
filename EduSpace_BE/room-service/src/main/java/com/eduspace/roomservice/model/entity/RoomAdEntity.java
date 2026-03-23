@@ -8,26 +8,27 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import lombok.experimental.FieldDefaults;
+import lombok.experimental.SuperBuilder;
 
 @Entity
 @Table(name = "room_ads")
-@Data
-@Builder
+@Getter
+@Setter
+@SuperBuilder
+@EqualsAndHashCode(callSuper = true)
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @NoArgsConstructor
 @AllArgsConstructor
-public class RoomAdEntity {
+public class RoomAdEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -42,10 +43,10 @@ public class RoomAdEntity {
     AdsPackageEntity adsPackage;
 
     @Column(name = "owner_id")
-    String ownerId; // UUID from account-service, no FK
+    String ownerId; // UUID from account-service
 
     @Column(name = "transaction_id")
-    String transactionId;
+    String transactionId; // From payment-service
 
     @Column(name = "start_date")
     LocalDate startDate;
@@ -57,23 +58,5 @@ public class RoomAdEntity {
     Long paidAmount;
 
     @Column(name = "status")
-    String status;
-
-    @Column(name = "created_at")
-    LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    LocalDateTime updatedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        LocalDateTime now = LocalDateTime.now();
-        createdAt = now;
-        updatedAt = now;
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
+    String status; // PENDING_PAYMENT, ACTIVE, EXPIRED, CANCELLED
 }

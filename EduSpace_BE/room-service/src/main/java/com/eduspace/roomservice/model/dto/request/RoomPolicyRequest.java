@@ -15,7 +15,12 @@ import lombok.experimental.FieldDefaults;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class RoomPolicyRequest {
-    String name;
-    String description;
+    String nameVi;
+    String nameEn;
+    String descriptionVi;
+    String descriptionEn;
     String logo;
+    String logoAltVi;
+    String logoAltEn;
+    Integer position;
 }

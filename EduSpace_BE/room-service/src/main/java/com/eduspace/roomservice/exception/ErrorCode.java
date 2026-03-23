@@ -12,6 +12,7 @@ public enum ErrorCode {
 
     ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "ROOM_NOT_FOUND", "room.not-found"),
     PROPERTY_NOT_FOUND(HttpStatus.NOT_FOUND, "PROPERTY_NOT_FOUND", "property.not-found"),
+    CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "CATEGORY_NOT_FOUND", "category.not-found"),
     ADS_PACKAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "ADS_PACKAGE_NOT_FOUND", "ads-package.not-found"),
     AMENITY_NOT_FOUND(HttpStatus.NOT_FOUND, "AMENITY_NOT_FOUND", "amenity.not-found"),
     ROOM_AMENITY_NOT_FOUND(HttpStatus.NOT_FOUND, "ROOM_AMENITY_NOT_FOUND", "room-amenity.not-found"),

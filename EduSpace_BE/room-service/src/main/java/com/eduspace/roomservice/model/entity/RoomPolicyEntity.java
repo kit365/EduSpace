@@ -8,25 +8,27 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
-import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import lombok.experimental.FieldDefaults;
+import lombok.experimental.SuperBuilder;
 
 @Entity
 @Table(name = "room_policies")
-@Data
-@Builder
+@Getter
+@Setter
+@SuperBuilder
+@EqualsAndHashCode(callSuper = true)
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @NoArgsConstructor
 @AllArgsConstructor
-public class RoomPolicyEntity {
+public class RoomPolicyEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -36,30 +38,28 @@ public class RoomPolicyEntity {
     @JoinColumn(name = "room_id", nullable = false)
     RoomEntity room;
 
-    @Column(name = "name", nullable = false)
-    String name;
+    @Column(name = "name_vi")
+    String nameVi;
 
-    @Column(name = "description", columnDefinition = "TEXT")
-    String description;
+    @Column(name = "name_en")
+    String nameEn;
+
+    @Column(name = "description_vi", columnDefinition = "TEXT")
+    String descriptionVi;
+
+    @Column(name = "description_en", columnDefinition = "TEXT")
+    String descriptionEn;
 
     @Column(name = "logo", columnDefinition = "TEXT")
     String logo;
 
-    @Column(name = "created_at")
-    LocalDateTime createdAt;
+    @Column(name = "logo_alt_vi")
+    String logoAltVi;
 
-    @Column(name = "updated_at")
-    LocalDateTime updatedAt;
+    @Column(name = "logo_alt_en")
+    String logoAltEn;
 
-    @PrePersist
-    protected void onCreate() {
-        LocalDateTime now = LocalDateTime.now();
-        createdAt = now;
-        updatedAt = now;
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
+    @Builder.Default
+    @Column(name = "position")
+    Integer position = 0;
 }

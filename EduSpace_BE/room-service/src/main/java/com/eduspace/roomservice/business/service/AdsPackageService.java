@@ -2,7 +2,6 @@ package com.eduspace.roomservice.business.service;
 
 import com.eduspace.roomservice.model.dto.request.AdsPackageRequest;
 import com.eduspace.roomservice.model.dto.response.AdsPackageResponse;
-import com.eduspace.roomservice.model.entity.AdsPackageEntity;
 import java.util.List;
 
 public interface AdsPackageService {

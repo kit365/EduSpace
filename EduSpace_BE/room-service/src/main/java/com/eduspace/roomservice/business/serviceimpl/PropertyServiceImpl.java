@@ -16,8 +16,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataAccessException;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -29,7 +27,6 @@ public class PropertyServiceImpl implements PropertyService {
 
     private final PropertyRepository propertyRepository;
     private final PropertyMapper propertyMapper;
-    private final JdbcTemplate jdbcTemplate;
 
     @Override
     public List<PropertyResponse> getAll() {
@@ -51,14 +48,10 @@ public class PropertyServiceImpl implements PropertyService {
     public PropertyResponse create(PropertyRequest request) {
         PropertyEntity entity = propertyMapper.toEntity(request);
         entity.setPropertyType(normalizePropertyType(request.getPropertyType()));
-        // Workflow fields are owned by backend approval flow.
         entity.setStatus(PropertyStatus.PENDING.name());
         entity.setSubmittedAt(LocalDateTime.now());
-        entity.setApprovedBy(null);
-        entity.setApprovedAt(null);
-        entity.setRejectionNote(null);
+
         PropertyEntity saved = propertyRepository.save(entity);
-        syncLegacyAddress(saved.getId(), saved.getAddressDetail());
         return propertyMapper.toResponse(saved);
     }
 
@@ -87,7 +80,6 @@ public class PropertyServiceImpl implements PropertyService {
         existing.setApprovedAt(currentApprovedAt);
         existing.setRejectionNote(currentRejectionNote);
         PropertyEntity saved = propertyRepository.save(existing);
-        syncLegacyAddress(saved.getId(), saved.getAddressDetail());
         return propertyMapper.toResponse(saved);
     }
 
@@ -159,13 +151,4 @@ public class PropertyServiceImpl implements PropertyService {
         }
     }
 
-    private void syncLegacyAddress(Integer id, String addressDetail) {
-        if (id == null) return;
-        try {
-            jdbcTemplate.update("UPDATE properties SET address = ? WHERE id = ?", addressDetail, id);
-        } catch (DataAccessException ex) {
-            // Some schemas no longer have legacy `address` column; ignore safely.
-            log.debug("Skip syncing legacy properties.address: {}", ex.getMessage());
-        }
-    }
 }

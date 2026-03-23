@@ -18,7 +18,10 @@ import {
     Calendar,
     ShieldCheck,
     Zap,
-    Loader2
+    Loader2,
+    CigaretteOff,
+    Car,
+    Brush
 } from 'lucide-react';
 import { hostService } from '../services/hostService';
 import { showToast } from '@/utils/toast';
@@ -27,7 +30,28 @@ import { useBranch } from '../context/BranchContext';
 import type { HostBranch } from '../services/branchService';
 import { roomApiService } from '@/client/features/room/services/roomApiService';
 import { propertyApiService } from '@/client/features/room/services/propertyApiService';
-import type { PropertyDto, RoomDto } from '@/client/features/room/types';
+import type { AmenityDto, PropertyDto, RoomCategoryDto, RoomDto } from '@/client/features/room/types';
+
+const ICON_MAP: Record<string, any> = {
+    wifi: Wifi,
+    presentation: Video,
+    board: Building2,
+    ac: Wind,
+    water: Coffee,
+    support: ShieldCheck,
+    projectors: Video,
+    whiteboard: Building2,
+    sound: Maximize2,
+    lounge: Coffee,
+    zap: Zap,
+    clock: Clock,
+    calendar: Calendar,
+    shield: ShieldCheck,
+    smoking: CigaretteOff,
+    'support-247': ShieldCheck,
+    parking: Car,
+    cleaning: Brush,
+};
 
 interface SpaceFormData {
     branchId: number | null;
@@ -113,14 +137,6 @@ function validateAllSteps(data: SpaceFormData, branches: HostBranch[], t: TFunct
     return null;
 }
 
-const ROOM_TYPE_OPTIONS = [
-    { value: 'MEETING_ROOM', labelKey: 'common.roomTypes.meetingRoom' },
-    { value: 'CLASSROOM', labelKey: 'common.roomTypes.classroom' },
-    { value: 'EVENT_SPACE', labelKey: 'common.roomTypes.eventSpace' },
-    { value: 'STUDIO', labelKey: 'common.roomTypes.studio' },
-    { value: 'COWORKING', labelKey: 'common.roomTypes.coworking' },
-] as const;
-
 function parseDescriptionForForm(desc: string | null): { title: string; amenities: string[] } {
     const lines = (desc ?? '')
         .split('\n')
@@ -171,7 +187,7 @@ function mapRoomToForm(room: RoomDto, property: PropertyDto): SpaceFormData {
         branchId: room.propertyId,
         branchName: property.name?.trim() ?? '',
         roomName: room.name,
-        roomType: normalizeRoomType(room.roomType),
+        roomType: room.category?.slug || normalizeRoomType(room.roomType),
         title: meta.title || room.name,
         address: property.addressDetail?.trim() ?? '',
         roomNumber: room.roomNumber?.trim() ?? '',
@@ -221,6 +237,11 @@ export function SpacePublishFlow({ isEdit, editId, onCancel, onSuccess }: SpaceP
     const [loadingEdit, setLoadingEdit] = useState(false);
     const [editLoadError, setEditLoadError] = useState<string | null>(null);
     const [editSubmitMode, setEditSubmitMode] = useState<'pending' | 'direct'>('pending');
+    const [categories, setCategories] = useState<RoomCategoryDto[]>([]);
+    const [amenities, setAmenities] = useState<AmenityDto[]>([]);
+    const [loadingResources, setLoadingResources] = useState(false);
+    const [customAmenity, setCustomAmenity] = useState('');
+    const [customPolicy, setCustomPolicy] = useState('');
     const totalSteps = 5;
 
     const stepNavLabel = (n: number) => {
@@ -250,6 +271,25 @@ export function SpacePublishFlow({ isEdit, editId, onCancel, onSuccess }: SpaceP
         amenities: [],
         images: []
     }));
+
+    useEffect(() => {
+        const loadResources = async () => {
+            setLoadingResources(true);
+            try {
+                const [cats, amns] = await Promise.all([
+                    roomApiService.getAllCategories(),
+                    roomApiService.getAllAmenities()
+                ]);
+                setCategories(cats);
+                setAmenities(amns);
+            } catch (error) {
+                console.error('Failed to load room resources', error);
+            } finally {
+                setLoadingResources(false);
+            }
+        };
+        void loadResources();
+    }, []);
 
     useEffect(() => {
         if (!isEdit || !editId) {
@@ -407,6 +447,19 @@ export function SpacePublishFlow({ isEdit, editId, onCancel, onSuccess }: SpaceP
         }
     };
 
+    const addCustomItem = (value: string, setter: (v: string) => void) => {
+        const trimmed = value.trim();
+        if (!trimmed) return;
+        if (!formData.amenities.includes(trimmed)) {
+            handleUpdate('amenities', [...formData.amenities, trimmed]);
+        }
+        setter('');
+    };
+
+    const removeCustomItem = (name: string) => {
+        handleUpdate('amenities', formData.amenities.filter(a => a !== name));
+    };
+
     const handleSubmit = async () => {
         setIsSubmitting(true);
         try {
@@ -515,11 +568,11 @@ export function SpacePublishFlow({ isEdit, editId, onCancel, onSuccess }: SpaceP
     }
 
     return (
-        <div className="min-h-[calc(100vh-120px)] bg-slate-50 py-8 md:py-12 scroll-smooth">
-                <div className="max-w-6xl mx-auto px-4">
+        <div className="min-h-[calc(100vh-120px)] bg-slate-50 py-4 md:py-6 scroll-smooth">
+                <div className="mx-auto max-w-[1360px] px-3 md:px-5">
 
                     {/* Progress Header */}
-                    <div className="mb-14 text-center animate-in fade-in slide-in-from-top-4 duration-500">
+                    <div className="mb-8 text-center animate-in fade-in slide-in-from-top-4 duration-500">
                         <div className="inline-flex items-center gap-2 bg-white border border-red-100 text-red-600 px-6 py-2 rounded-full text-xs font-black uppercase tracking-[0.2em] mb-4 shadow-sm">
                             <Zap className="w-4 h-4" /> {isEdit ? "CẬP NHẬT TIN ĐĂNG" : t('host.listSpace.onboarding')}
                         </div>
@@ -534,9 +587,9 @@ export function SpacePublishFlow({ isEdit, editId, onCancel, onSuccess }: SpaceP
                         ) : null}
                     </div>
 
-                    <div className="flex gap-12">
+                    <div className="flex gap-6 xl:gap-8">
                         {/* Nav Steps Sidebar */}
-                        <div className="w-64 shrink-0 hidden lg:block sticky top-24 h-fit">
+                        <div className="hidden h-fit w-56 shrink-0 sticky top-24 lg:block">
                             <div className="space-y-2 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
                                 {[
                                     { n: 1, text: t('host.listSpace.steps.basics') },
@@ -565,7 +618,7 @@ export function SpacePublishFlow({ isEdit, editId, onCancel, onSuccess }: SpaceP
 
                         {/* Content Container */}
                         <div className="flex-1">
-                            <div className="bg-white rounded-3xl shadow-sm border border-gray-200 p-8 relative overflow-hidden min-h-[500px] flex flex-col transition-all duration-500">
+                            <div className="relative flex min-h-[420px] flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-500 md:p-6">
                                 {isSubmitting && (
                                     <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-[100] flex flex-col items-center justify-center gap-6 animate-in fade-in duration-300">
                                         <Loader2 className="w-16 h-16 text-red-500 animate-spin" />
@@ -575,7 +628,7 @@ export function SpacePublishFlow({ isEdit, editId, onCancel, onSuccess }: SpaceP
 
                                 <div className="flex-1">
                                     {step === 1 && (
-                                        <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                                             <div>
                                                 <h2 className="text-3xl font-black text-gray-900 mb-2 tracking-tight">{t('host.listSpace.basics.title')}</h2>
                                                 <p className="text-gray-400 text-base font-bold">{t('host.listSpace.basics.description')}</p>
@@ -627,11 +680,9 @@ export function SpacePublishFlow({ isEdit, editId, onCancel, onSuccess }: SpaceP
                                                         onChange={(e) => handleUpdate('roomType', e.target.value)}
                                                         className={`w-full px-4 py-3 bg-gray-50 rounded-xl border focus:border-red-500 focus:ring-2 focus:ring-red-200 transition-all font-medium text-gray-900 appearance-none ${fieldRing('roomType') || 'border-gray-200'}`}
                                                     >
-                                                        <option value="">{t('host.listSpace.basics.chooseCategory')}</option>
-                                                        {ROOM_TYPE_OPTIONS.map(rt => (
-                                                            <option key={rt.value} value={rt.value}>
-                                                                {t(rt.labelKey)}
-                                                            </option>
+                                                        <option value="" disabled>{t('host.listSpace.basics.chooseCategory')}</option>
+                                                        {categories.map(cat => (
+                                                            <option key={cat.slug} value={cat.slug}>{cat.name}</option>
                                                         ))}
                                                     </select>
                                                     {fieldErrors.roomType ? (
@@ -664,7 +715,7 @@ export function SpacePublishFlow({ isEdit, editId, onCancel, onSuccess }: SpaceP
                                     )}
 
                                     {step === 2 && (
-                                        <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-700">
+                                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-700">
                                             <div>
                                                 <h2 className="text-3xl font-black text-gray-900 mb-2 tracking-tight">{t('host.listSpace.location.title')}</h2>
                                                 <p className="text-gray-400 text-base font-bold">{t('host.listSpace.location.description')}</p>
@@ -775,13 +826,13 @@ export function SpacePublishFlow({ isEdit, editId, onCancel, onSuccess }: SpaceP
                                     )}
 
                                     {step === 3 && (
-                                        <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-700">
+                                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-700">
                                             <div>
                                                 <h2 className="text-3xl font-black text-gray-900 mb-2 tracking-tight">{t('host.listSpace.pricing.title')}</h2>
                                                 <p className="text-gray-400 text-base font-bold">{t('host.listSpace.pricing.description')}</p>
                                             </div>
 
-                                            <div className="grid grid-cols-2 gap-12">
+                                            <div className="grid grid-cols-2 gap-6">
                                                 <div className="space-y-6">
                                                     <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1 flex items-center gap-2">
                                                         <Clock className="w-5 h-5 text-red-500" /> {t('host.listSpace.pricing.sessionAvailability')}
@@ -911,45 +962,136 @@ export function SpacePublishFlow({ isEdit, editId, onCancel, onSuccess }: SpaceP
                                     )}
 
                                     {step === 4 && (
-                                        <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-700">
-                                            <div>
-                                                <h2 className="text-3xl font-black text-gray-900 mb-2 tracking-tight">{t('host.listSpace.amenities.title')}</h2>
-                                                <p className="text-gray-400 text-base font-bold">{t('host.listSpace.amenities.description')}</p>
+                                        <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-700">
+                                            {/* Amenities Section */}
+                                            <div className="space-y-6">
+                                                <div>
+                                                    <h2 className="text-2xl font-black text-gray-900 mb-2 tracking-tight">TIỆN ÍCH & TRANG THIẾT BỊ</h2>
+                                                    <p className="text-gray-400 text-sm font-bold">{t('host.listSpace.amenities.description')}</p>
+                                                </div>
+
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                    {amenities.filter(a => a.type !== 'POLICY').map(item => {
+                                                        const Icon = ICON_MAP[item.icon] || ShieldCheck;
+                                                        const isSelected = formData.amenities.includes(item.name);
+                                                        return (
+                                                            <button
+                                                                key={item.id}
+                                                                type="button"
+                                                                onClick={() => toggleAmenity(item.name)}
+                                                                className={`p-3 flex flex-col items-center gap-2 rounded-2xl border transition-all duration-300 group ${isSelected ? 'border-red-500 bg-red-50 shadow-sm' : 'border-gray-200 hover:border-red-200 hover:bg-gray-50'
+                                                                    }`}
+                                                            >
+                                                                <div className={`p-2.5 rounded-xl transition-all ${isSelected ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-400 group-hover:text-red-500 group-hover:bg-red-100'}`}>
+                                                                    <Icon className="w-5 h-5" />
+                                                                </div>
+                                                                <span className={`text-xs font-bold text-center leading-tight ${isSelected ? 'text-red-900' : 'text-gray-500 group-hover:text-gray-900'}`}>
+                                                                    {item.name}
+                                                                </span>
+                                                            </button>
+                                                        );
+                                                    })}
+
+                                                    {/* Custom Amenities */}
+                                                    {formData.amenities.filter(name => !amenities.some(a => a.name === name)).map(name => (
+                                                        <div key={name} className="p-3 flex flex-col items-center gap-2 rounded-2xl border border-red-500 bg-red-50 shadow-sm relative group overflow-hidden">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeCustomItem(name)}
+                                                                className="absolute top-1 right-1 p-1 bg-red-100 text-red-600 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            >
+                                                                <Zap className="w-3 h-3 rotate-45" />
+                                                            </button>
+                                                            <div className="p-2.5 rounded-xl bg-red-500 text-white">
+                                                                <Zap className="w-5 h-5" />
+                                                            </div>
+                                                            <span className="text-xs font-bold text-center leading-tight text-red-900 truncate w-full px-1">
+                                                                {name}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+
+                                                {/* Add Custom Amenity Input */}
+                                                <div className="flex gap-2 mt-4">
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Thêm tiện ích khác..."
+                                                        value={customAmenity}
+                                                        onChange={(e) => setCustomAmenity(e.target.value)}
+                                                        onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomItem(customAmenity, setCustomAmenity))}
+                                                        className="flex-1 px-4 py-2 text-sm bg-white border border-gray-200 rounded-xl focus:border-red-500 focus:ring-2 focus:ring-red-100 transition-all outline-none"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => addCustomItem(customAmenity, setCustomAmenity)}
+                                                        className="px-4 py-2 bg-gray-900 text-white text-xs font-bold rounded-xl hover:bg-gray-800 transition-colors"
+                                                    >
+                                                        Thêm
+                                                    </button>
+                                                </div>
                                             </div>
 
-                                            <div className="grid grid-cols-3 gap-6">
-                                                {[
-                                                    { name: 'Dual Projectors', key: 'projectors', icon: Video },
-                                                    { name: 'Whiteboard', key: 'whiteboard', icon: Building2 },
-                                                    { name: 'Sound System', key: 'sound', icon: Maximize2 },
-                                                    { name: 'Fiber Wifi 6', key: 'wifi', icon: Wifi },
-                                                    { name: 'Air Conditioning', key: 'ac', icon: Wind },
-                                                    { name: 'Lounge Area', key: 'lounge', icon: Coffee },
-                                                ].map(item => {
-                                                    const Icon = item.icon;
-                                                    const isSelected = formData.amenities.includes(item.name);
-                                                    return (
-                                                        <button
-                                                            key={item.name}
-                                                            onClick={() => toggleAmenity(item.name)}
-                                                            className={`p-4 flex flex-col items-center gap-3 rounded-2xl border transition-all duration-300 group ${isSelected ? 'border-red-500 bg-red-50 shadow-sm' : 'border-gray-200 hover:border-red-200 hover:bg-gray-50'
-                                                                }`}
-                                                        >
-                                                            <div className={`p-3 rounded-xl transition-all ${isSelected ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-400 group-hover:text-red-500 group-hover:bg-red-100'}`}>
-                                                                <Icon className="w-6 h-6" />
-                                                            </div>
-                                                            <span className={`text-sm font-bold text-center ${isSelected ? 'text-red-900' : 'text-gray-500 group-hover:text-gray-900'}`}>
-                                                                {t(`host.listSpace.amenities.items.${item.key}`)}
-                                                            </span>
-                                                        </button>
-                                                    );
-                                                })}
+                                            {/* Policies Section */}
+                                            <div className="space-y-6 pt-6 border-t border-gray-100">
+                                                <div>
+                                                    <h2 className="text-2xl font-black text-gray-900 mb-2 tracking-tight">CHÍNH SÁCH CHO PHÒNG</h2>
+                                                    <p className="text-gray-400 text-sm font-bold">Các quy định chung mà khách hàng cần tuân thủ khi sử dụng phòng.</p>
+                                                </div>
+
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                    {amenities.filter(a => a.type === 'POLICY').map(item => {
+                                                        const Icon = ICON_MAP[item.icon] || ShieldCheck;
+                                                        const isSelected = formData.amenities.includes(item.name);
+                                                        return (
+                                                            <button
+                                                                key={item.id}
+                                                                type="button"
+                                                                onClick={() => toggleAmenity(item.name)}
+                                                                className={`p-3 flex flex-col items-center gap-2 rounded-2xl border transition-all duration-300 group ${isSelected ? 'border-red-600 bg-red-50 shadow-sm' : 'border-gray-200 hover:border-red-200 hover:bg-gray-50'
+                                                                    }`}
+                                                            >
+                                                                <div className={`p-2.5 rounded-xl transition-all ${isSelected ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-400 group-hover:text-red-600 group-hover:bg-red-100'}`}>
+                                                                    <Icon className="w-5 h-5" />
+                                                                </div>
+                                                                <span className={`text-xs font-bold text-center leading-tight ${isSelected ? 'text-red-900' : 'text-gray-500 group-hover:text-gray-900'}`}>
+                                                                    {item.name}
+                                                                </span>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                {/* Add Custom Policy Input */}
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Thêm quy định khác..."
+                                                        value={customPolicy}
+                                                        onChange={(e) => setCustomPolicy(e.target.value)}
+                                                        onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomItem(customPolicy, setCustomPolicy))}
+                                                        className="flex-1 px-4 py-2 text-sm bg-white border border-gray-200 rounded-xl focus:border-red-600 focus:ring-2 focus:ring-red-100 transition-all outline-none"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => addCustomItem(customPolicy, setCustomPolicy)}
+                                                        className="px-4 py-2 bg-gray-900 text-white text-xs font-bold rounded-xl hover:bg-gray-800 transition-colors"
+                                                    >
+                                                        Thêm
+                                                    </button>
+                                                </div>
                                             </div>
+
+                                            {amenities.length === 0 && !loadingResources && (
+                                                <div className="py-10 text-center text-gray-400 font-bold italic bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                                                    Chưa có dữ liệu từ máy chủ.
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 
                                     {step === 5 && (
-                                        <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-700">
+                                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-700">
                                             <div>
                                                 <h2 className="text-3xl font-black text-gray-900 mb-2 tracking-tight">{t('host.listSpace.gallery.title')}</h2>
                                                 <p className="text-gray-400 text-base font-bold">{t('host.listSpace.gallery.description')}</p>

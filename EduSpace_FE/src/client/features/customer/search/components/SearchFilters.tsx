@@ -14,6 +14,7 @@ interface SearchFiltersProps {
   onTimeStartChange: (time: string) => void;
   selectedTimeEnd: string;
   onTimeEndChange: (time: string) => void;
+  availableDistricts?: readonly { readonly value: string; readonly labelKey: string }[];
 }
 
 export function SearchFilters({
@@ -29,6 +30,7 @@ export function SearchFilters({
   onTimeStartChange,
   selectedTimeEnd,
   onTimeEndChange,
+  availableDistricts = DISTRICT_OPTIONS,
 }: SearchFiltersProps) {
   const { t } = useTranslation();
 
@@ -42,8 +44,8 @@ export function SearchFilters({
 
   const handleClearAll = () => {
     onPriceRangeChange([PRICE_RANGE.MIN, PRICE_RANGE.MAX]);
-    onCapacityChange('10-20');
-    onAmenitiesChange(['projector', 'wifi', 'ac']);
+    onCapacityChange('');
+    onAmenitiesChange([]);
     onDistrictChange('all');
     onTimeStartChange('');
     onTimeEndChange('');
@@ -64,13 +66,13 @@ export function SearchFilters({
 
         {/* FR-06: Khu vực (Quận/Huyện) */}
         <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-          <h4 className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em] mb-3">📍 {t('customer.search.district')}</h4>
+          <h4 className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em] mb-3">{t('customer.search.district')}</h4>
           <select
             value={selectedDistrict}
             onChange={(e) => onDistrictChange(e.target.value)}
             className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 transition-all font-bold text-gray-900 appearance-none text-sm"
           >
-            {DISTRICT_OPTIONS.map((d) => (
+            {(availableDistricts || DISTRICT_OPTIONS).map((d) => (
               <option key={d.value} value={d.value}>{t(d.labelKey)}</option>
             ))}
           </select>
@@ -78,7 +80,7 @@ export function SearchFilters({
 
         {/* FR-06: Khung giờ tìm kiếm */}
         <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-          <h4 className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em] mb-3">🕐 {t('customer.search.timeSlots')}</h4>
+          <h4 className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em] mb-3">{t('customer.search.timeSlots')}</h4>
           <p className="text-[10px] font-medium text-gray-400 mb-3">{t('customer.search.searching')}</p>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -112,7 +114,7 @@ export function SearchFilters({
 
         {/* Mức giá */}
         <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-          <h4 className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em] mb-3">💰 {t('customer.search.priceRange')}</h4>
+          <h4 className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em] mb-3">{t('customer.search.priceRange')}</h4>
           <div className="space-y-3">
             <input
               type="range"
@@ -131,7 +133,7 @@ export function SearchFilters({
 
         {/* FR-06: Sức chứa 4-50 người */}
         <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-          <h4 className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em] mb-3">👥 {t('customer.search.capacity')}</h4>
+          <h4 className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em] mb-3">{t('customer.search.capacity')}</h4>
           <div className="space-y-2">
             {CAPACITY_OPTIONS.map((capacity) => (
               <button
@@ -150,7 +152,7 @@ export function SearchFilters({
 
         {/* Tiện ích */}
         <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-          <h4 className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em] mb-3">✨ {t('customer.search.amenities')}</h4>
+          <h4 className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em] mb-3">{t('customer.search.amenities')}</h4>
           <div className="space-y-2.5">
             {AMENITIES_LIST.map((amenity) => (
               <label key={amenity.value} className="flex items-center gap-3 cursor-pointer group">

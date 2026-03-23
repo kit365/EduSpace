@@ -19,6 +19,8 @@ public class RoomPolicyResponse {
     String name;
     String description;
     String logo;
+    String logoAlt;
+    Integer position;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
 }

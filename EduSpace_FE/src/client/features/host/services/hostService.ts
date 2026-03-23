@@ -71,11 +71,13 @@ function buildRoomPayload(data: HostPublishFormData, propertyId: number): RoomCr
   const dayPrice = Math.round(Number(data.pricePerDay) || 0);
   const images =
     data.images.length > 0 ? data.images.join(',') : 'https://placehold.co/1200x800/e2e8f0/64748b?text=EduSpace';
+  
   const descParts = [
     data.title?.trim(),
     data.floor !== undefined && data.floor !== null ? `Tầng ${data.floor}` : '',
     data.amenities.length ? `Tiện ích: ${data.amenities.join(', ')}` : '',
   ].filter(Boolean);
+  
   const locationLine = [
     data.address.trim(),
     data.roomNumber?.trim() ? `Phòng ${data.roomNumber.trim()}` : '',
@@ -84,12 +86,19 @@ function buildRoomPayload(data: HostPublishFormData, propertyId: number): RoomCr
     .filter(Boolean)
     .join(' · ');
 
+  // data.roomType contains the slug from categories
+  const categorySlug = data.roomType;
+
   return {
     propertyId,
+    categorySlug,
+    // For now we map slug back to the enum if possible, or use default
     roomType: mapRoomType(data.roomType),
     bookingType: 'SLOT_BASED',
-    name: roomName.slice(0, 200),
-    location: locationLine,
+    nameVi: roomName.slice(0, 200),
+    nameEn: roomName.slice(0, 200),
+    locationVi: locationLine,
+    locationEn: locationLine,
     capacity: Math.max(1, Number(data.capacity) || 1),
     area: data.size > 0 ? data.size : null,
     roomNumber: data.roomNumber.trim(),
@@ -99,7 +108,8 @@ function buildRoomPayload(data: HostPublishFormData, propertyId: number): RoomCr
     pricePerDay: dayPrice,
     minBookingHours: 1,
     images,
-    description: descParts.join('\n') || null,
+    descriptionVi: descParts.join('\n') || null,
+    descriptionEn: descParts.join('\n') || null,
     status: 'ACTIVE',
     isActive: true,
   };

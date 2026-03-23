@@ -65,6 +65,9 @@ public class UserEntity {
     @Column(name = "host_type")
     String hostType;
 
+    @Column(name = "organization_name")
+    String organizationName;
+
     @Column(name = "verification_document")
     String verificationDocument;
 

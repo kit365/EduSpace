@@ -10,10 +10,12 @@ import { MessagesPage } from '../features/customer/messages';
 import { HelpPage } from '../features/customer/help';
 import { NotificationsPage } from '../features/customer/notifications/pages/NotificationsPage';
 import { TransactionHistoryPage } from '../features/customer/transactions/pages/TransactionHistoryPage';
+import { SpaceDetailPage } from '../features/customer/spaces/pages/SpaceDetailPage';
 
 export const customerRoutes: RouteObject[] = [
     { path: '/', element: <HomePage /> },
     { path: '/search', element: <SearchPage /> },
+    { path: '/space/:spaceRef', element: <SpaceDetailPage /> },
     { path: '/auth', element: <AuthPage /> },
     { path: '/verify-email', element: <VerifyEmailPage /> },
     { path: '/profile', element: <ProfilePage /> },
@@ -26,4 +28,5 @@ export const customerRoutes: RouteObject[] = [
     { path: '/notifications', element: <NotificationsPage /> },
     { path: '/transactions', element: <TransactionHistoryPage /> },
     { path: '/help', element: <HelpPage /> },
+    { path: '/:categorySlug', element: <SearchPage /> },
 ];

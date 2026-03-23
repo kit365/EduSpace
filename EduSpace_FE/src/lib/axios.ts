@@ -11,6 +11,9 @@ const apiClient = axios.create({
         'Content-Type': 'application/json',
     },
     timeout: 15000,
+    paramsSerializer: {
+        indexes: null, // use amenityIds=1&amenityIds=2 instead of amenityIds[]=1
+    },
 });
 
 /** POST login/refresh/register — never clear session on 401 */
