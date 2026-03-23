@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../storage/local_storage_service.dart';
 import '../network/api_endpoints.dart';
+import '../../routes/app_router.dart';
 import 'api_response.dart';
 
 class ApiClient {
@@ -89,11 +90,17 @@ class ApiClient {
                   }
                 } catch (refreshError) {
                   debugPrint('--- Token Refresh Failed ---');
-                  await _storage.clearAuth();
-                  // In a real app, you might want to redirect to login here
-                  // using a navigator key or a stream.
                 }
               }
+              
+              // If we reached here, it means either refreshToken was null,
+              // or refresh attempt failed, or response was still 401.
+              await _storage.init();
+              await _storage.clearAuth();
+              AppRouter.navigatorKey.currentState?.pushNamedAndRemoveUntil(
+                AppRouter.login, 
+                (route) => false,
+              );
             }
           }
 
