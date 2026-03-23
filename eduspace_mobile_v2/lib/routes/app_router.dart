@@ -11,7 +11,7 @@ import '../presentation/pages/payment/payment_screen.dart';
 import '../presentation/pages/payment/payment_success_screen.dart';
 import '../presentation/pages/wallet/wallet_screen.dart';
 import '../presentation/pages/wallet/rewards_screen.dart';
-import '../data/models/response/room/room_api_models.dart';
+import '../data/models/response/room/room_model.dart';
 import '../data/models/response/booking/booking_detail_model.dart';
 
 class AppRouter {
@@ -40,10 +40,10 @@ class AppRouter {
       case rewards:
         return _go(const RewardsScreen());
       case roomDetail:
-        final room = settings.arguments as RoomResponse;
+        final room = settings.arguments as RoomModel;
         return _go(RoomDetailScreen(room: room));
       case bookingFlow:
-        final room = settings.arguments as RoomResponse;
+        final room = settings.arguments as RoomModel;
         return _go(BookingFlowScreen(room: room));
       case bookingList:
         return _go(const BookingListScreen());

@@ -6,7 +6,6 @@ import '../../../data/repositories/room/room_repository_impl.dart';
 import '../../common/widgets/placeholder_screen.dart';
 import '../messages/messages_screen.dart';
 import '../profile/profile_screen.dart';
-import '../room/room_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -441,17 +440,8 @@ class _RoomCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => RoomDetailScreen(room: room),
-          ),
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
+    return Container(
+      decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
@@ -589,7 +579,6 @@ class _RoomCard extends StatelessWidget {
           ),
         ],
       ),
-    ),
     );
   }
 
