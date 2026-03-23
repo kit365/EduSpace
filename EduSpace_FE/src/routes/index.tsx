@@ -46,7 +46,7 @@ const RootLayout = () => {
     return (
         <>
             <Outlet />
-{pathname !== '/messages' && (
+            {pathname !== '/messages' && !pathname.startsWith('/rental') && (
                 <RoleSwitcher
                     currentRole={currentRole}
                     onRoleChange={handleRoleChange}

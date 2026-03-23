@@ -58,11 +58,14 @@ export interface PropertyCreateRequest {
 /** Payload POST /rooms — khớp RoomRequest (BE). */
 export interface RoomCreateRequest {
   propertyId: number;
+  categorySlug: string;
   roomType: RoomType;
   bookingType: BookingType;
-  name: string;
+  nameVi: string;
+  nameEn: string;
   /** Tuỳ chọn; BE tự ghép từ địa chỉ chi nhánh + phòng/tầng nếu bỏ trống. */
-  location?: string | null;
+  locationVi?: string | null;
+  locationEn?: string | null;
   capacity: number;
   area?: number | null;
   roomNumber?: string | null;
@@ -73,7 +76,8 @@ export interface RoomCreateRequest {
   pricePerDay?: number | null;
   minBookingHours?: number | null;
   images?: string | null;
-  description?: string | null;
+  descriptionVi?: string | null;
+  descriptionEn?: string | null;
   status?: RoomStatus;
   approvalStatus?: RoomApprovalStatus;
   isActive?: boolean;
@@ -132,4 +136,50 @@ export interface RoomDto {
   pendingEditStatus?: string | null;
   pendingEditRejectionNote?: string | null;
   pendingEditPayload?: string | null;
+  amenities?: RoomAmenityDto[];
+  category?: RoomCategoryDto | null;
+  policies?: RoomPolicyDto[];
+}
+
+export interface RoomCategoryDto {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string;
+  image?: string;
+  isFeatured?: boolean;
+}
+
+export interface AmenityDto {
+  id: number;
+  name: string;
+  icon: string;
+  type: 'EQUIPMENT' | 'SERVICE' | 'FEATURE' | string;
+  position: number;
+}
+
+export interface RoomAmenityDto {
+  roomId: number;
+  amenityId: number;
+  amenityName: string;
+  amenityIcon: string;
+  quantity: number;
+  notes?: string | null;
+}
+
+export interface RoomPolicyDto {
+  id: number;
+  name: string;
+  description: string;
+  logo?: string | null;
+  position?: number;
+}
+
+export interface PageResponse<T> {
+  content: T[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  last: boolean;
 }

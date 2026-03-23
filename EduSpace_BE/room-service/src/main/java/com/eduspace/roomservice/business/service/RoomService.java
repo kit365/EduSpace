@@ -2,14 +2,22 @@ package com.eduspace.roomservice.business.service;
 
 import com.eduspace.roomservice.common.enums.RoomStatus;
 import com.eduspace.roomservice.model.dto.request.RoomRequest;
+import com.eduspace.roomservice.model.dto.request.RoomSearchRequest;
+import com.eduspace.roomservice.model.dto.response.PageResponse;
 import com.eduspace.roomservice.model.dto.response.RoomResponse;
 import java.util.List;
 
 public interface RoomService {
 
+    PageResponse<RoomResponse> searchRooms(RoomSearchRequest request);
+
     List<RoomResponse> getAllRooms();
 
+    List<String> getRoomCategories();
+
     List<RoomResponse> getRoomsByPropertyId(Integer propertyId);
+
+    List<RoomResponse> getRoomsByCategorySlug(String categorySlug);
 
     List<RoomResponse> getRoomsByOwnerId(String ownerId);
 

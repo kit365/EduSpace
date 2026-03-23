@@ -19,4 +19,5 @@ public class AmenityResponse {
     String name;
     String icon;
     AmenityType type;
+    Integer position;
 }

@@ -51,10 +51,15 @@ public class SecurityConfig {
                 .authorizeExchange(exchanges -> exchanges
                         // Public endpoints - no authentication required
                         .pathMatchers("/api/v1/auth/**").permitAll()
+                        .pathMatchers("/api/v1/public/**").permitAll() // New: make all public sub-paths accessible
                         .pathMatchers("/actuator/**").permitAll()
 
                         // Room Service public endpoints (Search, Details, etc.)
-                        .pathMatchers("/api/v1/rooms/**", "/api/v1/properties/**", "/api/v1/amenities/**", "/api/v1/reviews/**").permitAll()
+                        .pathMatchers("/api/v1/rooms", "/api/v1/rooms/**",
+                                      "/api/v1/properties", "/api/v1/properties/**",
+                                      "/api/v1/amenities", "/api/v1/amenities/**",
+                                      "/api/v1/room-categories", "/api/v1/room-categories/**",
+                                      "/api/v1/reviews", "/api/v1/reviews/**").permitAll()
                         
                         // Account Service public endpoints
                         .pathMatchers("/api/v1/accounts/public/**").permitAll()

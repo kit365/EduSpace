@@ -1,9 +1,11 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { RentalLayout } from '../../../layouts/RentalLayout';
 import { useBranch } from '../context/BranchContext';
 import {
     Users,
+    List,
+    LayoutGrid,
     MoreVertical,
     Edit2,
     Copy,
@@ -16,6 +18,9 @@ import {
     Clock,
     PlusCircle,
     ArrowRight,
+    Download,
+    Upload,
+    ArrowUpDown,
 } from 'lucide-react';
 import { useProfile } from '../../customer/profile/hooks/useProfile';
 import { SpacePublishFlow } from './SpacePublishFlow';
@@ -69,7 +74,10 @@ function roomBadge(room: RoomDto): { label: string; className: string } {
     return { label: 'Hoạt động', className: 'bg-green-500/90 text-white' };
 }
 
-type StatusFilter = 'all' | 'pending' | 'active' | 'maintenance';
+type StatusFilter = 'all' | 'pending' | 'active' | 'maintenance' | 'rejected';
+type ViewMode = 'grid' | 'list';
+type SortBy = 'updatedDesc' | 'updatedAsc' | 'priceAsc' | 'priceDesc' | 'nameAsc';
+type OperationalFilter = 'all' | 'READY' | 'IN_USE' | 'CLEANING' | 'MAINTENANCE';
 
 export function SpacesPage() {
     const navigate = useNavigate();
@@ -119,10 +127,66 @@ export function SpacesPage() {
         void loadRooms();
     }, [profileLoading, hostApp, canManageRooms, loadRooms]);
 
-    const creating = searchParams.get('create') === '1' && canManageRooms;
+    const creating = searchParams.has('create') && canManageRooms;
 
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+    const [operationalFilter, setOperationalFilter] = useState<OperationalFilter>('all');
+    const [viewMode, setViewMode] = useState<ViewMode>('grid');
+    const [sortBy, setSortBy] = useState<SortBy>('updatedDesc');
+    const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const filterMenuRef = useRef<HTMLDivElement>(null);
+    const toolbarRef = useRef<HTMLDivElement>(null);
+
+    const statusFilterOrder: StatusFilter[] = ['all', 'pending', 'active', 'maintenance', 'rejected'];
+    const sortOrder: SortBy[] = ['updatedDesc', 'updatedAsc', 'priceAsc', 'priceDesc', 'nameAsc'];
+
+    const statusFilterLabelMap: Record<StatusFilter, string> = {
+        all: 'Tất cả trạng thái',
+        pending: 'Chờ duyệt',
+        active: 'Đang hoạt động',
+        maintenance: 'Bảo trì / Ngưng',
+        rejected: 'Từ chối',
+    };
+
+    const sortLabelMap: Record<SortBy, string> = {
+        updatedDesc: 'Mới cập nhật',
+        updatedAsc: 'Cũ hơn',
+        priceAsc: 'Giá tăng dần',
+        priceDesc: 'Giá giảm dần',
+        nameAsc: 'Tên A-Z',
+    };
+
+    const cycleStatusFilter = () => {
+        setStatusFilter((prev) => {
+            const currentIndex = statusFilterOrder.indexOf(prev);
+            const nextIndex = (currentIndex + 1) % statusFilterOrder.length;
+            return statusFilterOrder[nextIndex];
+        });
+    };
+
+    const cycleSortBy = () => {
+        setSortBy((prev) => {
+            const currentIndex = sortOrder.indexOf(prev);
+            const nextIndex = (currentIndex + 1) % sortOrder.length;
+            return sortOrder[nextIndex];
+        });
+    };
+
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            const target = event.target as Node;
+            if (filterMenuRef.current && !filterMenuRef.current.contains(target)) {
+                setIsFilterMenuOpen(false);
+            }
+            if (toolbarRef.current && !toolbarRef.current.contains(target)) {
+                setIsSearchOpen(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const addressByPropertyId = useMemo(() => {
         const m = new Map<number, string>();
@@ -132,7 +196,7 @@ export function SpacesPage() {
         return m;
     }, [branches]);
 
-    const filteredRooms = useMemo(() => {
+    const roomsByPrimaryFilters = useMemo(() => {
         return rooms.filter((room) => {
             const matchesBranch = selectedBranch ? room.propertyId === selectedBranch.id : true;
             const typeLabel = ROOM_TYPE_LABELS[room.roomType] ?? room.roomType;
@@ -145,13 +209,71 @@ export function SpacesPage() {
                 matchesStatus = room.approvalStatus === 'APPROVED' && isRoomOpenForBooking(room.status);
             else if (statusFilter === 'maintenance')
                 matchesStatus = room.status === 'MAINTENANCE' || room.status === 'INACTIVE';
+            else if (statusFilter === 'rejected') matchesStatus = room.approvalStatus === 'REJECTED';
+
             return matchesBranch && matchesSearch && matchesStatus;
         });
     }, [rooms, selectedBranch, searchQuery, statusFilter]);
 
+    const operationalTabCounts = useMemo<Record<OperationalFilter, number>>(() => {
+        const counts: Record<OperationalFilter, number> = {
+            all: roomsByPrimaryFilters.length,
+            READY: 0,
+            IN_USE: 0,
+            CLEANING: 0,
+            MAINTENANCE: 0,
+        };
+
+        roomsByPrimaryFilters.forEach((room) => {
+            if (room.approvalStatus !== 'APPROVED') return;
+            if (room.status === 'IN_USE') counts.IN_USE += 1;
+            else if (room.status === 'CLEANING') counts.CLEANING += 1;
+            else if (room.status === 'MAINTENANCE' || room.status === 'INACTIVE') counts.MAINTENANCE += 1;
+            else counts.READY += 1;
+        });
+
+        return counts;
+    }, [roomsByPrimaryFilters]);
+
+    const filteredRooms = useMemo(() => {
+        return roomsByPrimaryFilters.filter((room) => {
+
+            const effectiveOperational: Exclude<OperationalFilter, 'all'> =
+                room.status === 'IN_USE'
+                    ? 'IN_USE'
+                    : room.status === 'CLEANING'
+                      ? 'CLEANING'
+                      : room.status === 'MAINTENANCE' || room.status === 'INACTIVE'
+                        ? 'MAINTENANCE'
+                        : 'READY';
+            const matchesOperational =
+                operationalFilter === 'all'
+                    ? true
+                    : room.approvalStatus === 'APPROVED' && effectiveOperational === operationalFilter;
+
+            return matchesOperational;
+        });
+    }, [roomsByPrimaryFilters, operationalFilter]);
+
+    const displayedRooms = useMemo(() => {
+        const list = [...filteredRooms];
+        const timeOf = (room: RoomDto) => {
+            const t = room.updatedAt ? new Date(room.updatedAt).getTime() : 0;
+            return Number.isFinite(t) ? t : 0;
+        };
+
+        if (sortBy === 'updatedDesc') list.sort((a, b) => timeOf(b) - timeOf(a));
+        else if (sortBy === 'updatedAsc') list.sort((a, b) => timeOf(a) - timeOf(b));
+        else if (sortBy === 'priceAsc') list.sort((a, b) => (a.pricePerHour ?? 0) - (b.pricePerHour ?? 0));
+        else if (sortBy === 'priceDesc') list.sort((a, b) => (b.pricePerHour ?? 0) - (a.pricePerHour ?? 0));
+        else if (sortBy === 'nameAsc') list.sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+
+        return list;
+    }, [filteredRooms, sortBy]);
+
     const openCreate = () => {
         if (!canManageRooms) return;
-        setSearchParams({ create: '1' });
+        setSearchParams('?create');
     };
 
     const refreshHostStatus = () => {
@@ -159,7 +281,9 @@ export function SpacesPage() {
     };
 
     const closeCreate = () => {
-        setSearchParams({});
+        const next = new URLSearchParams(searchParams);
+        next.delete('create');
+        setSearchParams(next);
     };
 
     const handlePublishSuccess = async () => {
@@ -306,46 +430,167 @@ export function SpacesPage() {
     return (
         <RentalLayout title="Phòng của tôi">
             <div className="p-8">
-                <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                         <h1 className="text-3xl font-black tracking-tight text-gray-900">Phòng của tôi</h1>
                         <p className="font-medium text-gray-500">
                             Dữ liệu từ máy chủ — phòng chờ duyệt sẽ chưa hiển thị cho khách đặt.
                         </p>
                     </div>
-                    <button
-                        type="button"
-                        onClick={openCreate}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-500 px-6 py-3 font-bold text-white shadow-lg shadow-red-200 transition hover:bg-red-600 active:scale-95"
-                    >
-                        <PlusCircle className="h-5 w-5" />
-                        Đăng phòng mới
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <button
+                            type="button"
+                            className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-3.5 text-sm font-semibold text-gray-700"
+                        >
+                            <Download className="h-4 w-4" />
+                            Export
+                        </button>
+                        <button
+                            type="button"
+                            className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-3.5 text-sm font-semibold text-gray-700"
+                        >
+                            <Upload className="h-4 w-4" />
+                            Import
+                        </button>
+                        <button
+                            type="button"
+                            onClick={openCreate}
+                            className="inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-red-500 px-4 text-sm font-bold text-white shadow-lg shadow-red-200 transition hover:bg-red-600 active:scale-95"
+                        >
+                            <PlusCircle className="h-4 w-4" />
+                            Đăng phòng mới
+                        </button>
+                    </div>
                 </div>
 
-                <div className="mb-8 flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm md:flex-row">
-                    <div className="relative flex-1">
-                        <SearchIcon className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Tìm theo tên hoặc loại phòng..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full rounded-xl border-none bg-gray-50 py-3 pl-11 pr-4 text-sm font-medium outline-none transition focus:ring-2 focus:ring-red-500/20"
-                        />
-                    </div>
-                    <div className="relative md:w-72">
-                        <Filter className="pointer-events-none absolute left-4 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-gray-400" />
-                        <select
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-                            className="w-full cursor-pointer appearance-none rounded-xl border-none bg-gray-50 py-3 pl-11 pr-10 text-sm font-bold text-gray-700 outline-none transition focus:ring-2 focus:ring-red-500/20"
-                        >
-                            <option value="all">Tất cả trạng thái</option>
-                            <option value="pending">Chờ duyệt</option>
-                            <option value="active">Đang hoạt động (đã duyệt)</option>
-                            <option value="maintenance">Bảo trì / Ngưng</option>
-                        </select>
+                <div className="mb-8 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                    <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between" ref={toolbarRef}>
+                        <div className="flex flex-wrap items-center gap-2">
+                            {(
+                                [
+                                    { value: 'all', label: 'Tất cả' },
+                                    { value: 'READY', label: 'Sẵn sàng' },
+                                    { value: 'IN_USE', label: 'Đang có khách' },
+                                    { value: 'CLEANING', label: 'Đang dọn' },
+                                    { value: 'MAINTENANCE', label: 'Bảo trì' },
+                                ] as { value: OperationalFilter; label: string }[]
+                            ).map((tab) => (
+                                <button
+                                    key={tab.value}
+                                    type="button"
+                                    onClick={() => setOperationalFilter(tab.value)}
+                                    className={`inline-flex h-9 cursor-pointer items-center rounded-lg border px-3 text-sm font-semibold transition ${
+                                        operationalFilter === tab.value
+                                            ? 'border-gray-300 bg-gray-100 text-gray-900'
+                                            : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    <span>{tab.label}</span>
+                                    <span className="ml-1.5 rounded-md bg-gray-100 px-1.5 py-0.5 text-[11px] font-bold text-gray-600">
+                                        {operationalTabCounts[tab.value]}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                            <div className="relative flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsSearchOpen((prev) => !prev)}
+                                    className={`inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border transition ${
+                                        isSearchOpen || searchQuery
+                                            ? 'border-gray-300 bg-gray-100 text-gray-900'
+                                            : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                                    }`}
+                                    title="Tìm kiếm"
+                                    aria-label="Tìm kiếm"
+                                >
+                                    <SearchIcon className="h-[18px] w-[18px]" />
+                                </button>
+
+                                {isSearchOpen && (
+                                    <div className="w-64 sm:w-80">
+                                        <input
+                                            autoFocus
+                                            type="text"
+                                            placeholder="Tìm theo tên hoặc loại phòng..."
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            className="h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 outline-none"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={cycleSortBy}
+                                className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 transition hover:bg-gray-50"
+                                title={`Sắp xếp: ${sortLabelMap[sortBy]} (bấm để đổi)`}
+                                aria-label={`Sắp xếp hiện tại: ${sortLabelMap[sortBy]}. Bấm để đổi kiểu sắp xếp`}
+                            >
+                                <ArrowUpDown className="h-[18px] w-[18px]" />
+                            </button>
+
+                            <div className="relative" ref={filterMenuRef}>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsFilterMenuOpen((prev) => !prev)}
+                                    className={`inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border transition ${
+                                        statusFilter !== 'all'
+                                            ? 'border-gray-300 bg-gray-100 text-gray-900'
+                                            : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                                    }`}
+                                    title={`Lọc trạng thái: ${statusFilterLabelMap[statusFilter]}`}
+                                    aria-label={`Lọc trạng thái: ${statusFilterLabelMap[statusFilter]}`}
+                                >
+                                    <Filter className="h-[18px] w-[18px]" />
+                                </button>
+
+                                {isFilterMenuOpen && (
+                                    <div className="absolute right-0 top-full z-30 mt-2 w-48 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
+                                        {(Object.keys(statusFilterLabelMap) as StatusFilter[]).map((value) => (
+                                            <button
+                                                key={value}
+                                                type="button"
+                                                onClick={() => {
+                                                    setStatusFilter(value);
+                                                    setIsFilterMenuOpen(false);
+                                                }}
+                                                className={`flex w-full cursor-pointer items-center justify-between px-3 py-2 text-left text-sm font-semibold transition ${
+                                                    statusFilter === value
+                                                        ? 'bg-gray-100 text-gray-900'
+                                                        : 'text-gray-600 hover:bg-gray-50'
+                                                }`}
+                                            >
+                                                <span>{statusFilterLabelMap[value]}</span>
+                                                {statusFilter === value ? <span>✓</span> : null}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="inline-flex h-9 items-center rounded-lg border border-gray-200 bg-white p-1">
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode('grid')}
+                                    className={`h-7 w-7 cursor-pointer rounded-md p-1 ${viewMode === 'grid' ? 'bg-gray-100 text-gray-900' : 'text-gray-500'}`}
+                                    title="Dạng lưới"
+                                >
+                                    <LayoutGrid className="h-[18px] w-[18px]" />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode('list')}
+                                    className={`h-7 w-7 cursor-pointer rounded-md p-1 ${viewMode === 'list' ? 'bg-gray-100 text-gray-900' : 'text-gray-500'}`}
+                                    title="Dạng danh sách"
+                                >
+                                    <List className="h-[18px] w-[18px]" />
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -354,108 +599,192 @@ export function SpacesPage() {
                         <Loader2 className="h-10 w-10 animate-spin text-red-500" />
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                        {filteredRooms.map((room) => {
-                            const badge = roomBadge(room);
-                            const typeLabel = ROOM_TYPE_LABELS[room.roomType] ?? room.roomType;
-                            const locationLine = roomCardLocationLine(
-                                room,
-                                addressByPropertyId.get(room.propertyId),
-                            );
-                            return (
-                                <div
-                                    key={room.id}
-                                    className="group flex flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white transition hover:shadow-lg"
-                                >
-                                    <div className="relative aspect-video shrink-0 overflow-hidden bg-gray-100">
-                                        <img
-                                            src={firstImageUrl(room.images)}
-                                            alt={room.name}
-                                            className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                                        />
-                                        <div className="absolute right-3 top-3 flex gap-2">
-                                            <span
-                                                className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest shadow-sm backdrop-blur-md ${badge.className}`}
-                                            >
-                                                {badge.label}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-1 flex-col p-5">
-                                        <div className="mb-2 flex items-start justify-between">
-                                            <div
-                                                className="group/title cursor-pointer"
-                                                onClick={() => navigate(`/rental/spaces/${room.id}`)}
-                                            >
-                                                <h3
-                                                    className="line-clamp-1 text-lg font-bold text-gray-900 transition group-hover/title:text-red-500"
-                                                    title={room.name}
-                                                >
-                                                    {room.name}
-                                                </h3>
-                                                <p
-                                                    className="line-clamp-2 text-sm font-medium text-gray-500"
-                                                    title={locationLine}
-                                                >
-                                                    {locationLine}
-                                                </p>
+                    <>
+                        {viewMode === 'grid' ? (
+                            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                                {displayedRooms.map((room) => {
+                                    const badge = roomBadge(room);
+                                    const locationLine = roomCardLocationLine(
+                                        room,
+                                        addressByPropertyId.get(room.propertyId),
+                                    );
+                                    return (
+                                        <div
+                                            key={room.id}
+                                            className="group flex flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white transition hover:shadow-lg"
+                                        >
+                                            <div className="relative aspect-video shrink-0 overflow-hidden bg-gray-100">
+                                                <img
+                                                    src={firstImageUrl(room.images)}
+                                                    alt={room.name}
+                                                    className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                                                />
+                                                <div className="absolute right-3 top-3 flex gap-2">
+                                                    <span
+                                                        className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest shadow-sm backdrop-blur-md ${badge.className}`}
+                                                    >
+                                                        {badge.label}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <button
-                                                type="button"
-                                                className="rounded-lg p-1 text-gray-400 transition hover:bg-gray-50 hover:text-gray-900"
-                                            >
-                                                <MoreVertical className="h-5 w-5" />
-                                            </button>
-                                        </div>
-                                        <div className="mb-6 mt-2 flex items-center gap-4 text-sm text-gray-600">
-                                            <span className="flex items-center gap-1">
-                                                <Users className="h-4 w-4" /> {room.capacity}
-                                            </span>
-                                        </div>
-                                        <div className="mt-auto flex items-center justify-between border-t border-gray-100 pt-4">
-                                            <div className="text-lg font-black text-red-500">
-                                                {formatPriceVnd(room.pricePerHour)}
+                                            <div className="flex flex-1 flex-col p-5">
+                                                <div className="mb-2 flex items-start justify-between">
+                                                    <div
+                                                        className="group/title cursor-pointer"
+                                                        onClick={() => navigate(`/rental/spaces/${room.id}`)}
+                                                    >
+                                                        <h3
+                                                            className="line-clamp-1 text-lg font-bold text-gray-900 transition group-hover/title:text-red-500"
+                                                            title={room.name}
+                                                        >
+                                                            {room.name}
+                                                        </h3>
+                                                        <p
+                                                            className="line-clamp-2 text-sm font-medium text-gray-500"
+                                                            title={locationLine}
+                                                        >
+                                                            {locationLine}
+                                                        </p>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        className="rounded-lg p-1 text-gray-400 transition hover:bg-gray-50 hover:text-gray-900"
+                                                    >
+                                                        <MoreVertical className="h-5 w-5" />
+                                                    </button>
+                                                </div>
+                                                <div className="mb-6 mt-2 flex items-center gap-4 text-sm text-gray-600">
+                                                    <span className="flex items-center gap-1">
+                                                        <Users className="h-4 w-4" /> {room.capacity}
+                                                    </span>
+                                                </div>
+                                                <div className="mt-auto flex items-center justify-between border-t border-gray-100 pt-4">
+                                                    <div className="text-lg font-black text-red-500">
+                                                        {formatPriceVnd(room.pricePerHour)}
+                                                    </div>
+                                                    <div className="flex gap-1 opacity-0 transition group-hover:opacity-100">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => navigate(`/rental/spaces/${room.id}`)}
+                                                            className="rounded-lg p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-500"
+                                                            title="Chi tiết"
+                                                        >
+                                                            <Eye className="h-4 w-4" />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => navigate(`/rental/spaces/edit/${room.id}`)}
+                                                            className="rounded-lg p-2 text-gray-400 transition hover:bg-blue-50 hover:text-blue-500"
+                                                            title="Sửa"
+                                                        >
+                                                            <Edit2 className="h-4 w-4" />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="rounded-lg p-2 text-gray-400 transition hover:bg-green-50 hover:text-green-500"
+                                                            title="Nhân bản"
+                                                        >
+                                                            <Copy className="h-4 w-4" />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="rounded-lg p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-500"
+                                                            title="Xóa"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div className="flex gap-1 opacity-0 transition group-hover:opacity-100">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => navigate(`/rental/spaces/${room.id}`)}
-                                                    className="rounded-lg p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-500"
-                                                    title="Chi tiết"
-                                                >
-                                                    <Eye className="h-4 w-4" />
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => navigate(`/rental/spaces/edit/${room.id}`)}
-                                                    className="rounded-lg p-2 text-gray-400 transition hover:bg-blue-50 hover:text-blue-500"
-                                                    title="Sửa"
-                                                >
-                                                    <Edit2 className="h-4 w-4" />
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    className="rounded-lg p-2 text-gray-400 transition hover:bg-green-50 hover:text-green-500"
-                                                    title="Nhân bản"
-                                                >
-                                                    <Copy className="h-4 w-4" />
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    className="rounded-lg p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-500"
-                                                    title="Xóa"
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {displayedRooms.map((room) => {
+                                    const badge = roomBadge(room);
+                                    const locationLine = roomCardLocationLine(
+                                        room,
+                                        addressByPropertyId.get(room.propertyId),
+                                    );
+                                    return (
+                                        <div
+                                            key={room.id}
+                                            className="flex items-center gap-4 rounded-2xl border border-gray-100 bg-white p-3 transition hover:shadow-md"
+                                        >
+                                            <img
+                                                src={firstImageUrl(room.images)}
+                                                alt={room.name}
+                                                className="h-20 w-32 rounded-xl object-cover"
+                                            />
+                                            <div className="min-w-0 flex-1">
+                                                <div className="mb-1 flex items-center gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => navigate(`/rental/spaces/${room.id}`)}
+                                                        className="line-clamp-1 text-left text-base font-bold text-gray-900 hover:text-red-500"
+                                                    >
+                                                        {room.name}
+                                                    </button>
+                                                    <span
+                                                        className={`rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-widest ${badge.className}`}
+                                                    >
+                                                        {badge.label}
+                                                    </span>
+                                                </div>
+                                                <p className="line-clamp-1 text-sm font-medium text-gray-500">{locationLine}</p>
+                                                <div className="mt-2 flex items-center gap-4 text-sm text-gray-600">
+                                                    <span className="flex items-center gap-1">
+                                                        <Users className="h-4 w-4" /> {room.capacity}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="mb-2 text-lg font-black text-red-500">
+                                                    {formatPriceVnd(room.pricePerHour)}
+                                                </div>
+                                                <div className="flex justify-end gap-1">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => navigate(`/rental/spaces/${room.id}`)}
+                                                        className="rounded-lg p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-500"
+                                                        title="Chi tiết"
+                                                    >
+                                                        <Eye className="h-4 w-4" />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => navigate(`/rental/spaces/edit/${room.id}`)}
+                                                        className="rounded-lg p-2 text-gray-400 transition hover:bg-blue-50 hover:text-blue-500"
+                                                        title="Sửa"
+                                                    >
+                                                        <Edit2 className="h-4 w-4" />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="rounded-lg p-2 text-gray-400 transition hover:bg-green-50 hover:text-green-500"
+                                                        title="Nhân bản"
+                                                    >
+                                                        <Copy className="h-4 w-4" />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="rounded-lg p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-500"
+                                                        title="Xóa"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
+                                    );
+                                })}
+                            </div>
+                        )}
 
-                        {filteredRooms.length === 0 && !loadingRooms && (
-                            <div className="col-span-full rounded-2xl border-2 border-dashed border-gray-200 bg-white py-16 text-center">
+                        {displayedRooms.length === 0 && !loadingRooms && (
+                            <div className="mt-4 rounded-2xl border-2 border-dashed border-gray-200 bg-white py-16 text-center">
                                 <p className="mb-4 text-gray-400">
                                     {rooms.length === 0
                                         ? 'Chưa có phòng nào. Hãy đăng phòng mới hoặc thêm chi nhánh nếu cần.'
@@ -470,7 +799,7 @@ export function SpacesPage() {
                                 </button>
                             </div>
                         )}
-                    </div>
+                    </>
                 )}
             </div>
         </RentalLayout>

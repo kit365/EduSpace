@@ -24,9 +24,12 @@ export interface Space {
   instantBook?: boolean;
   type: SpaceType;
   amenities: string[];
+  categoryName?: string;
+  categorySlug?: string;
   badge?: string | null;
   description?: string;
   additionalInfo?: string;
+  is24_7?: boolean;
 
   // Ownership & approval
   hostId?: string;
@@ -51,8 +54,26 @@ export interface SpaceReview {
   avatar: string;
 }
 
+export interface ReservationSchedule {
+  id?: number;
+  dayOfWeek: number;
+  isOpen: boolean;
+  openTime: string | null;
+  closeTime: string | null;
+}
+
 export interface SpaceDetails extends Space {
   amenitiesDetailed: SpaceAmenity[];
   reviews: SpaceReview[];
   availableSlots?: number;
+  schedules?: ReservationSchedule[];
+  host?: {
+    name: string;
+    avatar?: string;
+    joinedDate?: string;
+    isVerified?: boolean;
+    phone?: string;
+    email?: string;
+  };
+  policies?: { id: number; name: string; description: string; icon?: string }[];
 }

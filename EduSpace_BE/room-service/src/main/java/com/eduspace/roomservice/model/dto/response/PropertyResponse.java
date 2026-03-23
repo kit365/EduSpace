@@ -27,7 +27,10 @@ public class PropertyResponse {
     String districtCode;
     String wardCode;
     String addressDetail;
+    java.math.BigDecimal latitude;
+    java.math.BigDecimal longitude;
     String logo;
+    String logoAlt;
     String description;
     PropertyStatus status;
     String rejectionNote;

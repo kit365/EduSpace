@@ -11,25 +11,23 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
-import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
-
+import lombok.experimental.SuperBuilder;
 @Entity
 @Table(name = "extra_services")
 @Data
-@Builder
+@SuperBuilder
+@EqualsAndHashCode(callSuper = true)
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @NoArgsConstructor
 @AllArgsConstructor
-public class ExtraServiceEntity {
+public class ExtraServiceEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -39,11 +37,17 @@ public class ExtraServiceEntity {
     @JoinColumn(name = "property_id", nullable = false)
     PropertyEntity property;
 
-    @Column(name = "name")
-    String name;
+    @Column(name = "name_vi")
+    String nameVi;
 
-    @Column(name = "description", columnDefinition = "TEXT")
-    String description;
+    @Column(name = "name_en")
+    String nameEn;
+
+    @Column(name = "description_vi", columnDefinition = "TEXT")
+    String descriptionVi;
+
+    @Column(name = "description_en", columnDefinition = "TEXT")
+    String descriptionEn;
 
     @Column(name = "price")
     Long price;
@@ -54,22 +58,4 @@ public class ExtraServiceEntity {
 
     @Column(name = "status")
     String status; // ACTIVE, INACTIVE
-
-    @Column(name = "created_at")
-    LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    LocalDateTime updatedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        LocalDateTime now = LocalDateTime.now();
-        createdAt = now;
-        updatedAt = now;
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
 }

@@ -1,5 +1,5 @@
 import type { Space, SpaceDetails } from '@/types/space';
-import type { PropertyDto, RoomDto } from '@/client/features/room';
+import type { PageResponse, PropertyDto, RoomCategoryDto, RoomDto } from '@/client/features/room';
 import {
   propertyApiService,
   roomApiService,
@@ -7,6 +7,8 @@ import {
   roomToSpaceCard,
 } from '@/client/features/room';
 import { isRoomOpenForBooking } from '@/client/features/room/utils/roomOperationalStatus';
+import { DISTRICT_OPTIONS } from '@/config/constants';
+import { profileService } from '@/client/features/customer/profile/services/profileService';
 
 function parseSpaceRef(param: string): { kind: 'id'; id: number } | { kind: 'slug'; slug: string } | null {
   const t = param?.trim();
@@ -55,7 +57,25 @@ class SpaceService {
       try {
         const room = await roomApiService.getByRef(parsed.slug);
         const property = await propertyApiService.getById(room.propertyId);
-        return roomAndPropertyToSpaceDetails(room, property);
+        const details = roomAndPropertyToSpaceDetails(room, property);
+        
+        if (property.ownerId) {
+          try {
+            const hostProfile = await profileService.getPublicProfile(property.ownerId);
+            details.host = {
+              name: hostProfile.fullName,
+              avatar: hostProfile.avatarUrl,
+              joinedDate: hostProfile.createdAt,
+              isVerified: hostProfile.isEmailVerified,
+              phone: property.contactPhone,
+              email: property.contactEmail
+            };
+            details.hostName = hostProfile.fullName;
+          } catch (e) {
+            console.error('Failed to fetch host profile', e);
+          }
+        }
+        return details;
       } catch {
         const demo = DEMO_SPACE_BY_SLUG[key];
         if (demo) return { ...demo };
@@ -66,7 +86,25 @@ class SpaceService {
     try {
       const room = await roomApiService.getByRef(String(parsed.id));
       const property = await propertyApiService.getById(room.propertyId);
-      return roomAndPropertyToSpaceDetails(room, property);
+      const details = roomAndPropertyToSpaceDetails(room, property);
+      
+      if (property.ownerId) {
+        try {
+          const hostProfile = await profileService.getPublicProfile(property.ownerId);
+          details.host = {
+            name: hostProfile.fullName,
+            avatar: hostProfile.avatarUrl,
+            joinedDate: hostProfile.createdAt,
+            isVerified: hostProfile.isEmailVerified,
+            phone: property.contactPhone,
+            email: property.contactEmail
+          };
+          details.hostName = hostProfile.fullName;
+        } catch (e) {
+          console.error('Failed to fetch host profile', e);
+        }
+      }
+      return details;
     } catch {
       const legacy = SPACE_DETAILS_DATA[parsed.id];
       if (legacy) return { ...legacy };
@@ -74,29 +112,133 @@ class SpaceService {
     }
   }
 
-  async searchSpaces(query: { keyword?: string; q?: string }): Promise<Space[]> {
+  async searchSpaces(query: {
+    keyword?: string;
+    q?: string;
+    category?: string;
+    priceRange?: [number, number];
+    capacity?: string;
+    amenities?: string[];
+    district?: string;
+    timeStart?: string;
+    timeEnd?: string;
+    page?: number;
+    size?: number;
+    sortBy?: string;
+    sortDir?: string;
+  }): Promise<PageResponse<Space>> {
     const q = (query?.keyword ?? query?.q ?? '').toString().toLowerCase().trim();
-    try {
-      const rooms = await roomApiService.getAll();
-      let list = rooms.filter((r) => r.approvalStatus === 'APPROVED' && isRoomOpenForBooking(r.status));
-      if (q) {
-        list = list.filter(
-          (r) =>
-            r.name.toLowerCase().includes(q) ||
-            (r.description ?? '').toLowerCase().includes(q) ||
-            (r.slug ?? '').includes(q),
-        );
-      }
-      const spaces = await roomsToSpaces(list.slice(0, 48));
-      if (spaces.length) return spaces;
-    } catch {
-      /* demo */
+    const category = query?.category?.trim();
+
+    let minCapacity: number | undefined;
+    if (query.capacity) {
+      const parts = query.capacity.split('-');
+      if (parts.length > 0) minCapacity = parseInt(parts[0]);
     }
-    if (DEMO_TOP_SPACES.length) return DEMO_TOP_SPACES.map((s) => ({ ...s }));
-    return SEARCH_RESULTS.map((s) => ({
-      ...s,
-      slug: s.slug ?? `space-${s.id}`,
-    }));
+
+    let amenityIds: number[] | undefined;
+    if (query.amenities && query.amenities.length > 0) {
+      try {
+        const allAmenities = await roomApiService.getAllAmenities();
+        // FE constants labels like 'projector' match backend 'icon' (presentation)
+        const labelToIcon: Record<string, string> = {
+          'projector': 'presentation',
+          'whiteboard': 'board',
+          'wifi': 'wifi',
+          'ac': 'ac',
+          'parking': 'parking',
+          'sound': 'support-247',
+          'webcam': 'support'
+        };
+        amenityIds = allAmenities
+          .filter((a: any) => query.amenities!.some((label: string) => (labelToIcon[label] || label) === a.icon))
+          .map((a: any) => a.id);
+      } catch (e) {
+        console.error('Failed to map amenities', e);
+      }
+    }
+
+    // Mapping district labels to codes (HCMC focused)
+    const districtToCode: Record<string, string> = {
+      'quan-1': '760',
+      'quan-3': '770',
+      'quan-7': '778',
+      'binh-thanh': '771',
+      'phu-nhuan': '776',
+      'thu-duc': '769',
+      'tan-binh': '774',
+      'go-vap': '764',
+    };
+
+    // HCMC Province Code is '79'
+    const HCMC_PROVINCE_CODE = '79';
+
+    try {
+      // Use getPublicRooms with all parameters
+      const resp = await roomApiService.getPublicRooms({
+        category,
+        keyword: q || undefined,
+        minCapacity,
+        minPrice: query.priceRange?.[0],
+        maxPrice: query.priceRange?.[1],
+        amenityIds,
+        districtCode: query.district ? (districtToCode[query.district] || (query.district === 'all' ? undefined : query.district)) : undefined,
+        page: query.page ?? 1,
+        size: query.size ?? 12,
+        sortBy: query.sortBy,
+        sortDir: query.sortDir,
+      });
+
+      // Handle both PageResponse and plain Array (legacy/error)
+      const pageData: PageResponse<RoomDto> = (Array.isArray(resp)) 
+        ? { content: resp, totalElements: resp.length, totalPages: 1, page: 1, size: resp.length, last: true }
+        : resp;
+
+      const content = pageData?.content || [];
+      let list = content.filter(
+        (r: RoomDto) => r.approvalStatus === 'APPROVED' && isRoomOpenForBooking(r.status),
+      );
+
+      // Enforce HCMC scope if no specific district is selected (or even if it is)
+      // Note: In a real app, the backend should handle this, but as requested:
+      // list = list.filter(r => r.property?.provinceCode === HCMC_PROVINCE_CODE);
+
+      // Time-based filtering (Frontend)
+      if (query.timeStart && query.timeEnd) {
+        const jsDay = new Date().getDay();
+        const userDay = jsDay === 0 ? 8 : jsDay + 1;
+        
+        list = list.filter(r => {
+          const schedule = r.schedules?.find(s => s.dayOfWeek === userDay);
+          if (!schedule || !schedule.isOpen) return false;
+          if (!schedule.openTime || !schedule.closeTime) return true;
+
+          const open = schedule.openTime.substring(0, 5);
+          const close = schedule.closeTime.substring(0, 5);
+          return query.timeStart! >= open && query.timeEnd! <= close;
+        });
+      }
+
+      const spaces = await roomsToSpaces(list);
+      return {
+        ...pageData,
+        content: spaces,
+        totalElements: list.length, // Update count after FE filtering
+      };
+    } catch (error) {
+      console.error('Search failed', error);
+      
+      // If API failed, return empty PageResponse instead of falling back to demo data
+      // unless we specifically want demo data for empty DBs
+      return {
+        content: [],
+        page: 1,
+        size: 0,
+        totalElements: 0,
+        totalPages: 0,
+        last: true
+      };
+    }
   }
 
   async getTopRatedSpaces(): Promise<Space[]> {
@@ -114,6 +256,47 @@ class SpaceService {
       /* demo */
     }
     return DEMO_TOP_SPACES.map((s) => ({ ...s }));
+  }
+
+  async getCategories(): Promise<RoomCategoryDto[]> {
+    try {
+      return await roomApiService.getPublicCategories();
+    } catch {
+      return [];
+    }
+  }
+
+  async getFeaturedCategories(): Promise<RoomCategoryDto[]> {
+    try {
+      return await roomApiService.getFeaturedCategories();
+    } catch {
+      return [];
+    }
+  }
+
+  async getAllCategoriesAdmin(): Promise<RoomCategoryDto[]> {
+    return roomApiService.getAllCategories();
+  }
+
+  async updateCategory(id: number, body: Partial<RoomCategoryDto>): Promise<RoomCategoryDto> {
+    return roomApiService.updateCategory(id, body);
+  }
+  async getAvailableDistricts(): Promise<{ value: string; labelKey: string }[]> {
+    const codeToDistrict: Record<string, string> = {
+      '760': 'thu-duc',
+    };
+    
+    try {
+      const properties = await propertyApiService.getAll();
+      const availableCodes = new Set(properties.map(p => p.districtCode).filter(Boolean));
+      const availableValues = new Set(Array.from(availableCodes).map(code => codeToDistrict[code!]).filter(Boolean));
+      
+      if (availableValues.size === 0) return [...DISTRICT_OPTIONS];
+
+      return DISTRICT_OPTIONS.filter((opt: any) => opt.value === 'all' || availableValues.has(opt.value));
+    } catch {
+      return [...DISTRICT_OPTIONS];
+    }
   }
 }
 

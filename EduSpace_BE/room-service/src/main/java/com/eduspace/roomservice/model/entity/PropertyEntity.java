@@ -5,37 +5,44 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import lombok.experimental.FieldDefaults;
+import lombok.experimental.SuperBuilder;
 
 @Entity
 @Table(name = "properties")
-@Data
-@Builder
+@Getter
+@Setter
+@SuperBuilder
+@EqualsAndHashCode(callSuper = true)
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @NoArgsConstructor
 @AllArgsConstructor
-public class PropertyEntity {
+public class PropertyEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Integer id;
 
     @Column(name = "owner_id")
-    String ownerId; // UUID from account-service, no FK
+    String ownerId; // UUID from account-service
 
-    @Column(name = "name")
-    String name;
+    @Column(name = "name_vi")
+    String nameVi;
 
-    @Column(name = "property_type", length = 100)
+    @Column(name = "name_en")
+    String nameEn;
+
+    @Column(name = "property_type")
     String propertyType;
 
     @Column(name = "contact_phone")
@@ -44,26 +51,44 @@ public class PropertyEntity {
     @Column(name = "contact_email")
     String contactEmail;
 
-    @Column(name = "province_code", length = 20)
+    @Column(name = "province_code")
     String provinceCode;
 
-    @Column(name = "district_code", length = 20)
+    @Column(name = "district_code")
     String districtCode;
 
-    @Column(name = "ward_code", length = 20)
+    @Column(name = "ward_code")
     String wardCode;
 
-    @Column(name = "address_detail", length = 500)
-    String addressDetail;
+    @Column(name = "address_detail_vi")
+    String addressDetailVi;
+
+    @Column(name = "address_detail_en")
+    String addressDetailEn;
+
+    @Column(name = "latitude", precision = 10, scale = 8)
+    BigDecimal latitude;
+
+    @Column(name = "longitude", precision = 11, scale = 8)
+    BigDecimal longitude;
 
     @Column(name = "logo", columnDefinition = "TEXT")
     String logo;
 
-    @Column(name = "description", columnDefinition = "TEXT")
-    String description;
+    @Column(name = "logo_alt_vi")
+    String logoAltVi;
+
+    @Column(name = "logo_alt_en")
+    String logoAltEn;
+
+    @Column(name = "description_vi", columnDefinition = "TEXT")
+    String descriptionVi;
+
+    @Column(name = "description_en", columnDefinition = "TEXT")
+    String descriptionEn;
 
     @Column(name = "status")
-    String status;
+    String status; // PENDING, APPROVED, REJECTED, SUSPENDED
 
     @Column(name = "rejection_note", columnDefinition = "TEXT")
     String rejectionNote;
@@ -72,31 +97,12 @@ public class PropertyEntity {
     LocalDateTime submittedAt;
 
     @Column(name = "approved_by")
-    String approvedBy; // UUID from account-service, no FK
+    String approvedBy; // UUID from account-service
 
     @Column(name = "approved_at")
     LocalDateTime approvedAt;
 
-    @Column(name = "created_at")
-    LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    LocalDateTime updatedAt;
-
-    /** Xóa mềm: true = không hiển thị trong danh sách host, vẫn giữ dữ liệu & FK. */
-    @Column(name = "deleted", nullable = false)
     @Builder.Default
+    @Column(name = "deleted", nullable = false)
     boolean deleted = false;
-
-    @PrePersist
-    protected void onCreate() {
-        LocalDateTime now = LocalDateTime.now();
-        createdAt = now;
-        updatedAt = now;
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
 }

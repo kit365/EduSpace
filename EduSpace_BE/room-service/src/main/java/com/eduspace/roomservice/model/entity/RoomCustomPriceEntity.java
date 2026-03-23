@@ -8,30 +8,31 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import lombok.experimental.FieldDefaults;
+import lombok.experimental.SuperBuilder;
 
 /**
  * Phụ thu theo ngày trong tuần (cuối tuần) hoặc ngày lễ — không còn theo khung giờ.
  */
 @Entity
 @Table(name = "room_custom_prices")
-@Data
-@Builder
+@Getter
+@Setter
+@SuperBuilder
+@EqualsAndHashCode(callSuper = true)
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @NoArgsConstructor
 @AllArgsConstructor
-public class RoomCustomPriceEntity {
+public class RoomCustomPriceEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -42,7 +43,7 @@ public class RoomCustomPriceEntity {
     RoomEntity room;
 
     /** Ví dụ: SATURDAY, SUNDAY — tuỳ convention app. */
-    @Column(name = "day_of_week", length = 20)
+    @Column(name = "day_of_week")
     String dayOfWeek;
 
     /** Ngày lễ cụ thể (nếu có). */
@@ -51,22 +52,4 @@ public class RoomCustomPriceEntity {
 
     @Column(name = "price_modifier", precision = 8, scale = 4, nullable = false)
     BigDecimal priceModifier;
-
-    @Column(name = "created_at")
-    LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    LocalDateTime updatedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        LocalDateTime now = LocalDateTime.now();
-        createdAt = now;
-        updatedAt = now;
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
 }

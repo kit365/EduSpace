@@ -15,7 +15,9 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class AmenityRequest {
 
-    String name;
+    String nameVi;
+    String nameEn;
     String icon;
     AmenityType type;
+    Integer position;
 }

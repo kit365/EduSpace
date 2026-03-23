@@ -2,11 +2,12 @@ package com.eduspace.roomservice.persistence.repository;
 
 import com.eduspace.roomservice.model.entity.RoomEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.util.List;
 import java.util.Optional;
 
-public interface RoomRepository extends JpaRepository<RoomEntity, Integer> {
+public interface RoomRepository extends JpaRepository<RoomEntity, Integer>, JpaSpecificationExecutor<RoomEntity> {
 
     List<RoomEntity> findByProperty_Id(Integer propertyId);
 
@@ -23,6 +24,8 @@ public interface RoomRepository extends JpaRepository<RoomEntity, Integer> {
     Optional<RoomEntity> findByIdAndDeletedAtIsNull(Integer id);
 
     Optional<RoomEntity> findBySlugAndDeletedAtIsNull(String slug);
+
+    List<RoomEntity> findByCategory_SlugAndDeletedAtIsNull(String categorySlug);
 
     boolean existsBySlugAndDeletedAtIsNull(String slug);
 }

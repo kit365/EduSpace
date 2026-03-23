@@ -1,4 +1,4 @@
-import { UserProfile, UserResponse, UpdateProfileRequest, TwoFactorSetup } from '../types';
+import { UserProfile, UserResponse, UpdateProfileRequest, TwoFactorSetup, PublicUserProfile } from '../types';
 import apiClient from '../../../../../lib/axios';
 import { ACCOUNT_API } from '../../../../../config/api/account';
 import { ApiResponse, User } from '@/types';
@@ -37,6 +37,7 @@ class ProfileService {
             taxId: data.taxId ?? undefined,
             memberSince: memberSinceStr,
             is2faEnabled: data.is2faEnabled || false,
+            organizationName: data.organizationName || '',
             role: role as any,
             verified: data.isEmailVerified,
             kycStatus: 'not_submitted', // Fallback, mock for now
@@ -66,7 +67,8 @@ class ProfileService {
             ward: data.ward,
             streetAddress: data.streetAddress,
             postalCode: data.postalCode,
-            taxId: data.taxId
+            taxId: data.taxId,
+            organizationName: data.organizationName
         };
 
         await apiClient.put<unknown, ApiResponse<UserResponse>>(ACCOUNT_API.ME, updateData);
@@ -98,6 +100,16 @@ class ProfileService {
     async disable2fa(code: string): Promise<boolean> {
         await apiClient.post(ACCOUNT_API.DISABLE_2FA, null, { params: { code } });
         return true;
+    }
+
+    async getPublicProfile(userId: string): Promise<PublicUserProfile> {
+        try {
+            const response = await apiClient.get<unknown, ApiResponse<PublicUserProfile>>(`${ACCOUNT_API.BASE}/${userId}/public`);
+            return response.data;
+        } catch (error: any) {
+            console.error('Failed to fetch public profile:', error);
+            throw error;
+        }
     }
 }
 

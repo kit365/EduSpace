@@ -52,6 +52,9 @@ public class UserMapper {
         if (request.getTaxId() != null) {
             entity.setTaxId(request.getTaxId());
         }
+        if (request.getOrganizationName() != null) {
+            entity.setOrganizationName(request.getOrganizationName());
+        }
     }
 
     public UserResponse toUserResponse(UserEntity entity) {
@@ -68,6 +71,7 @@ public class UserMapper {
                 .avatarUrl(entity.getAvatarUrl())
                 .location(entity.getLocation())
                 .hostType(entity.getHostType())
+                .organizationName(entity.getOrganizationName())
                 .verificationDocument(entity.getVerificationDocument())
                 .verificationStatus(entity.getVerificationStatus())
                 .shortBio(entity.getShortBio())

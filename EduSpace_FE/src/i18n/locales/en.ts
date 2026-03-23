@@ -37,6 +37,8 @@ export const en = {
         priceLowHigh: "Price: Low → High",
         priceHighLow: "Price: High → Low",
         rating: "Rating",
+        capacityLowHigh: "Capacity: Low → High",
+        capacityHighLow: "Capacity: High → Low",
         verifiedSpace: "VERIFIED SPACE",
         spacesFound: "spaces in Ho Chi Minh City",
         showingResults: "Showing results for",
@@ -298,12 +300,16 @@ export const en = {
             policyCheckIn: "Please check in within your selected time slot to guarantee room access.",
             contactHostTitle: "Contact Host",
             contactHostDesc: "Need more information about amenities, schedule, or booking support? Message the host directly.",
-            contactHostBtn: "Message host"
+            contactHostBtn: "Message host",
+            verifiedHost: "Verified Host"
         },
         search: {
             title: "Search Spaces",
             filters: "Filters",
             clearAll: "Clear All",
+            resultsFound: "results found",
+            sortCapacityLowHigh: "Capacity: Low → High",
+            sortCapacityHighLow: "Capacity: High → Low",
             district: "District",
             timeSlots: "Time Slots",
             priceRange: "Price Range (VNĐ/hr)",
