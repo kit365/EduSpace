@@ -31,7 +31,6 @@ class MyApp extends StatelessWidget {
     final authProvider = Provider.of<AuthProvider>(context);
     
     return MaterialApp(
-      navigatorKey: AppRouter.navigatorKey,
       title: 'EduSpace Mobile V2',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(

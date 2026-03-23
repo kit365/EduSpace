@@ -15,8 +15,6 @@ import '../data/models/response/room/room_api_models.dart';
 import '../data/models/response/booking/booking_detail_model.dart';
 
 class AppRouter {
-  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-
   static const String login = '/login';
   static const String home = '/home';
   static const String profile = '/profile';
