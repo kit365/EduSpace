@@ -1,4 +1,4 @@
-import '../../models/response/room/room_api_models.dart';
+import '../../../data/models/response/room/room_api_models.dart';
 import '../../../../core/network/api_response.dart';
 
 abstract class RoomRepository {
