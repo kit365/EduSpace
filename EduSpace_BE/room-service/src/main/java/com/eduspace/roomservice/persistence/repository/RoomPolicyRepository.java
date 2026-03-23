@@ -7,5 +7,5 @@ import java.util.List;
 
 @Repository
 public interface RoomPolicyRepository extends JpaRepository<RoomPolicyEntity, Integer> {
-    List<RoomPolicyEntity> findByRoomId(Integer roomId);
+    List<RoomPolicyEntity> findByRoom_Id(Integer roomId);
 }

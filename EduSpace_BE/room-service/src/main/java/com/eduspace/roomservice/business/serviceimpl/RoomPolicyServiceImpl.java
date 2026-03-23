@@ -22,12 +22,12 @@ public class RoomPolicyServiceImpl implements RoomPolicyService {
 
     @Override
     public List<RoomPolicyResponse> listByRoomId(Integer roomId) {
-        return roomPolicyMapper.toResponseList(roomPolicyRepository.findByRoomId(roomId));
+        return roomPolicyMapper.toResponseList(roomPolicyRepository.findByRoom_Id(roomId));
     }
 
     @Override
     public List<RoomPolicyEntity> listEntitiesByRoomId(Integer roomId) {
-        return roomPolicyRepository.findByRoomId(roomId);
+        return roomPolicyRepository.findByRoom_Id(roomId);
     }
 
     @Override
@@ -49,7 +49,7 @@ public class RoomPolicyServiceImpl implements RoomPolicyService {
     public void updatePolicies(RoomEntity room, List<RoomPolicyRequest> requests) {
         if (requests == null) return;
         // Simple replace-all strategy consistent with other parts of the system
-        List<RoomPolicyEntity> existing = roomPolicyRepository.findByRoomId(room.getId());
+        List<RoomPolicyEntity> existing = roomPolicyRepository.findByRoom_Id(room.getId());
         roomPolicyRepository.deleteAll(existing);
         savePolicies(room, requests);
     }
