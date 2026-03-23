@@ -1,12 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Star, Clock } from 'lucide-react';
 import { formatCurrency } from '../../../../../utils';
 
-import { ReservationSchedule } from '@/types/space';
+import { ReservationSchedule, ReservationTimeslot } from '@/types/space';
+import { roomApiService } from '@/client/features/room';
+import type { DurationMode } from '@/client/features/room';
 
 interface BookingPanelProps {
+  roomId?: number;
   price: number;
   rating: number;
   reviewCount: number;
@@ -14,51 +17,98 @@ interface BookingPanelProps {
   spaceImage: string;
   capacity?: number;
   schedules?: ReservationSchedule[];
+  timeslots?: ReservationTimeslot[];
   is24_7?: boolean;
 }
 
-export function BookingPanel({ price, rating, reviewCount, spaceName, spaceImage, capacity = 100, schedules = [], is24_7 = false }: BookingPanelProps) {
+export function BookingPanel({
+  roomId,
+  price,
+  rating,
+  reviewCount,
+  spaceName,
+  spaceImage,
+  capacity = 100,
+  schedules = [],
+  timeslots = [],
+  is24_7 = false,
+}: BookingPanelProps) {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [startTime, setStartTime] = useState('09:00');
-  const [endTime, setEndTime] = useState('11:00');
+  const [availableTimeslots, setAvailableTimeslots] = useState<ReservationTimeslot[]>(timeslots);
+  const [slotId, setSlotId] = useState<number | null>(timeslots[0]?.id ?? null);
+  const [durationUnit, setDurationUnit] = useState<DurationMode>('HOUR');
+  const [durationValue, setDurationValue] = useState(1);
   const [guests, setGuests] = useState(1);
+  const [quoteTotal, setQuoteTotal] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!roomId) return;
+    roomApiService
+      .getTimeslots(roomId, selectedDate)
+      .then((list) => {
+        setAvailableTimeslots(list as ReservationTimeslot[]);
+        setSlotId((prev) => prev ?? list[0]?.id ?? null);
+      })
+      .catch(() => {
+        setAvailableTimeslots(timeslots);
+      });
+  }, [roomId, selectedDate, timeslots]);
+
+  const selectedSlot = useMemo(
+    () => availableTimeslots.find((slot) => slot.id === slotId) ?? null,
+    [availableTimeslots, slotId],
+  );
+
+  useEffect(() => {
+    if (!selectedSlot) return;
+    setDurationUnit(selectedSlot.durationMode);
+    setDurationValue(Math.max(selectedSlot.durationStep, 1));
+  }, [selectedSlot?.id]);
 
   // Derived validation
-  const jsDay = new Date(selectedDate).getDay(); // 0 (Sun) - 6 (Sat)
-  const userDay = jsDay === 0 ? 8 : jsDay + 1; // 2 (Mon) - 8 (Sun)
-  const daySchedule = schedules.find(s => s.dayOfWeek === userDay);
-
+  const jsDay = new Date(selectedDate).getDay();
+  const userDay = jsDay === 0 ? 8 : jsDay + 1;
+  const daySchedule = schedules.find((s) => s.dayOfWeek === userDay);
   const isClosed = !is24_7 && daySchedule ? !daySchedule.isOpen : false;
-  
-  // Basic time comparison (HH:mm)
-  const isTimeValid = () => {
-    if (is24_7) return endTime > startTime;
-    if (!daySchedule || !daySchedule.isOpen) return false;
-    if (!daySchedule.openTime || !daySchedule.closeTime) return endTime > startTime;
-    
-    return startTime >= daySchedule.openTime.substring(0, 5) && 
-           endTime <= daySchedule.closeTime.substring(0, 5) &&
-           endTime > startTime;
-  };
+
+  const isTimeValid = !!selectedSlot && durationValue > 0;
 
   const isCapacityValid = guests <= capacity;
-  const canReserve = !isClosed && isTimeValid() && isCapacityValid;
+  const canReserve = !isClosed && isTimeValid && isCapacityValid;
 
-  const hours = parseInt(endTime.split(':')[0]) - parseInt(startTime.split(':')[0]);
+  const hours = durationUnit === 'MINUTE' ? durationValue / 60 : durationValue;
   const serviceFee = 100000;
   const cleaningFee = 50000;
-  const total = price * Math.max(hours, 1) + serviceFee + cleaningFee;
+  const total = (quoteTotal ?? price * Math.max(hours, 1)) + serviceFee + cleaningFee;
+
+  useEffect(() => {
+    if (!selectedSlot || !roomId) return;
+    roomApiService
+      .quotePrice(roomId, {
+        slotId: selectedSlot.id,
+        bookingDate: selectedDate,
+        durationValue,
+        durationUnit,
+      })
+      .then((quote) => setQuoteTotal(quote.totalPrice))
+      .catch(() => setQuoteTotal(null));
+  }, [roomId, selectedDate, selectedSlot?.id, durationValue, durationUnit]);
 
   const handleReserve = () => {
-    if (!canReserve) return;
+    if (!canReserve || !selectedSlot || !roomId) return;
     navigate('/checkout', {
       state: {
         bookingDetails: {
-          date: selectedDate,
-          startTime,
-          endTime,
+          bookingDate: selectedDate,
+          roomId,
+          slotId: selectedSlot.id,
+          durationValue,
+          durationUnit,
+          slotType: selectedSlot.slotType,
+          startTime: selectedSlot.startTime.substring(0, 5),
+          endTime: selectedSlot.endTime.substring(0, 5),
           guests,
           price,
           hours,
@@ -71,22 +121,9 @@ export function BookingPanel({ price, rating, reviewCount, spaceName, spaceImage
       }
     });
   };
-
-  const getAvailableHours = () => {
-    if (is24_7) return [...Array(24)].map((_, i) => i.toString().padStart(2, '0'));
-    if (!daySchedule || !daySchedule.openTime || !daySchedule.closeTime) return [];
-    
-    const openHour = parseInt(daySchedule.openTime.split(':')[0]);
-    const closeHour = parseInt(daySchedule.closeTime.split(':')[0]);
-    
-    const available = [];
-    for (let i = openHour; i <= closeHour; i++) {
-        available.push(i.toString().padStart(2, '0'));
-    }
-    return available;
-  };
-
-  const availableHours = getAvailableHours();
+  const durationOptions = selectedSlot
+    ? Array.from({ length: 10 }).map((_, idx) => (idx + 1) * selectedSlot.durationStep)
+    : [];
 
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-lg">
@@ -120,36 +157,40 @@ export function BookingPanel({ price, rating, reviewCount, spaceName, spaceImage
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">{t('customer.spaceDetail.checkIn')}</label>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Timeslot</label>
             <select
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
+              value={slotId ?? ''}
+              onChange={(e) => setSlotId(Number(e.target.value))}
               className={`w-full px-4 py-3 bg-gray-50 border ${isClosed ? 'border-red-500 bg-red-50' : 'border-gray-200'} rounded-xl outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 transition-all font-bold text-gray-900 appearance-none`}
               disabled={isClosed}
             >
-              {availableHours.length > 0 ? (
-                availableHours.map((hour) => (
-                  <option key={hour} value={`${hour}:00`}>{hour}:00</option>
+              {availableTimeslots.length > 0 ? (
+                availableTimeslots.map((slot) => (
+                  <option key={slot.id} value={slot.id}>
+                    {slot.startTime.substring(0, 5)} - {slot.endTime.substring(0, 5)} ({slot.slotType})
+                  </option>
                 ))
               ) : (
-                <option value="">{isClosed ? 'Closed' : '--:--'}</option>
+                <option value="">{isClosed ? 'Closed' : 'No slot'}</option>
               )}
             </select>
           </div>
           <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">{t('customer.spaceDetail.checkOut')}</label>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Duration</label>
             <select
-              value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
+              value={durationValue}
+              onChange={(e) => setDurationValue(Number(e.target.value))}
               className={`w-full px-4 py-3 bg-gray-50 border ${isClosed ? 'border-red-500 bg-red-50' : 'border-gray-200'} rounded-xl outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 transition-all font-bold text-gray-900 appearance-none`}
               disabled={isClosed}
             >
-              {availableHours.length > 0 ? (
-                availableHours.map((hour) => (
-                  <option key={hour} value={`${hour}:00`}>{hour}:00</option>
+              {durationOptions.length > 0 ? (
+                durationOptions.map((value) => (
+                  <option key={value} value={value}>
+                    {value} {durationUnit === 'MINUTE' ? 'phút' : 'giờ'}
+                  </option>
                 ))
               ) : (
-                <option value="">{isClosed ? 'Closed' : '--:--'}</option>
+                <option value="">--</option>
               )}
             </select>
           </div>

@@ -228,6 +228,7 @@ export function SpaceDetailPage() {
           <div className="lg:col-span-1">
             <div className="lg:sticky lg:top-24 h-fit">
             <BookingPanel
+              roomId={space.id}
               price={space.price}
               rating={space.rating}
               reviewCount={space.reviewCount || 0}
@@ -235,6 +236,7 @@ export function SpaceDetailPage() {
               spaceImage={space.image}
               capacity={space.capacity}
               schedules={space.schedules}
+              timeslots={space.timeslots}
               is24_7={space.is24_7}
             />
 

@@ -1,9 +1,9 @@
 server:
-  port: ${ROOM_SERVICE_PORT:8083}
+  port: 8083
 
 spring:
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:${POSTGRES_ROOM_HOST_PORT:5434}/eduspace_room}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5434/eduspace_room}
     username: ${SPRING_DATASOURCE_USERNAME:eduspace}
     password: ${SPRING_DATASOURCE_PASSWORD:eduspace_dev_123}
   jpa:
@@ -14,8 +14,4 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
     baseline-version: 0
-    # Dev: tránh fail khi đổi nội dung file migration cùng version (checksum khác DB).
-    # Prod: giữ validate (mặc định) — không set ở application-prod.yml.
-    validate-on-migrate: false
-    repair-on-migrate: true
 
