@@ -20,11 +20,25 @@ export const vi = {
         book: "Đặt ngay",
         seats: "chỗ",
         perHour: "/ giờ",
+        propertyTypes: {
+            commercialBuilding: "Tòa nhà thương mại",
+            centerCoworking: "Trung tâm / Không gian chung",
+            independentSpace: "Mặt bằng độc lập"
+        },
+        roomTypes: {
+            meetingRoom: "Phòng họp",
+            classroom: "Phòng học / Đào tạo",
+            eventSpace: "Hội trường / Sự kiện",
+            studio: "Phòng quay / Studio",
+            coworking: "Coworking / Văn phòng riêng"
+        },
         sortBy: "Sắp xếp:",
         recommended: "Đề xuất",
         priceLowHigh: "Giá: Thấp → Cao",
         priceHighLow: "Giá: Cao → Thấp",
         rating: "Đánh giá",
+        capacityLowHigh: "Sức chứa: Thấp → Cao",
+        capacityHighLow: "Sức chứa: Cao → Thấp",
         verifiedSpace: "ĐÃ XÁC THỰC",
         spacesFound: "không gian tại TP. Hồ Chí Minh",
         showingResults: "Hiển thị kết quả cho",
@@ -83,7 +97,9 @@ export const vi = {
             },
             basics: {
                 title: "Thông tin cơ bản",
-                description: "Liên kết phòng của bạn với một cơ sở vật lý.",
+                description: "Chọn chi nhánh và nhập tên phòng — địa chỉ lấy theo chi nhánh.",
+                roomName: "Tên phòng",
+                roomNamePlaceholder: "Ví dụ: Phòng họp VIP, Hội trường A",
                 facilityName: "Tên cơ sở",
                 facilityPlaceholder: "ví dụ: EduSpace Sài Gòn Hub",
                 spaceType: "Loại không gian",
@@ -97,6 +113,10 @@ export const vi = {
                 description: "Giúp học viên tìm thấy vị trí chính xác của bạn.",
                 streetAddress: "Địa chỉ đường",
                 streetAddressPlaceholder: "Nhập địa chỉ đầy đủ...",
+                roomNumber: "Số phòng / mã phòng",
+                roomNumberPlaceholder: "Ví dụ: A101, P.305",
+                addressSyncedFromBranch: "Địa chỉ được lấy tự động từ chi nhánh đã chọn để đồng bộ với hồ sơ chi nhánh.",
+                branchHasNoAddress: "Chi nhánh chưa có địa chỉ trong hệ thống — vui lòng cập nhật địa chỉ ở trang Chi nhánh, hoặc nhập tạm bên dưới.",
                 area: "Diện tích (m²)",
                 guests: "Sức chứa",
                 floor: "Tầng số"
@@ -104,9 +124,15 @@ export const vi = {
             pricing: {
                 title: "Lịch trình & Giá",
                 description: "Quản lý giá theo giờ và phụ thu cuối tuần.",
-                sessionAvailability: "Khung giờ hoạt động",
+                sessionAvailability: "Lịch hoạt động",
+                open24Hours: "Hoạt động 24/7 (Mở cửa xuyên đêm)",
+                openTime: "Giờ mở cửa",
+                closeTime: "Giờ đóng cửa",
                 hourlyBaseRate: "Giá cơ bản theo giờ",
                 pricePlaceholder: "Giá mỗi giờ",
+                dailyRate: "Giá theo ngày",
+                dailyPlaceholder: "Nhập giá thuê cả ngày (VNĐ)",
+                dailyHint: "Giá này lưu trên hồ sơ phòng (price_per_day). Khác với giá từng khung slot.",
                 weekendMarkup: "Phụ thu cuối tuần",
                 markupDescription: "Giá phụ thu cho các đặt chỗ vào Thứ 7 & Chủ Nhật. Giúp bù đắp chi phí vận hành cao điểm.",
                 slots: {
@@ -142,12 +168,32 @@ export const vi = {
                 goToPortal: "Đi đến Cổng thông tin Host"
             },
             publishing: "Đang đăng tải danh sách...",
-            cancelListing: "Hủy đăng ký"
+            cancelListing: "Hủy đăng ký",
+            validation: {
+                selectBranch: "Vui lòng chọn chi nhánh.",
+                roomNameRequired: "Vui lòng nhập tên phòng.",
+                roomTypeRequired: "Vui lòng chọn loại không gian.",
+                titleRequired: "Vui lòng nhập tiêu đề hiển thị công khai.",
+                addressRequired: "Địa chỉ chi nhánh chưa có — cập nhật ở trang Chi nhánh hoặc đảm bảo chi nhánh có địa chỉ.",
+                roomNumberRequired: "Vui lòng nhập số phòng / mã phòng.",
+                sizeRequired: "Vui lòng nhập diện tích (m²) lớn hơn 0.",
+                capacityRequired: "Vui lòng nhập sức chứa lớn hơn 0.",
+                floorRequired: "Vui lòng nhập tầng (số hợp lệ, ≥ 0).",
+                openTimeRequired: "Vui lòng chọn giờ mở cửa.",
+                closeTimeRequired: "Vui lòng chọn giờ đóng cửa.",
+                basePriceRequired: "Vui lòng nhập giá theo giờ lớn hơn 0.",
+                pricePerDayRequired: "Vui lòng nhập giá theo ngày lớn hơn 0.",
+                imagesRequired: "Vui lòng thêm ít nhất một ảnh không gian.",
+                fixCurrentStep: "Vui lòng nhập đủ thông tin ở bước hiện tại trước khi tiếp tục.",
+                fixBeforePublish: "Thiếu thông tin ở mục \"{{step}}\". Vui lòng bổ sung các trường được đánh dấu."
+            }
         }
     },
     customer: {
         nav: {
             findSpace: "Tìm không gian",
+            favorites: "Yêu thích",
+            myBookings: "Lịch đặt",
             listSpace: "Đăng ký Host",
             forHosts: "Dành cho Host",
             help: "Trợ giúp"
@@ -192,6 +238,7 @@ export const vi = {
             topRated: {
                 title: "Không Gian Được Đánh Giá Cao",
                 subtitle: "Phòng học được cộng đồng giảng viên đánh giá cao nhất.",
+                viewDetails: "Xem chi tiết",
                 perHour: "/ giờ",
                 pax: "chỗ",
                 verified: "Đã xác thực",
@@ -221,7 +268,9 @@ export const vi = {
             capacity: "Sức chứa",
             size: "Diện tích",
             aboutSpace: "Giới thiệu không gian",
+            whatOffers: "Không gian này có gì?",
             amenities: "Tiện nghi",
+            amenity: "tiện ích",
             location: "Vị trí",
             reviews: "Đánh giá",
             seeAllReviews: "Xem tất cả {{count}} đánh giá",
@@ -236,12 +285,31 @@ export const vi = {
             hours: "giờ",
             cleaningFee: "Phí vệ sinh",
             serviceFee: "Phí dịch vụ",
-            total: "Tổng cộng"
+            total: "Tổng cộng",
+            gallery: {
+                viewAllPhotos: "Xem thêm"
+            },
+            tabs: {
+                details: "Chi tiết không gian",
+                policies: "Chính sách",
+                reviews: "Đánh giá",
+                messages: "Tin nhắn"
+            },
+            policiesTitle: "Chính sách đặt chỗ",
+            policyCancellation: "Hủy miễn phí trong vòng 24 giờ sau khi đặt.",
+            policyCheckIn: "Vui lòng check-in đúng khung giờ đã chọn để đảm bảo quyền sử dụng phòng.",
+            contactHostTitle: "Liên hệ Host",
+            contactHostDesc: "Bạn cần thêm thông tin về tiện nghi, thời gian hoặc hỗ trợ đặt chỗ? Hãy nhắn trực tiếp cho host.",
+            contactHostBtn: "Nhắn host ngay",
+            verifiedHost: "Chủ phòng đã xác thực"
         },
         search: {
             title: "Tìm kiếm không gian",
             filters: "Bộ lọc",
             clearAll: "Xoá tất cả",
+            resultsFound: "kết quả tìm thấy",
+            sortCapacityLowHigh: "Sức chứa: Thấp → Cao",
+            sortCapacityHighLow: "Sức chứa: Cao → Thấp",
             district: "Khu vực",
             timeSlots: "Khung giờ",
             priceRange: "Mức giá (VNĐ/giờ)",
@@ -281,9 +349,10 @@ export const vi = {
             },
             roomTypeOptions: {
                 classroom: "Phòng học",
-                auditorium: "Hội trường",
                 meeting: "Phòng họp",
-                studio: "Studio"
+                eventSpace: "Không gian sự kiện",
+                studio: "Studio",
+                coworking: "Coworking / Văn phòng riêng"
             }
         },
         ekyc: {
@@ -472,6 +541,9 @@ export const vi = {
                 default: "Mặc định",
                 remove: "Gỡ bỏ",
                 noMethods: "Bạn chưa thêm phương thức thanh toán nào."
+            },
+            support: {
+                chatWithStaff: "Chat với nhân viên hỗ trợ"
             }
         }
     },
@@ -497,6 +569,7 @@ export const vi = {
     },
     admin_sidebar: {
         dashboard: "Dashboard",
+        messages: "Tin nhắn",
         finance: "Tài chính & Thanh toán",
         approvals: "Duyệt & KYC",
         disputes: "Tranh chấp & Báo cáo",

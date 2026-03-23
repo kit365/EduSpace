@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -40,10 +41,21 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(ErrorCode.UNCATEGORIZED_EXCEPTION.getHttpStatus()).body(apiResponse);
     }
 
+    /** JSON body sai / không parse được (vd. LocalTime) — tránh trả 500 chung. */
+    @ExceptionHandler(value = HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<?>> handlingUnreadable(HttpMessageNotReadableException exception) {
+        log.warn("HTTP message not readable: {}", exception.getMessage());
+        String message = resolveMessage(ErrorCode.INVALID_KEY.getMessageKey());
+        ApiResponse<?> apiResponse = ApiResponse.error(
+                ErrorCode.INVALID_KEY.getHttpStatus().value(),
+                ErrorCode.INVALID_KEY.getCode(),
+                message);
+        return ResponseEntity.status(ErrorCode.INVALID_KEY.getHttpStatus()).body(apiResponse);
+    }
+
     @ExceptionHandler(value = MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<?>> handlingValidation(MethodArgumentNotValidException exception) {
         log.warn("Validation failed: {}", exception.getMessage());
-        var fieldError = exception.getFieldError();
         String enumKey = Objects.requireNonNull(exception.getFieldError()).getDefaultMessage();
         String message;
         try {

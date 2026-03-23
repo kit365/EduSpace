@@ -38,11 +38,31 @@ spring:
           filters:
             - RewritePath=/v3/api-docs/booking-service, /v3/api-docs
 
+        # Conversation Service routes (REST)
+        - id: conversation-service
+          uri: lb://CONVERSATION-SERVICE
+          predicates:
+            - Path=/api/v1/conversations/**, /api/v1/messages/**, /api/v1/azure-communication/**
+
+        # Conversation Service routes (WebSocket + media)
+        - id: conversation-service-ws
+          uri: lb://CONVERSATION-SERVICE
+          predicates:
+            - Path=/ws/**, /media/**
+
+        # Conversation Service Swagger Docs
+        - id: conversation-service-docs
+          uri: lb://CONVERSATION-SERVICE
+          predicates:
+            - Path=/v3/api-docs/conversation-service
+          filters:
+            - RewritePath=/v3/api-docs/conversation-service, /v3/api-docs
+
         # Room Service routes
         - id: room-service
           uri: lb://ROOM-SERVICE
           predicates:
-            - Path=/api/v1/rooms/**, /api/v1/properties/**, /api/v1/extra-services/**, /api/v1/ads-packages/**, /api/v1/room-slots/**, /api/v1/amenities/**, /api/v1/room-amenities/**, /api/v1/reviews/**, /api/v1/room-ads/**, /api/v1/system-calendar-rules/**, /api/v1/room-blocks/**
+            - Path=/api/v1/rooms,/api/v1/rooms/**,/api/v1/properties,/api/v1/properties/**,/api/v1/extra-services,/api/v1/extra-services/**,/api/v1/ads-packages,/api/v1/ads-packages/**,/api/v1/amenities,/api/v1/amenities/**,/api/v1/room-amenities,/api/v1/room-amenities/**,/api/v1/reviews,/api/v1/reviews/**,/api/v1/room-ads,/api/v1/room-ads/**,/api/v1/system-calendar-rules,/api/v1/system-calendar-rules/**,/api/v1/room-blocks,/api/v1/room-blocks/**,/api/v1/room-categories,/api/v1/room-categories/**,/api/v1/public/**
 
         # Room Service Swagger Docs
         - id: room-service-docs
@@ -92,6 +112,8 @@ springdoc:
         url: /v3/api-docs/account-service
       - name: Booking Service
         url: /v3/api-docs/booking-service
+      - name: Conversation Service
+        url: /v3/api-docs/conversation-service
       - name: Room Service
         url: /v3/api-docs/room-service
 

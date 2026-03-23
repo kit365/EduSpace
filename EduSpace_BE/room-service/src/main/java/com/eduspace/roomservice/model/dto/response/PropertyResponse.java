@@ -23,8 +23,14 @@ public class PropertyResponse {
     String propertyType;
     String contactPhone;
     String contactEmail;
-    String address;
+    String provinceCode;
+    String districtCode;
+    String wardCode;
+    String addressDetail;
+    java.math.BigDecimal latitude;
+    java.math.BigDecimal longitude;
     String logo;
+    String logoAlt;
     String description;
     PropertyStatus status;
     String rejectionNote;

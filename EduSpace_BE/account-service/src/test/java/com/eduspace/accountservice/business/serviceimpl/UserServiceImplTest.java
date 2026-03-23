@@ -1,6 +1,7 @@
 package com.eduspace.accountservice.business.serviceimpl;
 
 import com.eduspace.accountservice.business.service.KeycloakUserService;
+import com.eduspace.accountservice.business.service.SupportStaffPresenceService;
 import com.eduspace.accountservice.business.service.UserService;
 import com.eduspace.accountservice.exception.AppException;
 import com.eduspace.accountservice.exception.ErrorCode;
@@ -34,6 +35,9 @@ class UserServiceImplTest {
 
     @Mock
     private KeycloakUserService keycloakUserService; // Using Interface
+
+    @Mock
+    private SupportStaffPresenceService supportStaffPresenceService;
 
     @InjectMocks
     private UserServiceImpl userServiceImpl; // Target implementation

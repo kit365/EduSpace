@@ -20,11 +20,25 @@ export const en = {
         book: "Book",
         seats: "seats",
         perHour: "/ hr",
+        propertyTypes: {
+            commercialBuilding: "Commercial Building",
+            centerCoworking: "Center / Coworking",
+            independentSpace: "Independent Space"
+        },
+        roomTypes: {
+            meetingRoom: "Meeting Room",
+            classroom: "Classroom / Training Room",
+            eventSpace: "Event Space",
+            studio: "Studio",
+            coworking: "Coworking / Private Office"
+        },
         sortBy: "Sort by:",
         recommended: "Recommended",
         priceLowHigh: "Price: Low → High",
         priceHighLow: "Price: High → Low",
         rating: "Rating",
+        capacityLowHigh: "Capacity: Low → High",
+        capacityHighLow: "Capacity: High → Low",
         verifiedSpace: "VERIFIED SPACE",
         spacesFound: "spaces in Ho Chi Minh City",
         showingResults: "Showing results for",
@@ -83,7 +97,9 @@ export const en = {
             },
             basics: {
                 title: "Basic Information",
-                description: "Link your room with a physical facility.",
+                description: "Select a branch and enter the room name — address comes from the branch.",
+                roomName: "Room name",
+                roomNamePlaceholder: "e.g. VIP Meeting Room, Hall A",
                 facilityName: "Facility Name",
                 facilityPlaceholder: "e.g., EduSpace Saigon Hub",
                 spaceType: "Space Type",
@@ -97,6 +113,10 @@ export const en = {
                 description: "Help students find your exact location.",
                 streetAddress: "Street Address",
                 streetAddressPlaceholder: "Enter full address...",
+                roomNumber: "Room number / code",
+                roomNumberPlaceholder: "e.g. A101, P.305",
+                addressSyncedFromBranch: "Address is taken from the selected branch to stay in sync with the branch profile.",
+                branchHasNoAddress: "This branch has no address on file — update it on the Branches page, or enter a temporary address below.",
                 area: "Area (m²)",
                 guests: "Capacity",
                 floor: "Floor Number"
@@ -104,9 +124,15 @@ export const en = {
             pricing: {
                 title: "Schedule & Pricing",
                 description: "Manage hourly rates and weekend surcharges.",
-                sessionAvailability: "Session Availability",
+                sessionAvailability: "Operating hours",
+                open24Hours: "Open 24/7 (overnight)",
+                openTime: "Opening time",
+                closeTime: "Closing time",
                 hourlyBaseRate: "Hourly Base Rate",
                 pricePlaceholder: "Price per hour",
+                dailyRate: "Daily rate",
+                dailyPlaceholder: "Full-day rental price (VND)",
+                dailyHint: "Stored on the room record (price_per_day). Separate from per-slot pricing.",
                 weekendMarkup: "Weekend Markup",
                 markupDescription: "Extra fee for Saturday & Sunday bookings. Helps cover peak operational costs.",
                 slots: {
@@ -142,12 +168,32 @@ export const en = {
                 goToPortal: "Go to Host Portal"
             },
             publishing: "Publishing your listing...",
-            cancelListing: "Cancel Registration"
+            cancelListing: "Cancel Registration",
+            validation: {
+                selectBranch: "Please select a branch.",
+                roomNameRequired: "Please enter the room name.",
+                roomTypeRequired: "Please choose a space type.",
+                titleRequired: "Please enter the public display title.",
+                addressRequired: "Branch address is missing — update it on the Branches page or ensure the branch has an address.",
+                roomNumberRequired: "Please enter the room number / code.",
+                sizeRequired: "Please enter area (m²) greater than 0.",
+                capacityRequired: "Please enter capacity greater than 0.",
+                floorRequired: "Please enter a valid floor number (≥ 0).",
+                openTimeRequired: "Please select opening time.",
+                closeTimeRequired: "Please select closing time.",
+                basePriceRequired: "Please enter an hourly rate greater than 0.",
+                pricePerDayRequired: "Please enter a daily rate greater than 0.",
+                imagesRequired: "Please add at least one photo.",
+                fixCurrentStep: "Please complete all required fields in this step before continuing.",
+                fixBeforePublish: "Some information is missing in \"{{step}}\". Please fill in the highlighted fields."
+            }
         }
     },
     customer: {
         nav: {
             findSpace: "Find Space",
+            favorites: "Favorites",
+            myBookings: "My Bookings",
             listSpace: "List Your Space",
             forHosts: "For Hosts",
             help: "Help"
@@ -192,6 +238,7 @@ export const en = {
             topRated: {
                 title: "Top Rated Spaces",
                 subtitle: "Highly recommended classrooms by our community of teachers.",
+                viewDetails: "View Details",
                 perHour: "/ hr",
                 pax: "pax",
                 verified: "Verified",
@@ -221,7 +268,9 @@ export const en = {
             capacity: "Capacity",
             size: "Size",
             aboutSpace: "About this space",
+            whatOffers: "What this place offers",
             amenities: "Amenities",
+            amenity: "amenity",
             location: "Location",
             reviews: "Reviews",
             seeAllReviews: "See all {{count}} reviews",
@@ -236,12 +285,31 @@ export const en = {
             hours: "hours",
             cleaningFee: "Cleaning fee",
             serviceFee: "Service fee",
-            total: "Total"
+            total: "Total",
+            gallery: {
+                viewAllPhotos: "See all photos ({{count}})"
+            },
+            tabs: {
+                details: "Property details",
+                policies: "Policies",
+                reviews: "Reviews",
+                messages: "Messages"
+            },
+            policiesTitle: "Booking Policies",
+            policyCancellation: "Free cancellation within 24 hours after booking.",
+            policyCheckIn: "Please check in within your selected time slot to guarantee room access.",
+            contactHostTitle: "Contact Host",
+            contactHostDesc: "Need more information about amenities, schedule, or booking support? Message the host directly.",
+            contactHostBtn: "Message host",
+            verifiedHost: "Verified Host"
         },
         search: {
             title: "Search Spaces",
             filters: "Filters",
             clearAll: "Clear All",
+            resultsFound: "results found",
+            sortCapacityLowHigh: "Capacity: Low → High",
+            sortCapacityHighLow: "Capacity: High → Low",
             district: "District",
             timeSlots: "Time Slots",
             priceRange: "Price Range (VNĐ/hr)",
@@ -281,9 +349,10 @@ export const en = {
             },
             roomTypeOptions: {
                 classroom: "Classroom",
-                auditorium: "Auditorium",
                 meeting: "Meeting Room",
-                studio: "Studio"
+                eventSpace: "Event Space",
+                studio: "Studio",
+                coworking: "Coworking / Private Office"
             }
         },
         ekyc: {
@@ -472,6 +541,9 @@ export const en = {
                 default: "Default",
                 remove: "Remove",
                 noMethods: "You haven't added any payment methods yet."
+            },
+            support: {
+                chatWithStaff: "Chat with support staff",
             }
         }
     },
@@ -497,6 +569,7 @@ export const en = {
     },
     admin_sidebar: {
         dashboard: "Dashboard",
+        messages: "Messages",
         finance: "Finance & Payouts",
         approvals: "Approvals & KYC",
         disputes: "Disputes & Reports",

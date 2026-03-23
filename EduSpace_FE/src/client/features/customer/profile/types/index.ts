@@ -3,6 +3,8 @@ import { User, ID, Timestamp, UserRole, KycStatus } from '@/types';
 // Interface mapped from backend DTO
 export interface UserResponse {
   id: string;
+  /** Keycloak subject; matches JWT `sub` and conversation participant ids. */
+  keycloakId?: string;
   email: string;
   fullName: string;
   phoneNumber: string;
@@ -22,6 +24,7 @@ export interface UserResponse {
   streetAddress?: string;
   postalCode?: string;
   taxId?: string;
+  organizationName?: string;
 }
 
 export interface TwoFactorSetup {
@@ -42,6 +45,7 @@ export interface UpdateProfileRequest {
   streetAddress?: string;
   postalCode?: string;
   taxId?: string;
+  organizationName?: string;
 }
 
 export interface UserProfile {
@@ -60,6 +64,7 @@ export interface UserProfile {
   taxId?: string;
   memberSince: string; // Mapped from BE createdAt
   is2faEnabled: boolean;
+  organizationName?: string;
 
   // Role & verification
   role: UserRole | string; // Mapped from BE roles[0]
@@ -86,4 +91,15 @@ export interface PaymentMethod {
   last4: string;
   name: string;
   isDefault: boolean;
+}
+
+export interface PublicUserProfile {
+  id: string;
+  fullName: string;
+  avatarUrl?: string;
+  shortBio?: string;
+  location?: string;
+  createdAt: string;
+  isEmailVerified: boolean;
+  organizationName?: string;
 }

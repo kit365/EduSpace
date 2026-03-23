@@ -46,11 +46,13 @@ const RootLayout = () => {
     return (
         <>
             <Outlet />
-            <RoleSwitcher
-                currentRole={currentRole}
-                onRoleChange={handleRoleChange}
-                allowedModes={allowedModes}
-            />
+            {pathname !== '/messages' && !pathname.startsWith('/rental') && (
+                <RoleSwitcher
+                    currentRole={currentRole}
+                    onRoleChange={handleRoleChange}
+                    allowedModes={allowedModes}
+                />
+            )}
         </>
     );
 };

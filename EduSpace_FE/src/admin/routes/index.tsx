@@ -9,11 +9,13 @@ import { FinancePayoutsPage, TransactionManagementPage } from '../features/finan
 import { DisputesPage } from '../features/disputes';
 import { SystemSettingsPage, SystemLogsPage } from '../features/system';
 import { RoomManagementPage } from '../features/room-management';
+import { AdminRoomCategoryPage } from '../features/room-categories/pages/AdminRoomCategoryPage';
 import { BookingManagementPage } from '../features/bookings';
 import { ReviewManagementPage } from '../features/reviews';
 import { AdsManagementPage } from '../features/ads';
 import { FacilityManagementPage } from '../features/facilities';
 import { PointManagementPage } from '../features/points';
+import { AdminMessagesPage } from '../features/messages';
 
 export const adminRoutes: RouteObject[] = [
     {
@@ -22,6 +24,7 @@ export const adminRoutes: RouteObject[] = [
             // ─── Dashboard ────────────────────────────────────
             { path: '', element: <DashboardPage /> },
             { path: 'dashboard', element: <DashboardPage /> },
+            { path: 'messages', element: <AdminMessagesPage /> },
 
             // ─── Host Management ──────────────────────────────
             { path: 'hosts', element: <HostManagementPage /> },
@@ -35,6 +38,7 @@ export const adminRoutes: RouteObject[] = [
             { path: 'disputes', element: <DisputesPage /> },
             { path: 'bookings', element: <BookingManagementPage /> },
             { path: 'rooms', element: <RoomManagementPage /> },
+            { path: 'room-categories', element: <AdminRoomCategoryPage /> },
             { path: 'reviews', element: <ReviewManagementPage /> },
 
             // ─── Users & Access ───────────────────────────────

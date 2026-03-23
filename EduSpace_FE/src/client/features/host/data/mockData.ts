@@ -137,8 +137,20 @@ export const DEFAULT_OPERATING_HOURS: OperatingHour[] = [
 ];
 
 export const BLOCKED_SLOTS: BlockedSlot[] = [
-  { id: 'BLK-001', date: '2024-12-26', startTime: '08:00', endTime: '22:00', reason: 'Bảo trì hệ thống điều hòa', branchId: 1 },
-  { id: 'BLK-002', date: '2024-12-31', startTime: '12:00', endTime: '22:00', reason: 'Tất niên công ty', branchId: 2 },
+  {
+    id: 'BLK-001',
+    startDatetime: '2024-12-26T08:00',
+    endDatetime: '2024-12-26T22:00',
+    reason: 'Bảo trì hệ thống điều hòa',
+    branchId: 1,
+  },
+  {
+    id: 'BLK-002',
+    startDatetime: '2024-12-31T12:00',
+    endDatetime: '2024-12-31T22:00',
+    reason: 'Tất niên công ty',
+    branchId: 2,
+  },
 ];
 
 // ─── FR-15: ROOM STATUS ───────────────────────────────────────
@@ -253,9 +265,9 @@ export const HOST_ADS_SUBSCRIPTIONS: AdsSubscription[] = [
 
 // ─── ROOM TYPES ────────────────────────────────────────────────
 export const MOCK_ROOM_TYPES: RoomType[] = [
-  { id: 'RT-001', name: 'Classroom', description: 'Phòng học tiêu chuẩn có bảng trắng và máy chiếu', icon: 'BookOpen', status: 'active', basePrice: 200_000 },
-  { id: 'RT-002', name: 'Computer Lab', description: 'Phòng máy tính cấu hình cao cho IT', icon: 'Monitor', status: 'active', basePrice: 400_000 },
-  { id: 'RT-003', name: 'Meeting Room', description: 'Phòng họp chuyên nghiệp có màn hình TV', icon: 'Users', status: 'active', basePrice: 300_000 },
-  { id: 'RT-004', name: 'Event Hall', description: 'Hội trường lớn tổ chức sự kiện/hội thảo', icon: 'Mic', status: 'active', basePrice: 1_000_000 },
-  { id: 'RT-005', name: 'Creative Studio', description: 'Phòng thực hành, workshop nghệ thuật', icon: 'Palette', status: 'inactive', basePrice: 350_000 },
+  { id: 'RT-001', name: 'Meeting Room', description: 'Phòng họp cho nhóm nhỏ 4-15 người', icon: 'Users', status: 'active', basePrice: 300_000 },
+  { id: 'RT-002', name: 'Classroom', description: 'Phòng học/đào tạo có bảng, bục giảng và bàn ghế theo lớp', icon: 'BookOpen', status: 'active', basePrice: 250_000 },
+  { id: 'RT-003', name: 'Event Space', description: 'Không gian lớn cho hội thảo và sự kiện', icon: 'Mic', status: 'active', basePrice: 1_000_000 },
+  { id: 'RT-004', name: 'Studio', description: 'Phòng quay/chụp ảnh/podcast có cách âm cơ bản', icon: 'Palette', status: 'active', basePrice: 450_000 },
+  { id: 'RT-005', name: 'Coworking', description: 'Chỗ ngồi làm việc chung hoặc private office', icon: 'Monitor', status: 'active', basePrice: 220_000 },
 ];

@@ -1,5 +1,6 @@
 package com.eduspace.roomservice.business.serviceimpl;
 
+import com.eduspace.roomservice.business.service.RoomScheduleService;
 import com.eduspace.roomservice.business.service.RoomService;
 import com.eduspace.roomservice.common.enums.BookingType;
 import com.eduspace.roomservice.common.enums.RoomApprovalStatus;
@@ -9,38 +10,105 @@ import com.eduspace.roomservice.common.util.SlugUtil;
 import com.eduspace.roomservice.exception.AppException;
 import com.eduspace.roomservice.exception.ErrorCode;
 import com.eduspace.roomservice.model.dto.request.RoomRequest;
+import com.eduspace.roomservice.model.dto.request.RoomSearchRequest;
+import com.eduspace.roomservice.model.dto.response.PageResponse;
 import com.eduspace.roomservice.model.dto.response.RoomResponse;
-import com.eduspace.roomservice.model.entity.PropertyEntity;
-import com.eduspace.roomservice.model.entity.RoomEntity;
+import com.eduspace.roomservice.model.entity.*;
+import com.eduspace.roomservice.model.mapper.RoomMapper;
+import com.eduspace.roomservice.model.mapper.RoomPolicyMapper;
+import com.eduspace.roomservice.persistence.repository.AmenityRepository;
 import com.eduspace.roomservice.persistence.repository.PropertyRepository;
+import com.eduspace.roomservice.persistence.repository.RoomCategoryRepository;
 import com.eduspace.roomservice.persistence.repository.RoomRepository;
+import com.eduspace.roomservice.persistence.specification.RoomSpecification;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RoomServiceImpl implements RoomService {
 
     private final RoomRepository roomRepository;
     private final PropertyRepository propertyRepository;
+    private final RoomCategoryRepository categoryRepository;
+    private final AmenityRepository amenityRepository;
+    private final ObjectMapper objectMapper;
+    private final RoomScheduleService roomScheduleService;
+    private final RoomMapper roomMapper;
+    private final RoomPolicyMapper roomPolicyMapper;
+
+    @Override
+    public PageResponse<RoomResponse> searchRooms(RoomSearchRequest request) {
+        org.springframework.data.domain.Sort sort = org.springframework.data.domain.Sort.by(
+                org.springframework.data.domain.Sort.Direction.fromString(request.getSortDir()), 
+                request.getSortBy()
+        );
+        Pageable pageable = PageRequest.of(request.getPage() - 1, request.getSize(), sort);
+        Specification<RoomEntity> spec = RoomSpecification.hasFilters(request);
+        Page<RoomEntity> pageData = roomRepository.findAll(spec, pageable);
+
+        return PageResponse.<RoomResponse>builder()
+                .content(pageData.getContent().stream().map(this::mapToResponse).toList())
+                .page(request.getPage())
+                .size(request.getSize())
+                .totalElements(pageData.getTotalElements())
+                .totalPages(pageData.getTotalPages())
+                .last(pageData.isLast())
+                .build();
+    }
 
     @Override
     public List<RoomResponse> getAllRooms() {
-        return roomRepository.findAll().stream().map(this::toResponse).toList();
+        return roomRepository.findByDeletedAtIsNull().stream().map(roomMapper::toResponse).toList();
+    }
+
+    @Override
+    public List<String> getRoomCategories() {
+        return java.util.Arrays.stream(RoomType.values())
+                .map(Enum::name)
+                .toList();
     }
 
     @Override
     public List<RoomResponse> getRoomsByPropertyId(Integer propertyId) {
-        return roomRepository.findByProperty_Id(propertyId).stream().map(this::toResponse).toList();
+        return roomRepository.findByProperty_IdAndDeletedAtIsNull(propertyId).stream().map(this::mapToResponse).toList();
     }
 
     @Override
+    public List<RoomResponse> getRoomsByCategorySlug(String categorySlug) {
+         return roomRepository.findByCategory_SlugAndDeletedAtIsNull(categorySlug).stream()
+                .map(roomMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<RoomResponse> getRoomsByOwnerId(String ownerId) {
+        if (ownerId == null || ownerId.isBlank()) {
+            return List.of();
+        }
+        return roomRepository.findByProperty_OwnerIdAndDeletedAtIsNull(ownerId.trim()).stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public RoomResponse getRoomById(Integer id) {
-        return toResponse(roomRepository.findById(id)
+        return mapToResponse(roomRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new AppException(ErrorCode.ROOM_NOT_FOUND)));
     }
 
@@ -50,7 +118,7 @@ public class RoomServiceImpl implements RoomService {
             throw new AppException(ErrorCode.ROOM_NOT_FOUND);
         }
         String key = slug.trim().toLowerCase();
-        return toResponse(roomRepository.findBySlug(key)
+        return mapToResponse(roomRepository.findBySlugAndDeletedAtIsNull(key)
                 .orElseThrow(() -> new AppException(ErrorCode.ROOM_NOT_FOUND)));
     }
 
@@ -62,17 +130,55 @@ public class RoomServiceImpl implements RoomService {
         }
         PropertyEntity property = propertyRepository.findById(request.getPropertyId())
                 .orElseThrow(() -> new AppException(ErrorCode.PROPERTY_NOT_FOUND));
-        RoomEntity entity = new RoomEntity();
-        entity.setProperty(property);
-        applyCreate(entity, request);
-        entity.setSlug(SlugUtil.uniqueSlug(request.getName(), s -> roomRepository.findBySlug(s).isPresent()));
-        if (entity.getAvgRating() == null) {
-            entity.setAvgRating(BigDecimal.ZERO);
+        RoomEntity room = roomMapper.toEntity(request);
+        room.setProperty(property);
+
+        RoomCategoryEntity category = categoryRepository.findBySlug(request.getCategorySlug())
+                .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
+        room.setCategory(category);
+
+        room.setSlug(SlugUtil.uniqueSlug(request.getNameVi() != null ? request.getNameVi() : "room", s -> roomRepository.existsBySlugAndDeletedAtIsNull(s)));
+
+        // Handle Map Coordinates from Property
+        room.setLatitude(property.getLatitude());
+        room.setLongitude(property.getLongitude());
+
+        // Initial workflow status
+        room.setStatus(RoomStatus.READY.name());
+        room.setApprovalStatus(RoomApprovalStatus.PENDING.name());
+        room.setIsActive(true);
+
+        // Map Policies
+        if (request.getPolicies() != null) {
+            List<RoomPolicyEntity> policies = request.getPolicies().stream()
+                .map(pReq -> {
+                    RoomPolicyEntity p = roomPolicyMapper.toEntity(pReq);
+                    p.setRoom(room);
+                    return p;
+                })
+                .toList();
+            room.setPolicies(policies);
         }
-        if (entity.getReviewCount() == null) {
-            entity.setReviewCount(0);
+
+        // Map Amenities
+        if (request.getAmenityIds() != null) {
+            List<RoomAmenityEntity> roomAmenities = request.getAmenityIds().stream()
+                .map(amId -> {
+                    AmenityEntity amenity = amenityRepository.findById(amId)
+                        .orElseThrow(() -> new AppException(ErrorCode.AMENITY_NOT_FOUND));
+                    return RoomAmenityEntity.builder()
+                        .room(room)
+                        .amenity(amenity)
+                        .quantity(1)
+                        .build();
+                })
+                .collect(Collectors.toList());
+            room.setAmenities(roomAmenities);
         }
-        return toResponse(roomRepository.save(entity));
+
+        RoomEntity saved = roomRepository.save(room);
+        roomScheduleService.seedDefaultsForNewRoom(saved.getId());
+        return roomMapper.toResponse(saved);
     }
 
     @Override
@@ -80,117 +186,164 @@ public class RoomServiceImpl implements RoomService {
     public RoomResponse update(Integer id, RoomRequest request) {
         RoomEntity existing = roomRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.ROOM_NOT_FOUND));
-        applyUpdate(existing, request);
-        if (request.getPropertyId() != null) {
-            PropertyEntity property = propertyRepository.findById(request.getPropertyId())
-                    .orElseThrow(() -> new AppException(ErrorCode.PROPERTY_NOT_FOUND));
-            existing.setProperty(property);
+
+        roomMapper.updateEntity(request, existing);
+
+        if (request.getCategorySlug() != null) {
+             RoomCategoryEntity category = categoryRepository.findBySlug(request.getCategorySlug())
+                .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
+             existing.setCategory(category);
         }
-        return toResponse(roomRepository.save(existing));
+
+        // Update Policies if provided
+        if (request.getPolicies() != null) {
+            existing.getPolicies().clear();
+            List<RoomPolicyEntity> newPolicies = request.getPolicies().stream()
+                .map(pReq -> {
+                    RoomPolicyEntity p = roomPolicyMapper.toEntity(pReq);
+                    p.setRoom(existing);
+                    return p;
+                })
+                .toList();
+            existing.getPolicies().addAll(newPolicies);
+        }
+
+        // Update Amenities if provided
+        if (request.getAmenityIds() != null) {
+            existing.getAmenities().clear();
+            List<RoomAmenityEntity> newAmenities = request.getAmenityIds().stream()
+                .map(amId -> {
+                    AmenityEntity amenity = amenityRepository.findById(amId)
+                        .orElseThrow(() -> new AppException(ErrorCode.AMENITY_NOT_FOUND));
+                    return RoomAmenityEntity.builder()
+                        .room(existing)
+                        .amenity(amenity)
+                        .quantity(1)
+                        .build();
+                })
+                .collect(Collectors.toList());
+            existing.getAmenities().addAll(newAmenities);
+        }
+
+        RoomEntity saved = roomRepository.save(existing);
+        return roomMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public RoomResponse submitPendingEdit(Integer roomId, RoomRequest request, String ownerId) {
+        if (ownerId == null || ownerId.isBlank()) {
+            throw new AppException(ErrorCode.FORBIDDEN);
+        }
+        RoomEntity room = roomRepository.findByIdAndDeletedAtIsNull(roomId)
+                .orElseThrow(() -> new AppException(ErrorCode.ROOM_NOT_FOUND));
+        PropertyEntity prop = room.getProperty();
+        if (prop == null || !ownerId.trim().equals(prop.getOwnerId())) {
+            throw new AppException(ErrorCode.FORBIDDEN);
+        }
+        RoomApprovalStatus current = parseApproval(room.getApprovalStatus());
+        if (current == RoomApprovalStatus.PENDING) {
+            throw new AppException(ErrorCode.ROOM_EDIT_NOT_ALLOWED);
+        }
+        if (request.getPropertyId() != null) {
+            PropertyEntity p2 = propertyRepository.findById(request.getPropertyId())
+                    .orElseThrow(() -> new AppException(ErrorCode.PROPERTY_NOT_FOUND));
+            if (!ownerId.trim().equals(p2.getOwnerId())) {
+                throw new AppException(ErrorCode.FORBIDDEN);
+            }
+        }
+        RoomRequest toStore;
+        try {
+            toStore = objectMapper.convertValue(request, RoomRequest.class);
+        } catch (IllegalArgumentException ex) {
+            throw new AppException(ErrorCode.INVALID_KEY);
+        }
+        toStore.setApprovalStatus(null);
+        toStore.setRejectionNote(null);
+        if (toStore.getBookingType() == null) {
+            toStore.setBookingType(BookingType.SLOT_BASED);
+        }
+        if (toStore.getStatus() == null) {
+            toStore.setStatus(RoomStatus.ACTIVE);
+        }
+        try {
+            String json = objectMapper.writeValueAsString(toStore);
+            room.setPendingEditPayload(json);
+            room.setPendingEditStatus("PENDING");
+            room.setPendingEditRejectionNote(null);
+            return mapToResponse(roomRepository.save(room));
+        } catch (JsonProcessingException e) {
+            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
+        }
+    }
+
+    @Override
+    @Transactional
+    public RoomResponse approvePendingEdit(Integer roomId) {
+        RoomEntity room = roomRepository.findByIdAndDeletedAtIsNull(roomId)
+                .orElseThrow(() -> new AppException(ErrorCode.ROOM_NOT_FOUND));
+        if (!"PENDING".equals(room.getPendingEditStatus())) {
+            throw new AppException(ErrorCode.ROOM_PENDING_EDIT_MISSING);
+        }
+        if (room.getPendingEditPayload() == null || room.getPendingEditPayload().isBlank()) {
+            throw new AppException(ErrorCode.ROOM_PENDING_EDIT_MISSING);
+        }
+        try {
+            RoomRequest req = objectMapper.readValue(room.getPendingEditPayload(), RoomRequest.class);
+            room.setPendingEditPayload(null);
+            room.setPendingEditStatus(null);
+            room.setPendingEditRejectionNote(null);
+            roomRepository.save(room);
+            req.setApprovalStatus(RoomApprovalStatus.APPROVED);
+            req.setRejectionNote(null);
+            return update(roomId, req);
+        } catch (JsonProcessingException e) {
+            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
+        }
+    }
+
+    @Override
+    @Transactional
+    public RoomResponse rejectPendingEdit(Integer roomId, String rejectionNote) {
+        RoomEntity room = roomRepository.findByIdAndDeletedAtIsNull(roomId)
+                .orElseThrow(() -> new AppException(ErrorCode.ROOM_NOT_FOUND));
+        if (!"PENDING".equals(room.getPendingEditStatus())) {
+            throw new AppException(ErrorCode.ROOM_PENDING_EDIT_MISSING);
+        }
+        room.setPendingEditPayload(null);
+        room.setPendingEditStatus(null);
+        room.setPendingEditRejectionNote(rejectionNote != null && !rejectionNote.isBlank() ? rejectionNote.trim() : null);
+        return mapToResponse(roomRepository.save(room));
+    }
+
+    @Override
+    @Transactional
+    public RoomResponse updateStatus(Integer id, RoomStatus status) {
+        if (status == null) {
+            throw new AppException(ErrorCode.INVALID_KEY);
+        }
+        RoomEntity room = roomRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new AppException(ErrorCode.ROOM_NOT_FOUND));
+        room.setStatus(status.name());
+        return mapToResponse(roomRepository.save(room));
     }
 
     @Override
     @Transactional
     public void deleteById(Integer id) {
-        if (!roomRepository.existsById(id)) {
-            throw new AppException(ErrorCode.ROOM_NOT_FOUND);
-        }
-        roomRepository.deleteById(id);
+        RoomEntity room = roomRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new AppException(ErrorCode.ROOM_NOT_FOUND));
+        room.setDeletedAt(LocalDateTime.now());
+        room.setIsActive(false);
+        // Giải phóng UNIQUE(slug) — slug mới ngắn, duy nhất
+        room.setSlug("deleted-" + id + "-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12));
+        roomRepository.save(room);
     }
 
-    private static void applyCreate(RoomEntity e, RoomRequest r) {
-        e.setRoomType(enumName(r.getRoomType()));
-        e.setBookingType(enumName(r.getBookingType()));
-        e.setName(r.getName());
-        e.setCapacity(r.getCapacity());
-        e.setArea(r.getArea());
-        e.setLocation(r.getLocation());
-        e.setImages(r.getImages());
-        e.setDescription(r.getDescription());
-        e.setStatus(enumName(r.getStatus()));
-        e.setApprovalStatus(enumName(r.getApprovalStatus()));
-        e.setRejectionNote(r.getRejectionNote());
-        e.setDeletedAt(r.getDeletedAt());
-        e.setIsActive(r.getIsActive() != null ? r.getIsActive() : Boolean.TRUE);
-    }
-
-    private static void applyUpdate(RoomEntity e, RoomRequest r) {
-        if (r.getRoomType() != null) {
-            e.setRoomType(r.getRoomType().name());
-        }
-        if (r.getBookingType() != null) {
-            e.setBookingType(r.getBookingType().name());
-        }
-        if (r.getName() != null) {
-            e.setName(r.getName());
-        }
-        if (r.getCapacity() != null) {
-            e.setCapacity(r.getCapacity());
-        }
-        if (r.getArea() != null) {
-            e.setArea(r.getArea());
-        }
-        if (r.getLocation() != null) {
-            e.setLocation(r.getLocation());
-        }
-        if (r.getImages() != null) {
-            e.setImages(r.getImages());
-        }
-        if (r.getDescription() != null) {
-            e.setDescription(r.getDescription());
-        }
-        if (r.getStatus() != null) {
-            e.setStatus(r.getStatus().name());
-        }
-        if (r.getApprovalStatus() != null) {
-            e.setApprovalStatus(r.getApprovalStatus().name());
-        }
-        if (r.getRejectionNote() != null) {
-            e.setRejectionNote(r.getRejectionNote());
-        }
-        if (r.getDeletedAt() != null) {
-            e.setDeletedAt(r.getDeletedAt());
-        }
-        if (r.getIsActive() != null) {
-            e.setIsActive(r.getIsActive());
-        }
-    }
-
-    private static String enumName(Enum<?> e) {
-        return e == null ? null : e.name();
-    }
-
-    private static RoomType parseRoomType(String s) {
-        if (s == null || s.isBlank()) {
-            return null;
-        }
-        try {
-            return RoomType.valueOf(s);
-        } catch (IllegalArgumentException ex) {
-            return null;
-        }
-    }
-
-    private static BookingType parseBookingType(String s) {
-        if (s == null || s.isBlank()) {
-            return null;
-        }
-        try {
-            return BookingType.valueOf(s);
-        } catch (IllegalArgumentException ex) {
-            return null;
-        }
-    }
-
-    private static RoomStatus parseRoomStatus(String s) {
-        if (s == null || s.isBlank()) {
-            return null;
-        }
-        try {
-            return RoomStatus.valueOf(s);
-        } catch (IllegalArgumentException ex) {
-            return null;
-        }
+    private RoomResponse mapToResponse(RoomEntity e) {
+        RoomResponse response = roomMapper.toResponse(e);
+        response.setSchedules(roomScheduleService.listByRoomId(e.getId()));
+        return response;
     }
 
     private static RoomApprovalStatus parseApproval(String s) {
@@ -202,29 +355,5 @@ public class RoomServiceImpl implements RoomService {
         } catch (IllegalArgumentException ex) {
             return null;
         }
-    }
-
-    private RoomResponse toResponse(RoomEntity e) {
-        Integer propertyId = e.getProperty() != null ? e.getProperty().getId() : null;
-        return RoomResponse.builder()
-                .id(e.getId())
-                .propertyId(propertyId)
-                .roomType(parseRoomType(e.getRoomType()))
-                .bookingType(parseBookingType(e.getBookingType()))
-                .name(e.getName())
-                .slug(e.getSlug())
-                .capacity(e.getCapacity())
-                .area(e.getArea())
-                .location(e.getLocation())
-                .images(e.getImages())
-                .description(e.getDescription())
-                .status(parseRoomStatus(e.getStatus()))
-                .approvalStatus(parseApproval(e.getApprovalStatus()))
-                .rejectionNote(e.getRejectionNote())
-                .avgRating(e.getAvgRating())
-                .reviewCount(e.getReviewCount())
-                .deletedAt(e.getDeletedAt())
-                .isActive(e.getIsActive())
-                .build();
     }
 }

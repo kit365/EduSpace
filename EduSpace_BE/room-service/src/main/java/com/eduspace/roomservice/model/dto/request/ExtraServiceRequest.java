@@ -1,5 +1,6 @@
 package com.eduspace.roomservice.model.dto.request;
 
+import com.eduspace.roomservice.common.enums.PriceUnit;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -15,9 +16,11 @@ import lombok.experimental.FieldDefaults;
 public class ExtraServiceRequest {
 
     Integer propertyId;
-    String name;
-    String description;
+    String nameVi;
+    String nameEn;
+    String descriptionVi;
+    String descriptionEn;
     Long price;
-    String priceUnit; // PER_DAY, PER_HOUR, PER_STAY
+    PriceUnit priceUnit;
     String status;    // ACTIVE, INACTIVE
 }

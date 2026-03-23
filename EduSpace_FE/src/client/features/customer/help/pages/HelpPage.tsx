@@ -67,7 +67,7 @@ export function HelpPage() {
                             <h2 className="text-4xl font-black mb-4">Still need answers?</h2>
                             <p className="text-red-100 text-lg font-bold mb-8">Our support team is available 24/7 to help you find the space you need.</p>
                             <button
-                                onClick={() => navigate('/messages')}
+                                onClick={() => window.dispatchEvent(new CustomEvent('open-support-chat'))}
                                 className="bg-white text-red-500 px-10 py-5 rounded-2xl font-black flex items-center gap-3 hover:translate-x-2 transition-transform shadow-xl shadow-red-600/20"
                             >
                                 <MessageCircle className="w-6 h-6" />

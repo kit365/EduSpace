@@ -87,9 +87,10 @@ export interface OperatingHour {
 
 export interface BlockedSlot {
   id: string;
-  date: string;
-  startTime: string;
-  endTime: string;
+  /** YYYY-MM-DDTHH:mm (datetime-local) — bắt đầu khoảng chặn */
+  startDatetime: string;
+  /** Kết thúc (có thể khác ngày, qua đêm) */
+  endDatetime: string;
   reason: string;
   branchId?: number;
 }

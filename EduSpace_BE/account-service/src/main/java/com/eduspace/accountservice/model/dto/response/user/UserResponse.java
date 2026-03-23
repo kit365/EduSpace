@@ -14,6 +14,8 @@ import java.util.Set;
 public class UserResponse {
 
     String id;
+    /** Keycloak subject; same id used in conversation-service participant ids and JWT `sub`. */
+    String keycloakId;
     String email;
     String fullName;
     String phoneNumber;
@@ -28,6 +30,7 @@ public class UserResponse {
     String postalCode;
     String taxId;
     String hostType;
+    String organizationName;
     String verificationDocument;
     String verificationStatus;
     Boolean isActive;

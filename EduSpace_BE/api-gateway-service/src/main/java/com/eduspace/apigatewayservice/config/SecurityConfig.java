@@ -51,7 +51,22 @@ public class SecurityConfig {
                 .authorizeExchange(exchanges -> exchanges
                         // Public endpoints - no authentication required
                         .pathMatchers("/api/v1/auth/**").permitAll()
+                        .pathMatchers("/api/v1/public/**").permitAll() // New: make all public sub-paths accessible
                         .pathMatchers("/actuator/**").permitAll()
+
+                        // Room Service public endpoints (Search, Details, etc.)
+                        .pathMatchers("/api/v1/rooms", "/api/v1/rooms/**",
+                                      "/api/v1/properties", "/api/v1/properties/**",
+                                      "/api/v1/amenities", "/api/v1/amenities/**",
+                                      "/api/v1/room-categories", "/api/v1/room-categories/**",
+                                      "/api/v1/reviews", "/api/v1/reviews/**").permitAll()
+                        
+                        // Account Service public endpoints
+                        .pathMatchers("/api/v1/accounts/public/**").permitAll()
+
+                        // Conversation Service endpoints - allow guests to start support chats
+                        .pathMatchers("/api/v1/conversations/**", "/api/v1/messages/**", "/ws/**").permitAll()
+                        .pathMatchers("/media/**").permitAll()
 
                         // Swagger/OpenAPI docs pass-through
                         .pathMatchers("/swagger-ui/**", "/swagger-ui.html").permitAll()
@@ -120,10 +135,10 @@ public class SecurityConfig {
     @Bean
     public org.springframework.web.cors.reactive.CorsConfigurationSource corsConfigurationSource() {
         org.springframework.web.cors.CorsConfiguration configuration = new org.springframework.web.cors.CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("*"));
-        configuration.setAllowedMethods(List.of("*"));
+        configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://127.0.0.1:5173"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(List.of("*"));
-        configuration.setAllowCredentials(false);
+        configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
         org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource source = new org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource();

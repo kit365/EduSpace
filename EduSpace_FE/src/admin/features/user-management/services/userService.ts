@@ -19,6 +19,9 @@ interface ApiUser {
     phoneNumber?: string;
     avatarUrl?: string;
     isActive?: boolean;
+    isEmailVerified?: boolean;
+    verificationStatus?: string;
+    verificationDocument?: string;
     roles?: string[];
     createdAt?: string;
     [key: string]: unknown;
@@ -41,6 +44,13 @@ function mapApiUserToUser(api: ApiUser): User {
         : roles.includes('TUTOR') ? 'host'
         : roles.includes('STUDENT') ? 'renter'
         : ('renter' as User['role']);
+    const rawKyc = (api.verificationStatus ?? '').toLowerCase();
+    const kycStatus: User['kycStatus'] =
+        rawKyc === 'pending' ? 'pending'
+            : rawKyc === 'verified' || rawKyc === 'approved' ? 'verified'
+                : rawKyc === 'rejected' ? 'rejected'
+                    : 'not_submitted';
+
     return {
         id: api.id ?? '',
         name: api.fullName ?? api.email ?? '-',
@@ -49,8 +59,9 @@ function mapApiUserToUser(api: ApiUser): User {
         avatar: api.avatarUrl,
         role,
         accountStatus: api.isActive === false ? 'suspended' : 'active',
-        kycStatus: 'not_submitted',
-        isVerified: false,
+        kycStatus,
+        isVerified: Boolean(api.isEmailVerified),
+        verificationDocs: api.verificationDocument ? [api.verificationDocument] : [],
         joinedAt: api.createdAt ? new Date(api.createdAt).toISOString() : new Date().toISOString()
     };
 }
@@ -80,5 +91,16 @@ export const userService = {
             limit: pageData.size ?? 10,
             totalPages: pageData.totalPages ?? 0
         };
-    }
+    },
+
+    approveUserKyc: async (userId: string): Promise<void> => {
+        await apiClient.post(`/api/v1/accounts/admin/users/${userId}/kyc/approve`);
+    },
+
+    rejectUserKyc: async (userId: string, reason?: string): Promise<void> => {
+        const query = reason && reason.trim()
+            ? `?reason=${encodeURIComponent(reason.trim())}`
+            : '';
+        await apiClient.post(`/api/v1/accounts/admin/users/${userId}/kyc/reject${query}`);
+    },
 };

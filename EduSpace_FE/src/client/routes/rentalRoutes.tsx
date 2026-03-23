@@ -9,6 +9,7 @@ import { FinancePage } from "../features/host/pages/FinancePage";
 import { KycPage } from "../features/host/pages/KycPage";
 import { StaffManagementPage } from "../features/host/pages/StaffManagementPage";
 import { RoomStatusPage } from "../features/host/pages/RoomStatusPage";
+import { RoomLockPage } from "../features/host/pages/RoomLockPage";
 import { SchedulePage } from "../features/host/pages/SchedulePage";
 import { StaffCheckoutPage } from "../features/host/pages/StaffCheckoutPage";
 import { AdsPage } from "../features/host/pages/AdsPage";
@@ -47,6 +48,7 @@ export const rentalRoutes: RouteObject[] = [
             { path: 'ads', element: <AdsPage /> },
             // FR-15: Room Status
             { path: 'room-status', element: <RoomStatusPage /> },
+            { path: 'room-lock', element: <RoomLockPage /> },
             // Host Profile
             { path: 'profile', element: <HostProfilePage /> },
             // Host Settings

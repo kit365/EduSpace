@@ -48,7 +48,7 @@ public class RoomAdServiceImpl implements RoomAdService {
     public RoomAdResponse create(RoomAdRequest request) {
         RoomAdEntity entity = roomAdMapper.toEntity(request);
         if (request.getRoomId() != null) {
-            RoomEntity room = roomRepository.findById(request.getRoomId())
+            RoomEntity room = roomRepository.findByIdAndDeletedAtIsNull(request.getRoomId())
                     .orElseThrow(() -> new AppException(ErrorCode.ROOM_NOT_FOUND));
             entity.setRoom(room);
         }
@@ -67,7 +67,7 @@ public class RoomAdServiceImpl implements RoomAdService {
                 .orElseThrow(() -> new AppException(ErrorCode.ROOM_AD_NOT_FOUND));
         roomAdMapper.updateEntity(request, existing);
         if (request.getRoomId() != null) {
-            RoomEntity room = roomRepository.findById(request.getRoomId())
+            RoomEntity room = roomRepository.findByIdAndDeletedAtIsNull(request.getRoomId())
                     .orElseThrow(() -> new AppException(ErrorCode.ROOM_NOT_FOUND));
             existing.setRoom(room);
         }

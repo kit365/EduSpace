@@ -13,6 +13,7 @@ import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -26,11 +27,21 @@ public class RoomResponse {
     RoomType roomType;
     BookingType bookingType;
     String name;
+    String location;
     String slug;
     Integer capacity;
     BigDecimal area;
-    String location;
+    String roomNumber;
+    String floorNumber;
+    Boolean is24_7;
+    List<RoomScheduleResponse> schedules;
+    List<RoomPolicyResponse> policies;
+    List<RoomAmenityResponse> amenities;
+    BigDecimal pricePerHour;
+    BigDecimal pricePerDay;
+    Integer minBookingHours;
     String images;
+    String imagesAlt;
     String description;
     RoomStatus status;
     RoomApprovalStatus approvalStatus;
@@ -39,4 +50,20 @@ public class RoomResponse {
     Integer reviewCount;
     LocalDateTime deletedAt;
     Boolean isActive;
+
+    /** Thời điểm cập nhật bản ghi (audit UI). */
+    LocalDateTime updatedAt;
+
+    /** NULL / NONE / PENDING — chờ duyệt chỉnh sửa. */
+    String pendingEditStatus;
+    String pendingEditRejectionNote;
+    /** JSON RoomRequest — admin xem trước khi duyệt. */
+    String pendingEditPayload;
+
+    BigDecimal latitude;
+    BigDecimal longitude;
+    String approvedBy;
+    LocalDateTime approvedAt;
+
+    RoomCategoryResponse category;
 }

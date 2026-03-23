@@ -13,24 +13,20 @@ public final class ApiPaths {
         private Rooms() {
         }
         public static final String BASE_PATH = BASE + "/rooms";
+        public static final String PUBLIC_PATH = BASE + "/public/rooms";
     }
 
     public static final class Properties {
         private Properties() {
         }
         public static final String BASE_PATH = BASE + "/properties";
+        public static final String PUBLIC_PATH = BASE + "/public/properties";
     }
 
     public static final class AdsPackages {
         private AdsPackages() {
         }
         public static final String BASE_PATH = BASE + "/ads-packages";
-    }
-
-    public static final class RoomSlots {
-        private RoomSlots() {
-        }
-        public static final String BASE_PATH = BASE + "/room-slots";
     }
 
     public static final class Amenities {
@@ -73,5 +69,12 @@ public final class ApiPaths {
         private ExtraServices() {
         }
         public static final String BASE_PATH = BASE + "/extra-services";
+    }
+
+    public static final class RoomCategories {
+        private RoomCategories() {
+        }
+        public static final String BASE_PATH = BASE + "/room-categories";
+        public static final String PUBLIC_PATH = BASE + "/public/room-categories";
     }
 }

@@ -53,6 +53,19 @@ spring:
     encoding: UTF-8
     check-template-location: true
 
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:19092}
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP:account-service-group}
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.eduspace.*"
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
 eureka:
   client:
     service-url:
@@ -67,6 +80,12 @@ app:
   frontend-url: ${FRONTEND_URL:http://localhost:${FRONTEND_PORT:5173}}
   verification:
     token-expiry-hours: 24
+  kafka:
+    topics:
+      assign-staff-request: ${KAFKA_TOPIC_ASSIGN_STAFF_REQUEST:eduspace.assign-staff.request}
+      assign-staff-result: ${KAFKA_TOPIC_ASSIGN_STAFF_RESULT:eduspace.assign-staff.result}
+  support-presence:
+    window-ms: ${SUPPORT_PRESENCE_WINDOW_MS:90000}
 
 springdoc:
   swagger-ui:
