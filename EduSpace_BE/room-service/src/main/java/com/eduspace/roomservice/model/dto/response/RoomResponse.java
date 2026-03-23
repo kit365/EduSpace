@@ -35,6 +35,7 @@ public class RoomResponse {
     String floorNumber;
     Boolean is24_7;
     List<RoomScheduleResponse> schedules;
+    List<RoomTimeslotResponse> timeslots;
     List<RoomPolicyResponse> policies;
     List<RoomAmenityResponse> amenities;
     BigDecimal pricePerHour;

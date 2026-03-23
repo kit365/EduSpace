@@ -86,14 +86,14 @@ export interface BookingPriceCalculationResult {
 }
 
 export interface CreateBookingReq {
-    spaceId: number;
-    startDate: string;
-    durationDays: number;
-    startTime: string;
-    endTime: string;
-    guests: number;
-    paymentMethod: 'card' | 'bank' | 'momo';
-    contactInfo: {
+    roomId: number;
+    userId: string;
+    bookingDate: string;
+    slotId: number;
+    durationValue: number;
+    durationUnit: 'MINUTE' | 'HOUR';
+    paymentMethod?: 'card' | 'bank' | 'momo';
+    contactInfo?: {
         fullName: string;
         email: string;
         phone: string;

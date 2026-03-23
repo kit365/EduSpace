@@ -1,6 +1,19 @@
 import apiClient from '@/lib/axios';
 import { ROOM_API } from '@/config/api';
-import type { AmenityDto, PageResponse, RoomCategoryDto, RoomCreateRequest, RoomDto, RoomOperationalStatus, RoomScheduleSaveItem } from '../types';
+import type {
+  AmenityDto,
+  PageResponse,
+  RoomAvailabilityCheckRequest,
+  RoomAvailabilityCheckResponse,
+  RoomCategoryDto,
+  RoomCreateRequest,
+  RoomDto,
+  RoomOperationalStatus,
+  RoomPricingQuoteRequest,
+  RoomPricingQuoteResponse,
+  RoomScheduleSaveItem,
+  RoomTimeslotDto,
+} from '../types';
 
 function unwrap<T>(res: unknown): T {
   if (res && typeof res === 'object' && 'data' in res && (res as { data: unknown }).data !== undefined) {
@@ -52,6 +65,22 @@ export const roomApiService = {
     const params = new URLSearchParams({ ownerId: ownerId.trim() });
     const res = await apiClient.put(`${ROOM_API.ROOMS}/${roomId}/schedules?${params}`, items);
     return unwrap<RoomDto>(res);
+  },
+
+  getTimeslots: async (roomId: number, bookingDate: string): Promise<RoomTimeslotDto[]> => {
+    const params = new URLSearchParams({ bookingDate });
+    const res = await apiClient.get(`${ROOM_API.ROOMS}/${roomId}/timeslots?${params}`);
+    return unwrap<RoomTimeslotDto[]>(res);
+  },
+
+  checkAvailability: async (roomId: number, body: RoomAvailabilityCheckRequest): Promise<RoomAvailabilityCheckResponse> => {
+    const res = await apiClient.post(`${ROOM_API.ROOMS}/${roomId}/availability/check`, body);
+    return unwrap<RoomAvailabilityCheckResponse>(res);
+  },
+
+  quotePrice: async (roomId: number, body: RoomPricingQuoteRequest): Promise<RoomPricingQuoteResponse> => {
+    const res = await apiClient.post(`${ROOM_API.ROOMS}/${roomId}/pricing/quote`, body);
+    return unwrap<RoomPricingQuoteResponse>(res);
   },
 
   /** PATCH /rooms/{id}/status — chỉ đổi trạng thái vận hành. */

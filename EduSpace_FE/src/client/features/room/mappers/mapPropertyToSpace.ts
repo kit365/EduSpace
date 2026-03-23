@@ -143,6 +143,7 @@ export function propertyToSpaceDetails(
     reviews: [],
     availableSlots: undefined,
     schedules: rooms[0]?.schedules || [], // Simplification for property level
+    timeslots: rooms[0]?.timeslots || [],
     is24_7: rooms[0]?.is24_7 ?? false,
   };
 }
@@ -204,6 +205,7 @@ export function roomAndPropertyToSpaceDetails(
       icon: p.logo ?? undefined
     })),
     schedules: room.schedules || [],
+    timeslots: room.timeslots || [],
     is24_7: room.is24_7 ?? false,
   };
 }
