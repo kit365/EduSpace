@@ -13,8 +13,8 @@ type RoomOption = { id: number; name: string; branchId: number };
 
 type RoomBlockRow = {
   id: number;
-  roomId: number;
-  roomName: string;
+  propertyId: number;
+  branchLabel: string;
   startDatetime: string;
   endDatetime: string;
   reason: string;
@@ -31,11 +31,12 @@ function toLocalDateTimeIso(dt: string): string {
   return dt.length === 16 ? `${dt}:00` : dt;
 }
 
-function apiBlockToRow(block: RoomBlockDto, roomNameById: Map<number, string>): RoomBlockRow {
+function apiBlockToRow(block: RoomBlockDto, branchNameByPropertyId: Map<number, string>): RoomBlockRow {
   return {
     id: block.id,
-    roomId: block.roomId,
-    roomName: roomNameById.get(block.roomId) ?? `Phòng #${block.roomId}`,
+    propertyId: block.propertyId,
+    branchLabel:
+      branchNameByPropertyId.get(block.propertyId) ?? `Cơ sở #${block.propertyId}`,
     startDatetime: block.startDatetime,
     endDatetime: block.endDatetime,
     reason: (block.reason && block.reason.trim()) || '—',
@@ -65,7 +66,7 @@ function formatRangeVi(start: string, end: string): string {
 }
 
 export function RoomLockPage() {
-  const { selectedBranch } = useBranch();
+  const { selectedBranch, branches } = useBranch();
 
   const [rooms, setRooms] = useState<RoomDto[]>([]);
   const [blocks, setBlocks] = useState<RoomBlockRow[]>([]);
@@ -98,11 +99,11 @@ export function RoomLockPage() {
       }
       const roomList = await roomApiService.getAll({ ownerId: profile.id });
       setRooms(roomList);
-      const roomIds = new Set(roomList.map((r) => r.id));
-      const nameById = new Map(roomList.map((r) => [r.id, r.name] as const));
+      const propertyIds = new Set(roomList.map((r) => r.propertyId));
+      const branchNameByPropertyId = new Map(branches.map((br) => [br.id, br.name] as const));
       const allBlocks = await roomBlockService.listAll();
-      const mine = allBlocks.filter((b) => roomIds.has(b.roomId));
-      setBlocks(mine.map((b) => apiBlockToRow(b, nameById)));
+      const mine = allBlocks.filter((b) => propertyIds.has(b.propertyId));
+      setBlocks(mine.map((b) => apiBlockToRow(b, branchNameByPropertyId)));
     } catch (error) {
       setRooms([]);
       setBlocks([]);
@@ -110,7 +111,7 @@ export function RoomLockPage() {
     } finally {
       setLoadingData(false);
     }
-  }, []);
+  }, [branches]);
 
   useEffect(() => {
     void loadData();
@@ -133,8 +134,8 @@ export function RoomLockPage() {
 
   const filteredBlocks = useMemo(() => {
     if (!selectedBranch) return blocks;
-    const ids = new Set(visibleRooms.map((r) => r.id));
-    return blocks.filter((b) => ids.has(b.roomId));
+    const pids = new Set(visibleRooms.map((r) => r.branchId));
+    return blocks.filter((b) => pids.has(b.propertyId));
   }, [blocks, selectedBranch, visibleRooms]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -156,10 +157,15 @@ export function RoomLockPage() {
       showToast.error('Không xác định được tài khoản host.');
       return;
     }
+    const propertyId = roomOptions.find((r) => r.id === roomId)?.branchId;
+    if (!propertyId) {
+      showToast.error('Không xác định được cơ sở.');
+      return;
+    }
     setSubmitting(true);
     try {
       await roomBlockService.create({
-        roomId,
+        propertyId,
         startDatetime: toLocalDateTimeIso(startDt),
         endDatetime: toLocalDateTimeIso(endDt),
         reason: reason.trim() || null,
@@ -336,7 +342,7 @@ export function RoomLockPage() {
                       const st = blockStatusLabel(row.endDatetime);
                       return (
                         <tr key={row.id} className="hover:bg-gray-50/80 transition-colors">
-                          <td className="px-4 py-4 font-bold text-gray-900">{row.roomName}</td>
+                          <td className="px-4 py-4 font-bold text-gray-900">{row.branchLabel}</td>
                           <td className="px-4 py-4 text-gray-600 font-medium whitespace-nowrap">
                             {formatRangeVi(row.startDatetime, row.endDatetime)}
                           </td>

@@ -1,21 +1,35 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { LayoutGrid, List, Calendar, DollarSign, Settings, LogOut, Shield, Users, ClipboardCheck, Clock, Megaphone, Building2 } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import { useProfile } from '../../customer/profile/hooks/useProfile';
 
 interface RentalSidebarProps {
     isCollapsed?: boolean;
 }
 
+function initialsFromName(name: string | undefined): string {
+    if (!name?.trim()) return '?';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
 export function RentalSidebar({ isCollapsed = false }: RentalSidebarProps) {
     const navigate = useNavigate();
+    const { profile, loading: profileLoading } = useProfile();
     const [hoverTooltip, setHoverTooltip] = useState<{ label: string; x: number; y: number } | null>(null);
+
+    const displayName = profile?.name?.trim() || '—';
+    const initials = useMemo(() => initialsFromName(profile?.name), [profile?.name]);
+    const avatarUrl = profile?.avatar?.trim();
+    const showVerifiedBadge = Boolean(profile?.verified || profile?.kycStatus === 'verified');
 
     const mainMenu = [
         { path: '/rental/dashboard', label: 'Dashboard', icon: LayoutGrid },
-        { path: '/rental/spaces', label: 'Phòng của tôi', icon: List },
         { path: '/rental/branches', label: 'Chi nhánh', icon: Building2 },
-        { path: '/rental/room-status', label: 'Trạng thái phòng', icon: Building2 },
         { path: '/rental/schedule', label: 'Lịch & Giờ', icon: Clock },
+        { path: '/rental/spaces', label: 'Phòng của tôi', icon: List },
+        { path: '/rental/room-status', label: 'Trạng thái phòng', icon: Building2 },
         { path: '/rental/calendar', label: 'Lịch đặt phòng', icon: Calendar },
     ];
 
@@ -98,16 +112,50 @@ export function RentalSidebar({ isCollapsed = false }: RentalSidebarProps) {
                     onClick={() => navigate('/rental/profile')}
                     className={`flex items-center gap-3 ${isCollapsed ? 'mb-2 p-2 rounded-lg' : 'mb-4 p-3 rounded-xl'} bg-white border border-gray-100 shadow-sm cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all ${isCollapsed ? 'justify-center' : ''}`}
                 >
-                    <div className={`${isCollapsed ? 'w-9 h-9' : 'w-10 h-10'} bg-gradient-to-br from-gray-800 to-black rounded-lg flex items-center justify-center text-white font-black shadow-md shrink-0`}>
-                        BN
-                    </div>
+                    {profileLoading ? (
+                        <div
+                            className={`${isCollapsed ? 'w-9 h-9' : 'w-10 h-10'} rounded-lg bg-gray-200 animate-pulse shrink-0`}
+                            aria-hidden
+                        />
+                    ) : avatarUrl ? (
+                        <img
+                            src={avatarUrl}
+                            alt=""
+                            className={`${isCollapsed ? 'w-9 h-9' : 'w-10 h-10'} rounded-lg object-cover shadow-md shrink-0`}
+                        />
+                    ) : (
+                        <div
+                            className={`${isCollapsed ? 'w-9 h-9' : 'w-10 h-10'} bg-gradient-to-br from-gray-800 to-black rounded-lg flex items-center justify-center text-white text-xs font-black shadow-md shrink-0`}
+                        >
+                            {initials}
+                        </div>
+                    )}
                     {!isCollapsed && (
                         <div className="flex flex-col flex-1 min-w-0">
-                            <div className="font-bold text-gray-900 truncate group-hover:text-red-500 transition-colors">Bích Ngọc</div>
-                            <div className="text-xs text-green-500 font-bold flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-                                Host · Verified
-                            </div>
+                            {profileLoading ? (
+                                <>
+                                    <div className="h-4 w-28 bg-gray-200 rounded animate-pulse mb-1.5" />
+                                    <div className="h-3 w-24 bg-gray-100 rounded animate-pulse" />
+                                </>
+                            ) : (
+                                <>
+                                    <div className="font-bold text-gray-900 truncate group-hover:text-red-500 transition-colors">
+                                        {displayName}
+                                    </div>
+                                    <div
+                                        className={`text-xs font-bold flex items-center gap-1 ${
+                                            showVerifiedBadge ? 'text-green-500' : 'text-amber-600'
+                                        }`}
+                                    >
+                                        <span
+                                            className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                                showVerifiedBadge ? 'bg-green-500 animate-pulse' : 'bg-amber-500'
+                                            }`}
+                                        />
+                                        {showVerifiedBadge ? 'Host · Verified' : 'Host · Chưa xác minh'}
+                                    </div>
+                                </>
+                            )}
                         </div>
                     )}
                 </div>
