@@ -43,7 +43,7 @@ export interface ChatMessage {
     editedAt?: string | null;
     mediaUrl?: string | null;
     mediaType?: string | null;
-    reactions?: string | null;
+    reactions?: Record<string, string[]> | null;
     replyToMessageId?: string | null;
     sender?: PublicUserProfile | null;
 }
@@ -73,4 +73,21 @@ export interface WebSocketReadReceiptPayload {
     conversationId: string;
     readerId: string;
     readAt: string;
+}
+
+export interface WebSocketEditedPayload {
+    messageId: string;
+    newContent: string;
+    editedAt?: string | null;
+}
+
+export interface WebSocketDeletedPayload {
+    messageId: string;
+    deletedAt?: string | null;
+}
+
+export interface WebSocketReactionPayload {
+    messageId: string;
+    emoji: string;
+    reactorId: string;
 }

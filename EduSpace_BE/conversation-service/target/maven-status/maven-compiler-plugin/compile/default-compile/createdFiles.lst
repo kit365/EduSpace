@@ -48,6 +48,7 @@ com\eduspace\conversationservice\presentation\constants\ConversationPaths$Messag
 com\eduspace\conversationservice\persistence\repository\ChatMessageRepository.class
 com\eduspace\conversationservice\infrastructure\messaging\consumer\StaffAssignmentResultConsumer.class
 com\eduspace\conversationservice\model\dto\response\ChatMessageResponse.class
+com\eduspace\conversationservice\business\serviceimpl\AzureCommunicationServiceImpl.class
 com\eduspace\conversationservice\ConversationServiceApplication.class
 com\eduspace\conversationservice\infrastructure\config\websocket\WebSocketConfig.class
 com\eduspace\conversationservice\business\service\JwtConversationUserIdResolver.class
@@ -56,6 +57,7 @@ com\eduspace\conversationservice\business\serviceimpl\ChatServiceImpl.class
 com\eduspace\conversationservice\infrastructure\mapper\ConversationMapper.class
 com\eduspace\conversationservice\model\dto\response\ApiResponse$ApiResponseBuilder.class
 com\eduspace\conversationservice\business\service\SagaService.class
+com\eduspace\conversationservice\business\service\AzureCommunicationService.class
 com\eduspace\conversationservice\model\dto\request\CreateConversationRequest.class
 com\eduspace\conversationservice\model\entity\OutboxEventEntity$Status.class
 com\eduspace\conversationservice\model\entity\ConversationEntity.class

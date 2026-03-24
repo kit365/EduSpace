@@ -34,5 +34,13 @@ public interface VideoCallRepository extends JpaRepository<VideoCallEntity, Stri
             where v.callStatus = 'INITIATED' and v.startedAt < :cutoff
             """)
     List<VideoCallEntity> findStaleInitiatedCalls(@Param("cutoff") LocalDateTime cutoff);
+
+    @Query("""
+            select v from VideoCallEntity v
+            where (v.callStatus = 'INITIATED' or v.callStatus = 'ACCEPTED' or v.callStatus = 'CONNECTED')
+              and v.endedAt is null
+              and v.startedAt < :cutoff
+            """)
+    List<VideoCallEntity> findStaleUnfinishedCalls(@Param("cutoff") LocalDateTime cutoff);
 }
 

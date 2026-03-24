@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
-import { MessageSquare, X, Send, Loader2, Headphones } from 'lucide-react';
+import { MessageSquare, X, Send, Loader2, Headphones, Paperclip } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { messageService } from '../../client/features/customer/messages/services/messageService';
 import type { ChatMessage, Conversation } from '../../client/features/customer/messages/types';
@@ -8,6 +8,14 @@ import { isSupportPlaceholderUserId, SUPPORT_PLACEHOLDER_USER_ID } from '../../c
 import { useResolvedChatUserId } from '../../hooks/useResolvedChatUserId';
 import { useAuthHydrated } from '../../hooks/useAuthHydrated';
 import { SUPPORT_CHAT_SYNC_EVENT, emitSupportChatSync } from '../../client/features/customer/messages/supportChatSync';
+import {
+    appendUniqueMessage,
+    applyDeleteEvent,
+    applyEditEvent,
+    applyReactionEvent,
+    buildChatMessageFromWs,
+    parseMediaUrls,
+} from '../../client/features/customer/messages/utils/chatSyncUtils';
 import {
     clearStoredSupportConversationId,
     getStoredSupportConversationId,
@@ -40,10 +48,14 @@ export function ChatWidget() {
     const [isCreatingChat, setIsCreatingChat] = useState(false);
     const [isMatching, setIsMatching] = useState(false);
     const [onlineStaffCount, setOnlineStaffCount] = useState<number | null>(null);
+    const [selectedImages, setSelectedImages] = useState<File[]>([]);
+    const [showImagePreview, setShowImagePreview] = useState(false);
+    const [isSendingImages, setIsSendingImages] = useState(false);
 
     const authHydrated = useAuthHydrated();
     const { chatUserId: currentUserId, identityReady } = useResolvedChatUserId();
     const scrollRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     /** Avoid hammering GET /conversations on every CONVERSATION_ACTIVITY / reconnect. */
     const lastListFetchAtRef = useRef(0);
     /** Always current — `loadSupportThread` must not read stale `conversation` from closure. */
@@ -71,7 +83,7 @@ export function ChatWidget() {
         pane.scrollTop = pane.scrollHeight;
     }, []);
 
-    const { lastMessage, lastConversationEvent } = useChatWebSocket({
+    const { lastMessage, lastConversationEvent, lastEdited, lastDeleted, lastReaction } = useChatWebSocket({
         conversationId: conversation?.conversationId ?? null,
         userId: currentUserId,
         onReconnect: reloadMessages,
@@ -241,31 +253,7 @@ export function ChatWidget() {
     useEffect(() => {
         if (lastMessage && conversation && lastMessage.conversationId === conversation.conversationId) {
             setMessages((prev) => {
-                if (prev.some((m) => m.messageId === lastMessage.messageId)) return prev;
-                return [
-                    ...prev,
-                    {
-                        messageId: lastMessage.messageId,
-                        conversationId: lastMessage.conversationId,
-                        content: lastMessage.content,
-                        messageType: lastMessage.messageType,
-                        sentAt: lastMessage.sentAt,
-                        sender: {
-                            userId: lastMessage.senderId,
-                            fullName: lastMessage.senderUsername,
-                            avatarUrl: null,
-                            email: null,
-                        },
-                        isRead: false,
-                        isDeleted: false,
-                        mediaUrl: lastMessage.mediaUrl,
-                        mediaType: null,
-                        readAt: null,
-                        editedAt: null,
-                        reactions: null,
-                        replyToMessageId: null,
-                    } as ChatMessage,
-                ];
+                return appendUniqueMessage(prev, buildChatMessageFromWs(lastMessage));
             });
 
             if (lastMessage.messageType === 'SYSTEM') {
@@ -284,6 +272,21 @@ export function ChatWidget() {
             }
         }
     }, [lastMessage, conversation, currentUserId]);
+
+    useEffect(() => {
+        if (!lastEdited || !conversation) return;
+        setMessages((prev) => applyEditEvent(prev, lastEdited));
+    }, [lastEdited, conversation]);
+
+    useEffect(() => {
+        if (!lastDeleted || !conversation) return;
+        setMessages((prev) => applyDeleteEvent(prev, lastDeleted));
+    }, [lastDeleted, conversation]);
+
+    useEffect(() => {
+        if (!lastReaction || !conversation) return;
+        setMessages((prev) => applyReactionEvent(prev, lastReaction));
+    }, [lastReaction, conversation]);
 
     const handleSend = async () => {
         if (!input.trim() || loading || isCreatingChat) return;
@@ -318,6 +321,59 @@ export function ChatWidget() {
             console.error('Failed to send message:', err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleDeleteMessage = async (messageId: string) => {
+        if (!window.confirm('Delete this message?')) return;
+        try {
+            await messageService.deleteMessage(messageId);
+            setMessages((prev) => applyDeleteEvent(prev, { messageId }));
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleEditMessage = async (messageId: string, content: string) => {
+        const next = window.prompt('Edit message', content);
+        if (!next || next.trim() === '' || next === content) return;
+        try {
+            await messageService.editMessage(messageId, next);
+            setMessages((prev) => applyEditEvent(prev, { messageId, newContent: next }));
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleAddReaction = async (messageId: string, emoji: string) => {
+        try {
+            await messageService.addReaction(messageId, emoji);
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleUploadClick = () => fileInputRef.current?.click();
+
+    const handleFilesSelected: React.ChangeEventHandler<HTMLInputElement> = (event) => {
+        const files = Array.from(event.target.files ?? []);
+        if (files.length === 0) return;
+        setSelectedImages(files.slice(0, 8));
+        setShowImagePreview(true);
+        event.target.value = '';
+    };
+
+    const handleSendImages = async () => {
+        if (!conversation || selectedImages.length === 0 || isSendingImages) return;
+        setIsSendingImages(true);
+        try {
+            await messageService.uploadImages(conversation.conversationId, selectedImages);
+            setSelectedImages([]);
+            setShowImagePreview(false);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsSendingImages(false);
         }
     };
 
@@ -384,13 +440,81 @@ export function ChatWidget() {
                                 return (
                                     <div key={rowKey} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                                         <div
-                                            className={`max-w-[80%] p-4 rounded-2xl text-sm font-bold shadow-sm ${
+                                            className={`max-w-[80%] p-4 rounded-2xl text-sm font-bold shadow-sm group ${
                                                 isMe
                                                     ? 'bg-red-500 text-white rounded-br-none'
                                                     : 'bg-white text-gray-800 rounded-bl-none border border-gray-100'
                                             }`}
                                         >
-                                            {msg.content}
+                                            {msg.isDeleted ? (
+                                                <p className="italic opacity-70">Message deleted</p>
+                                            ) : msg.messageType === 'IMAGE' ? (
+                                                <div className="space-y-2">
+                                                    <div className="grid grid-cols-2 gap-1">
+                                                        {parseMediaUrls(msg.mediaUrl).map((url, imageIndex) => (
+                                                            <a
+                                                                key={`${rowKey}-img-${imageIndex}`}
+                                                                href={url}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                            >
+                                                                <img
+                                                                    src={url}
+                                                                    alt={`Chat image ${imageIndex + 1}`}
+                                                                    className="rounded-lg object-cover w-full h-24"
+                                                                />
+                                                            </a>
+                                                        ))}
+                                                    </div>
+                                                    {msg.content ? <p>{msg.content}</p> : null}
+                                                </div>
+                                            ) : (
+                                                <p>{msg.content}</p>
+                                            )}
+                                            {msg.editedAt && !msg.isDeleted && (
+                                                <p className="text-[10px] opacity-70 mt-1">edited</p>
+                                            )}
+                                            {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+                                                <div className="mt-2 flex flex-wrap gap-1">
+                                                    {Object.entries(msg.reactions).map(([emoji, users]) => (
+                                                        <span
+                                                            key={`${rowKey}-${emoji}`}
+                                                            className="rounded-full bg-white/90 text-gray-700 px-2 py-0.5 text-[10px]"
+                                                        >
+                                                            {emoji} {users.length}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <div className="mt-2 flex items-center gap-2">
+                                                {!isMe && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => void handleAddReaction(msg.messageId, '❤️')}
+                                                        className="text-[10px] hover:scale-125 transition-transform"
+                                                    >
+                                                        ❤️
+                                                    </button>
+                                                )}
+                                                {isMe && !msg.isDeleted && (
+                                                    <>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => void handleEditMessage(msg.messageId, msg.content)}
+                                                            className="text-[10px] opacity-80 hover:opacity-100"
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => void handleDeleteMessage(msg.messageId)}
+                                                            className="text-[10px] opacity-80 hover:opacity-100"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 );
@@ -410,6 +534,21 @@ export function ChatWidget() {
                         {/* Input Area */}
                         <div className="p-6 bg-white border-t border-gray-50">
                             <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-2xl border border-gray-100 focus-within:border-red-200 focus-within:bg-white transition-all">
+                                <button
+                                    type="button"
+                                    onClick={handleUploadClick}
+                                    className="p-2 text-gray-500 hover:text-red-500"
+                                >
+                                    <Paperclip className="w-4 h-4" />
+                                </button>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    className="hidden"
+                                    onChange={handleFilesSelected}
+                                />
                                 <input
                                     type="text"
                                     value={input}
@@ -436,6 +575,68 @@ export function ChatWidget() {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {showImagePreview && selectedImages.length > 0 && (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
+                    <div className="w-full max-w-xl rounded-2xl bg-white shadow-xl overflow-hidden">
+                        <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                            <h3 className="text-sm font-bold text-slate-900">
+                                Send {selectedImages.length} image{selectedImages.length > 1 ? 's' : ''}
+                            </h3>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowImagePreview(false);
+                                    setSelectedImages([]);
+                                }}
+                                className="p-1 rounded-lg hover:bg-slate-100"
+                            >
+                                <X className="w-4 h-4 text-slate-500" />
+                            </button>
+                        </div>
+                        <div className="p-4 max-h-[50vh] overflow-y-auto">
+                            <div className="grid grid-cols-2 gap-2">
+                                {selectedImages.map((file, index) => (
+                                    <div key={`${file.name}-${index}`} className="relative">
+                                        <img
+                                            src={URL.createObjectURL(file)}
+                                            alt={`Preview ${index + 1}`}
+                                            className="w-full aspect-square object-cover rounded-lg"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedImages((prev) => prev.filter((_, i) => i !== index))}
+                                            className="absolute top-1 right-1 p-1 rounded-full bg-black/70 text-white"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="px-4 py-3 border-t border-slate-100 flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowImagePreview(false);
+                                    setSelectedImages([]);
+                                }}
+                                className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                disabled={isSendingImages || selectedImages.length === 0}
+                                onClick={() => void handleSendImages()}
+                                className="px-3 py-1.5 rounded-lg bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 text-sm"
+                            >
+                                {isSendingImages ? 'Sending...' : 'Send images'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Bubble Button */}
             <motion.button

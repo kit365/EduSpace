@@ -1,4 +1,5 @@
 D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\business\saga\handler\StaffAssignmentSagaHandler.java
+D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\business\service\AzureCommunicationService.java
 D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\business\service\ChatService.java
 D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\business\service\JwtConversationUserIdResolver.java
 D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\business\service\MediaStorageService.java
@@ -6,6 +7,7 @@ D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\ja
 D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\business\service\SagaService.java
 D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\business\service\VideoCallNotificationService.java
 D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\business\service\VideoCallService.java
+D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\business\serviceimpl\AzureCommunicationServiceImpl.java
 D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\business\serviceimpl\ChatServiceImpl.java
 D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\business\serviceimpl\LocalMediaStorageServiceImpl.java
 D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\business\serviceimpl\OutboxServiceImpl.java

@@ -111,6 +111,18 @@
             <version>2.7.0</version>
         </dependency>
 
+        <!-- Azure Communication Services -->
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-communication-identity</artifactId>
+            <version>1.4.6</version>
+        </dependency>
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-communication-common</artifactId>
+            <version>1.2.11</version>
+        </dependency>
+
         <dependency>
             <groupId>io.github.cdimascio</groupId>
             <artifactId>dotenv-java</artifactId>

@@ -63,6 +63,9 @@ springdoc:
     persist-authorization: true
 
 app:
+  azure:
+    communication:
+      connection-string: ${AZURE_COMMUNICATION_CONNECTION_STRING:}
   chat:
     # One-time: true → on startup, resolve email in user1_id/user2_id/sender_id to Keycloak id via account-service, then set false.
     backfill-email-participants-on-startup: false

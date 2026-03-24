@@ -13,7 +13,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -44,9 +46,18 @@ public class VideoCallServiceImpl implements VideoCallService {
                     videoCallRepository.save(call);
                 });
 
+        // Cleanup stale unfinished calls to avoid permanent "ongoing call" lock.
+        videoCallRepository.findStaleUnfinishedCalls(LocalDateTime.now().minusMinutes(30))
+                .forEach(call -> {
+                    call.setCallStatus(VideoCallEntity.CallStatus.FAILED);
+                    call.setEndReason("Auto-closed stale call");
+                    call.setEndedAt(LocalDateTime.now());
+                    videoCallRepository.save(call);
+                });
+
         // Prevent overlapping active calls for caller
         if (!videoCallRepository.findActiveCallsForUser(callerUserId).isEmpty()) {
-            throw new RuntimeException("User already has an ongoing call");
+            throw new IllegalArgumentException("User already has an ongoing call");
         }
 
         VideoCallEntity call = VideoCallEntity.builder()
@@ -93,12 +104,16 @@ public class VideoCallServiceImpl implements VideoCallService {
                 .orElseThrow(() -> new RuntimeException("Call not found"));
         ensureParticipant(call, actorUserId);
 
-        call.declineCall(reason == null ? "User declined" : reason);
+        String effectiveReason = reason == null ? "User declined" : reason;
+        call.declineCall(effectiveReason);
         VideoCallEntity saved = videoCallRepository.save(call);
 
-        notificationService.sendCallDeclined(saved, reason);
-        outboxService.addEvent("VideoCall", saved.getId(), "CallDeclined",
-                java.util.Map.of("callSessionId", saved.getCallSessionId(), "actorUserId", actorUserId, "reason", reason));
+        notificationService.sendCallDeclined(saved, effectiveReason);
+        Map<String, Object> declinedPayload = new HashMap<>();
+        declinedPayload.put("callSessionId", saved.getCallSessionId());
+        declinedPayload.put("actorUserId", actorUserId);
+        declinedPayload.put("reason", effectiveReason);
+        outboxService.addEvent("VideoCall", saved.getId(), "CallDeclined", declinedPayload);
         return saved;
     }
 
@@ -110,13 +125,17 @@ public class VideoCallServiceImpl implements VideoCallService {
 
         if (call.getCallStatus() == VideoCallEntity.CallStatus.ENDED) return call;
 
-        call.endCall(reason == null ? "User ended call" : reason);
+        String effectiveReason = reason == null ? "User ended call" : reason;
+        call.endCall(effectiveReason);
         VideoCallEntity saved = videoCallRepository.save(call);
 
-        notificationService.sendCallEnded(saved, reason);
-        outboxService.addEvent("VideoCall", saved.getId(), "CallEnded",
-                java.util.Map.of("callSessionId", saved.getCallSessionId(), "actorUserId", actorUserId, "reason", reason,
-                        "durationMinutes", saved.getDurationMinutes()));
+        notificationService.sendCallEnded(saved, effectiveReason);
+        Map<String, Object> endedPayload = new HashMap<>();
+        endedPayload.put("callSessionId", saved.getCallSessionId());
+        endedPayload.put("actorUserId", actorUserId);
+        endedPayload.put("reason", effectiveReason);
+        endedPayload.put("durationMinutes", saved.getDurationMinutes());
+        outboxService.addEvent("VideoCall", saved.getId(), "CallEnded", endedPayload);
         return saved;
     }
 

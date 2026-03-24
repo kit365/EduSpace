@@ -2,7 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '../../../../../stores/authStore';
 import { getKeycloakSubFromAccessToken } from '../../../../../config/chat';
 import { getOrCreateGuestId } from '../../../../../utils/guest';
-import type { ConversationActivityEvent, WebSocketMessagePayload, WebSocketReadReceiptPayload } from '../types';
+import type {
+    ConversationActivityEvent,
+    WebSocketDeletedPayload,
+    WebSocketEditedPayload,
+    WebSocketMessagePayload,
+    WebSocketReactionPayload,
+    WebSocketReadReceiptPayload,
+} from '../types';
 
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
@@ -37,6 +44,9 @@ export function useChatWebSocket(params: {
     const [lastMessage, setLastMessage] = useState<WebSocketMessagePayload | null>(null);
     const [lastConversationEvent, setLastConversationEvent] = useState<ConversationActivityEvent | null>(null);
     const [lastReadReceipt, setLastReadReceipt] = useState<WebSocketReadReceiptPayload | null>(null);
+    const [lastEdited, setLastEdited] = useState<WebSocketEditedPayload | null>(null);
+    const [lastDeleted, setLastDeleted] = useState<WebSocketDeletedPayload | null>(null);
+    const [lastReaction, setLastReaction] = useState<WebSocketReactionPayload | null>(null);
 
     const clientRef = useRef<Client | null>(null);
     const subsRef = useRef<Record<string, { unsubscribe: () => void }>>({});
@@ -56,7 +66,7 @@ export function useChatWebSocket(params: {
 
             const token = useAuthStore.getState().accessToken;
             const guestIdForHeader = token ? null : getOrCreateGuestId();
-            const connectHeaders = token
+            const connectHeaders: Record<string, string> = token
                 ? { Authorization: `Bearer ${token}` }
                 : {
                       'X-Guest-ID': guestIdForHeader!,
@@ -159,6 +169,9 @@ export function useChatWebSocket(params: {
 
         if (subsRef.current['chat']) subsRef.current['chat'].unsubscribe();
         if (subsRef.current['read']) subsRef.current['read'].unsubscribe();
+        if (subsRef.current['edited']) subsRef.current['edited'].unsubscribe();
+        if (subsRef.current['deleted']) subsRef.current['deleted'].unsubscribe();
+        if (subsRef.current['reaction']) subsRef.current['reaction'].unsubscribe();
 
         const chatTopic = `/topic/conversation/${conversationId}`;
         devWsLog('subscribe conversation', chatTopic);
@@ -187,11 +200,52 @@ export function useChatWebSocket(params: {
             },
         );
 
+        const editedTopic = `/topic/conversation/${conversationId}/edited`;
+        devWsLog('subscribe edited', editedTopic);
+        subsRef.current['edited'] = client.subscribe(editedTopic, (msg: { body: string }) => {
+            try {
+                setLastEdited(JSON.parse(msg.body));
+            } catch {
+                /* ignore */
+            }
+        });
+
+        const deletedTopic = `/topic/conversation/${conversationId}/deleted`;
+        devWsLog('subscribe deleted', deletedTopic);
+        subsRef.current['deleted'] = client.subscribe(deletedTopic, (msg: { body: string }) => {
+            try {
+                setLastDeleted(JSON.parse(msg.body));
+            } catch {
+                /* ignore */
+            }
+        });
+
+        const reactionTopic = `/topic/conversation/${conversationId}/reaction`;
+        devWsLog('subscribe reaction', reactionTopic);
+        subsRef.current['reaction'] = client.subscribe(reactionTopic, (msg: { body: string }) => {
+            try {
+                setLastReaction(JSON.parse(msg.body));
+            } catch {
+                /* ignore */
+            }
+        });
+
         return () => {
             if (subsRef.current['chat']) subsRef.current['chat'].unsubscribe();
             if (subsRef.current['read']) subsRef.current['read'].unsubscribe();
+            if (subsRef.current['edited']) subsRef.current['edited'].unsubscribe();
+            if (subsRef.current['deleted']) subsRef.current['deleted'].unsubscribe();
+            if (subsRef.current['reaction']) subsRef.current['reaction'].unsubscribe();
         };
     }, [conversationId, isConnected]);
 
-    return { isConnected, lastMessage, lastConversationEvent, lastReadReceipt };
+    return {
+        isConnected,
+        lastMessage,
+        lastConversationEvent,
+        lastReadReceipt,
+        lastEdited,
+        lastDeleted,
+        lastReaction,
+    };
 }
