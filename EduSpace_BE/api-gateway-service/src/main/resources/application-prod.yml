@@ -1,0 +1,66 @@
+# Docker / môi trường có Eureka: lb:// + đăng ký discovery-server.
+# Bật bằng SPRING_PROFILES_ACTIVE=prod (docker-compose api-gateway).
+
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: account-service
+          uri: lb://ACCOUNT-SERVICE
+          predicates:
+            - Path=/api/v1/accounts/**, /api/v1/auth/**, /api/v1/points/**, /api/v1/rewards/**
+
+        - id: account-service-docs
+          uri: lb://ACCOUNT-SERVICE
+          predicates:
+            - Path=/v3/api-docs/account-service
+          filters:
+            - RewritePath=/v3/api-docs/account-service, /v3/api-docs
+
+        - id: booking-service
+          uri: lb://BOOKING-SERVICE
+          predicates:
+            - Path=/api/v1/bookings/**,/api/v1/payments/**
+
+        - id: booking-service-docs
+          uri: lb://BOOKING-SERVICE
+          predicates:
+            - Path=/v3/api-docs/booking-service
+          filters:
+            - RewritePath=/v3/api-docs/booking-service, /v3/api-docs
+
+        - id: conversation-service
+          uri: lb://CONVERSATION-SERVICE
+          predicates:
+            - Path=/api/v1/conversations/**, /api/v1/messages/**, /api/v1/azure-communication/**, /api/v1/media/**
+
+        - id: conversation-service-ws
+          uri: lb://CONVERSATION-SERVICE
+          predicates:
+            - Path=/ws/**, /media/**
+
+        - id: conversation-service-docs
+          uri: lb://CONVERSATION-SERVICE
+          predicates:
+            - Path=/v3/api-docs/conversation-service
+          filters:
+            - RewritePath=/v3/api-docs/conversation-service, /v3/api-docs
+
+        - id: room-service
+          uri: lb://ROOM-SERVICE
+          predicates:
+            - Path=/api/v1/rooms,/api/v1/rooms/**,/api/v1/properties,/api/v1/properties/**,/api/v1/extra-services,/api/v1/extra-services/**,/api/v1/ads-packages,/api/v1/ads-packages/**,/api/v1/amenities,/api/v1/amenities/**,/api/v1/room-amenities,/api/v1/room-amenities/**,/api/v1/reviews,/api/v1/reviews/**,/api/v1/room-ads,/api/v1/room-ads/**,/api/v1/system-calendar-rules,/api/v1/system-calendar-rules/**,/api/v1/room-blocks,/api/v1/room-blocks/**,/api/v1/room-categories,/api/v1/room-categories/**,/api/v1/public/**
+
+        - id: room-service-docs
+          uri: lb://ROOM-SERVICE
+          predicates:
+            - Path=/v3/api-docs/room-service
+          filters:
+            - RewritePath=/v3/api-docs/room-service, /v3/api-docs
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:${DISCOVERY_SERVER_PORT:8761}/eureka/}
+  instance:
+    prefer-ip-address: true

@@ -65,7 +65,7 @@ public class SecurityConfig {
                         .pathMatchers("/api/v1/accounts/public/**").permitAll()
 
                         // Conversation Service endpoints - allow guests to start support chats
-                        .pathMatchers("/api/v1/conversations/**", "/api/v1/messages/**", "/ws/**").permitAll()
+                        .pathMatchers("/api/v1/conversations/**", "/api/v1/messages/**", "/api/v1/media/**", "/ws/**").permitAll()
                         .pathMatchers("/media/**").permitAll()
 
                         // Swagger/OpenAPI docs pass-through

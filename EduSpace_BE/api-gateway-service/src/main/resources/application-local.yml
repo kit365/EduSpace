@@ -1,0 +1,67 @@
+# Tương đương application-dev.yml — dùng khi bật spring.profiles.active=local (không đổi mặc định).
+# Mặc định dự án dùng profile dev; xem application-dev.yml để chỉnh route.
+
+spring:
+  cloud:
+    discovery:
+      enabled: false
+    gateway:
+      routes:
+        - id: account-service
+          uri: http://127.0.0.1:${ACCOUNT_SERVICE_PORT:8081}
+          predicates:
+            - Path=/api/v1/accounts/**, /api/v1/auth/**, /api/v1/points/**, /api/v1/rewards/**
+
+        - id: account-service-docs
+          uri: http://127.0.0.1:${ACCOUNT_SERVICE_PORT:8081}
+          predicates:
+            - Path=/v3/api-docs/account-service
+          filters:
+            - RewritePath=/v3/api-docs/account-service, /v3/api-docs
+
+        - id: booking-service
+          uri: http://127.0.0.1:${BOOKING_SERVICE_PORT:8082}
+          predicates:
+            - Path=/api/v1/bookings/**,/api/v1/payments/**
+
+        - id: booking-service-docs
+          uri: http://127.0.0.1:${BOOKING_SERVICE_PORT:8082}
+          predicates:
+            - Path=/v3/api-docs/booking-service
+          filters:
+            - RewritePath=/v3/api-docs/booking-service, /v3/api-docs
+
+        - id: conversation-service
+          uri: http://127.0.0.1:${CONVERSATION_SERVICE_PORT:8084}
+          predicates:
+            - Path=/api/v1/conversations/**, /api/v1/messages/**, /api/v1/azure-communication/**, /api/v1/media/**
+
+        - id: conversation-service-ws
+          uri: http://127.0.0.1:${CONVERSATION_SERVICE_PORT:8084}
+          predicates:
+            - Path=/ws/**, /media/**
+
+        - id: conversation-service-docs
+          uri: http://127.0.0.1:${CONVERSATION_SERVICE_PORT:8084}
+          predicates:
+            - Path=/v3/api-docs/conversation-service
+          filters:
+            - RewritePath=/v3/api-docs/conversation-service, /v3/api-docs
+
+        - id: room-service
+          uri: http://127.0.0.1:${ROOM_SERVICE_PORT:8083}
+          predicates:
+            - Path=/api/v1/rooms,/api/v1/rooms/**,/api/v1/properties,/api/v1/properties/**,/api/v1/extra-services,/api/v1/extra-services/**,/api/v1/ads-packages,/api/v1/ads-packages/**,/api/v1/amenities,/api/v1/amenities/**,/api/v1/room-amenities,/api/v1/room-amenities/**,/api/v1/reviews,/api/v1/reviews/**,/api/v1/room-ads,/api/v1/room-ads/**,/api/v1/system-calendar-rules,/api/v1/system-calendar-rules/**,/api/v1/room-blocks,/api/v1/room-blocks/**,/api/v1/room-categories,/api/v1/room-categories/**,/api/v1/public/**
+
+        - id: room-service-docs
+          uri: http://127.0.0.1:${ROOM_SERVICE_PORT:8083}
+          predicates:
+            - Path=/v3/api-docs/room-service
+          filters:
+            - RewritePath=/v3/api-docs/room-service, /v3/api-docs
+
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false
