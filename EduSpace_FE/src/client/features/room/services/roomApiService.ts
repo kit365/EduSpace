@@ -1,6 +1,7 @@
 import apiClient from '@/lib/axios';
 import { ROOM_API } from '@/config/api';
 import type {
+  AmenityCreateRequest,
   AmenityDto,
   PageResponse,
   RoomAvailabilityCheckRequest,
@@ -9,6 +10,8 @@ import type {
   RoomCreateRequest,
   RoomDto,
   RoomOperationalStatus,
+  RoomPriceQuoteRequest,
+  RoomPriceQuoteResponse,
   RoomPricingQuoteRequest,
   RoomPricingQuoteResponse,
   RoomScheduleSaveItem,
@@ -60,6 +63,11 @@ export const roomApiService = {
     return unwrap<RoomDto>(res);
   },
 
+  quotePrice: async (roomId: number, body: RoomPriceQuoteRequest): Promise<RoomPriceQuoteResponse> => {
+    const res = await apiClient.post(`${ROOM_API.ROOMS}/${roomId}/price-quote`, body);
+    return unwrap<RoomPriceQuoteResponse>(res);
+  },
+
   /** Thay toàn bộ lịch 7 ngày (host — ownerId khớp property). */
   putSchedules: async (roomId: number, ownerId: string, items: RoomScheduleSaveItem[]): Promise<RoomDto> => {
     const params = new URLSearchParams({ ownerId: ownerId.trim() });
@@ -78,7 +86,8 @@ export const roomApiService = {
     return unwrap<RoomAvailabilityCheckResponse>(res);
   },
 
-  quotePrice: async (roomId: number, body: RoomPricingQuoteRequest): Promise<RoomPricingQuoteResponse> => {
+  /** POST /rooms/{id}/pricing/quote — báo giá theo timeslot (dev). */
+  quoteTimeslotPricing: async (roomId: number, body: RoomPricingQuoteRequest): Promise<RoomPricingQuoteResponse> => {
     const res = await apiClient.post(`${ROOM_API.ROOMS}/${roomId}/pricing/quote`, body);
     return unwrap<RoomPricingQuoteResponse>(res);
   },
@@ -157,5 +166,22 @@ export const roomApiService = {
   getAllAmenities: async (): Promise<AmenityDto[]> => {
     const res = await apiClient.get(ROOM_API.AMENITIES);
     return unwrap<AmenityDto[]>(res);
+  },
+
+  createAmenity: async (body: AmenityCreateRequest): Promise<AmenityDto> => {
+    const res = await apiClient.post(ROOM_API.AMENITIES, body);
+    return unwrap<AmenityDto>(res);
+  },
+
+  uploadRoomImage: async (file: File, folder?: string): Promise<string> => {
+    const fd = new FormData();
+    fd.append('file', file);
+    if (folder?.trim()) {
+      fd.append('folder', folder.trim());
+    }
+    const res = await apiClient.post(ROOM_API.ROOM_MEDIA_UPLOAD, fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return unwrap<string>(res);
   },
 };

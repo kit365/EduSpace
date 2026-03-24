@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
 public class RoomBlockResponse {
 
     Integer id;
-    Integer roomId;
+    Integer propertyId;
     LocalDateTime startDatetime;
     LocalDateTime endDatetime;
     String reason;

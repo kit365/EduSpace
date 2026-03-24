@@ -150,7 +150,10 @@ export function SpaceDetailPage() {
                 />
 
                 <div className="mt-10 pt-8 border-t border-gray-100">
-                  <SpaceLocation address={space.address || space.location} />
+                  <SpaceLocation
+                    address={space.address || space.location}
+                    roomLocationHint={space.roomLocationHint}
+                  />
                 </div>
               </section>
             )}
@@ -228,7 +231,7 @@ export function SpaceDetailPage() {
           <div className="lg:col-span-1">
             <div className="lg:sticky lg:top-24 h-fit">
             <BookingPanel
-              roomId={space.id}
+              roomId={space.roomId ?? space.id}
               price={space.price}
               rating={space.rating}
               reviewCount={space.reviewCount || 0}
@@ -236,8 +239,9 @@ export function SpaceDetailPage() {
               spaceImage={space.image}
               capacity={space.capacity}
               schedules={space.schedules}
-              timeslots={space.timeslots}
               is24_7={space.is24_7}
+              minDuration={space.minDuration}
+              stepUnit={space.stepUnit}
             />
 
             <div className="mt-5 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">

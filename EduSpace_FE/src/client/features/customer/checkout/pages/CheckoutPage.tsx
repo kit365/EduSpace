@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ApiResponse, CreateBookingReq, BookingPriceCalculationResult } from '@/types';
+import { CreateBookingReq, BookingPriceCalculationResult } from '@/types';
 import { roomApiService } from '@/client/features/room';
 import { checkoutBookingApiService } from '../services/checkoutBookingApiService';
 import { profileService } from '../../profile/services/profileService';
 import { CustomerLayout } from '../../../../layouts/CustomerLayout';
 import { Calendar, Clock, CreditCard, ChevronRight, CheckCircle2, ShieldCheck, Loader2, Timer, Info } from 'lucide-react';
+import { toast } from 'sonner';
+import { bookingDepositService } from '../services/bookingDepositService';
 import { formatCurrency } from '../../../../../utils';
 
 export function CheckoutPage() {
@@ -40,6 +42,9 @@ export function CheckoutPage() {
 
   const [holdTimer, setHoldTimer] = useState(600); // 10 mins
   const [paymentTimer, setPaymentTimer] = useState(900); // 15 mins
+  const [payerName, setPayerName] = useState('');
+  const [payerEmail, setPayerEmail] = useState('');
+  const [payingDeposit, setPayingDeposit] = useState(false);
 
   useEffect(() => {
     let interval: any;
@@ -81,7 +86,7 @@ export function CheckoutPage() {
       return;
     }
     roomApiService
-      .quotePrice(bookingData.roomId, {
+      .quoteTimeslotPricing(bookingData.roomId, {
         slotId: bookingData.slotId,
         bookingDate: bookingData.bookingDate,
         durationValue: bookingData.durationValue,
@@ -108,6 +113,27 @@ export function CheckoutPage() {
       })
       .catch(() => undefined);
   }, [bookingData.roomId, bookingData.slotId, bookingData.bookingDate, bookingData.durationValue, bookingData.durationUnit]);
+
+  const handlePayDeposit = async () => {
+    setPayingDeposit(true);
+    try {
+      const intent = await bookingDepositService.createIntent({
+        grandTotal: pricing.grandTotal,
+        customerName: payerName.trim() || 'Guest',
+        customerEmail: payerEmail.trim() || 'guest@example.com',
+        spaceRef: 'CHECKOUT-DEMO',
+      });
+      const pathBase = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
+      const returnUrl = `${window.location.origin}${pathBase}/checkout/deposit-return?depositId=${intent.depositId}`;
+      const payos = await bookingDepositService.createPayos(intent.depositId, returnUrl);
+      toast.info(t('customer.checkout.payment.redirecting'));
+      window.location.href = payos.checkoutUrl;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'PayOS');
+    } finally {
+      setPayingDeposit(false);
+    }
+  };
 
   const steps = [
     { id: 1, name: t('customer.checkout.steps.schedule') },
@@ -293,7 +319,22 @@ export function CheckoutPage() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="col-span-2">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Full Name</label>
-                        <input className="w-full px-5 py-4 border border-gray-200 rounded-2xl font-bold bg-white" placeholder="Nguyễn Văn A" />
+                        <input
+                          value={payerName}
+                          onChange={(e) => setPayerName(e.target.value)}
+                          className="w-full px-5 py-4 border border-gray-200 rounded-2xl font-bold bg-white"
+                          placeholder="Nguyễn Văn A"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Email</label>
+                        <input
+                          type="email"
+                          value={payerEmail}
+                          onChange={(e) => setPayerEmail(e.target.value)}
+                          className="w-full px-5 py-4 border border-gray-200 rounded-2xl font-bold bg-white"
+                          placeholder="you@email.com"
+                        />
                       </div>
                       <div>
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Card Number</label>
@@ -368,10 +409,25 @@ export function CheckoutPage() {
                     ← {t('common.goBack')}
                   </button>
                   <button
-                    onClick={nextStep}
-                    className="bg-gray-900 text-white px-10 py-5 rounded-2xl font-black shadow-xl hover:shadow-2xl active:scale-95 transition-all flex items-center gap-3 group"
+                    onClick={() => {
+                      if (step === 3) void handlePayDeposit();
+                      else nextStep();
+                    }}
+                    disabled={step === 3 && payingDeposit}
+                    className="bg-gray-900 text-white px-10 py-5 rounded-2xl font-black shadow-xl hover:shadow-2xl active:scale-95 transition-all flex items-center gap-3 group disabled:opacity-60"
                   >
-                    {step === 3 ? t('customer.checkout.payment.submit') : `Tiếp tục → ${steps[step].name}`}
+                    {step === 3 ? (
+                      payingDeposit ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          PayOS…
+                        </>
+                      ) : (
+                        t('customer.checkout.payment.payDeposit')
+                      )
+                    ) : (
+                      `Tiếp tục → ${steps[step].name}`
+                    )}
                   </button>
                 </div>
               )}

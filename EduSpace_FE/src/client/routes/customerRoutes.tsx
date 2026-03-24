@@ -5,6 +5,7 @@ import { AuthPage, VerifyEmailPage } from '../features/customer/auth';
 import { ProfilePage, EkycPage } from '../features/customer/profile';
 import { BookingsPage, BookingDetailPage } from '../features/customer/bookings';
 import { CheckoutPage } from '../features/customer/checkout';
+import { DepositReturnPage } from '../features/customer/checkout/pages/DepositReturnPage';
 import { FavoritesPage } from '../features/customer/favorites';
 import { MessagesPage } from '../features/customer/messages';
 import { HelpPage } from '../features/customer/help';
@@ -23,6 +24,7 @@ export const customerRoutes: RouteObject[] = [
     { path: '/bookings', element: <BookingsPage /> },
     { path: '/bookings/:id', element: <BookingDetailPage /> }, // FR-09: Chi tiết + QR + Chat
     { path: '/checkout', element: <CheckoutPage /> },    // FR-08: Đặt phòng & Thanh toán
+    { path: '/checkout/deposit-return', element: <DepositReturnPage /> },
     { path: '/favorites', element: <FavoritesPage /> },
     { path: '/messages', element: <MessagesPage /> },
     { path: '/notifications', element: <NotificationsPage /> },

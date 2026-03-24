@@ -18,6 +18,7 @@ public class RoomScheduleItemRequest {
     /** 2 = Thứ 2 … 8 = Chủ nhật */
     Integer dayOfWeek;
     Boolean isOpen;
+    Boolean isOverDay;
     LocalTime openTime;
     LocalTime closeTime;
 }

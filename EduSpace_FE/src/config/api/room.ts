@@ -5,6 +5,7 @@ export const ROOM_API = {
   PROPERTIES: `${API_PREFIX}/properties`,
   BRANCHES: `${API_PREFIX}/properties`,
   ROOMS: `${API_PREFIX}/rooms`,
+  ROOM_MEDIA_UPLOAD: `${API_PREFIX}/rooms/media/upload`,
   AMENITIES: `${API_PREFIX}/amenities`,
   ROOM_AMENITIES: `${API_PREFIX}/room-amenities`,
   REVIEWS: `${API_PREFIX}/reviews`,

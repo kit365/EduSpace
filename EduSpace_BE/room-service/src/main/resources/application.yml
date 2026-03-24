@@ -35,3 +35,8 @@ springdoc:
   swagger-ui:
     persist-authorization: true
 
+app:
+  media:
+    cloudinary:
+      default-folder: ${CLOUDINARY_DEFAULT_FOLDER:eduspace-rooms}
+

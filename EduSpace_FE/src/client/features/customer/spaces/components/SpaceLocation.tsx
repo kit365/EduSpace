@@ -3,9 +3,10 @@ import { MapPin } from 'lucide-react';
 
 interface SpaceLocationProps {
   address: string;
+  roomLocationHint?: string;
 }
 
-export function SpaceLocation({ address }: SpaceLocationProps) {
+export function SpaceLocation({ address, roomLocationHint }: SpaceLocationProps) {
   const { t } = useTranslation();
 
   // Create the embed URL using the address
@@ -16,6 +17,14 @@ export function SpaceLocation({ address }: SpaceLocationProps) {
   return (
     <div className="mb-8">
       <h2 className="text-xl font-semibold mb-4">{t('customer.spaceDetail.location')}</h2>
+      {roomLocationHint ? (
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-xs font-black uppercase tracking-widest text-amber-700 mb-1">
+            Gợi ý tìm phòng
+          </p>
+          <p className="text-sm font-semibold text-amber-900">{roomLocationHint}</p>
+        </div>
+      ) : null}
       <div className="bg-gray-100 h-[400px] rounded-2xl overflow-hidden shadow-sm border border-gray-100 relative group">
         <iframe
           src={mapUrl}

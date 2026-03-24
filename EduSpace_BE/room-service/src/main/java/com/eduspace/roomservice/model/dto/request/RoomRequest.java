@@ -5,16 +5,15 @@ import com.eduspace.roomservice.common.enums.RoomApprovalStatus;
 import com.eduspace.roomservice.common.enums.RoomStatus;
 import com.eduspace.roomservice.common.enums.RoomType;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
 
 @Data
 @Builder
@@ -32,6 +31,7 @@ public class RoomRequest {
     String nameEn;
     String locationVi;
     String locationEn;
+    String roomLocationHint;
     Integer capacity;
     BigDecimal area;
     String roomNumber;
@@ -39,8 +39,16 @@ public class RoomRequest {
     Boolean is24_7;
     BigDecimal pricePerHour;
     BigDecimal pricePerDay;
+    @Deprecated
     Integer minBookingHours;
+    Integer minDuration;
+    Integer stepUnit;
+    Boolean weekendSurchargeEnabled;
+    BigDecimal weekendSurchargePercent;
+    Boolean weekendApplySaturday;
+    Boolean weekendApplySunday;
     String images;
+    String mainImageUrl;
     String imagesAltVi;
     String imagesAltEn;
     String descriptionVi;
@@ -58,4 +66,5 @@ public class RoomRequest {
 
     List<RoomPolicyRequest> policies;
     List<Integer> amenityIds;
+    List<RoomPriceRuleRequest> priceRules;
 }

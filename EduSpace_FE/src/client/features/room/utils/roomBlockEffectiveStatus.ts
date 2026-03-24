@@ -2,9 +2,8 @@ import type { RoomDto } from '../types';
 import type { RoomOperationalStatus } from '../types';
 import { toOperationalStatus } from './roomOperationalStatus';
 
-/** Khối thời gian tối thiểu để suy ra trạng thái (khớp room_blocks). */
+/** Khối thời gian tối thiểu để suy ra trạng thái (khớp room_blocks theo cơ sở). */
 export interface RoomBlockTimeLike {
-  roomId: number;
   startDatetime: string;
   endDatetime: string;
   blockType?: string | null;
@@ -37,7 +36,7 @@ export function getEffectiveOperationalStatus(
 ): { effective: RoomOperationalStatus; lockedByMaintenanceSchedule: boolean } {
   const base = toOperationalStatus(room.status);
   const hasActiveMaintenance = blocksForRoom.some(
-    (b) => b.roomId === room.id && isMaintenanceBlockType(b.blockType) && isBlockActiveAt(b, nowMs)
+    (b) => isMaintenanceBlockType(b.blockType) && isBlockActiveAt(b, nowMs),
   );
   if (hasActiveMaintenance) {
     return {

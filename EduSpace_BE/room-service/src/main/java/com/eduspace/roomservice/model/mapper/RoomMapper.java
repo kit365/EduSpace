@@ -14,7 +14,7 @@ import com.eduspace.roomservice.common.i18n.TranslationUtil;
 
 @Mapper(componentModel = "spring", 
         nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE,
-        uses = {RoomPolicyMapper.class, RoomAmenityMapper.class, RoomCategoryMapper.class},
+        uses = {RoomPolicyMapper.class, RoomAmenityMapper.class, RoomCategoryMapper.class, RoomPriceRuleMapper.class},
         imports = {TranslationUtil.class})
 public interface RoomMapper {
 
@@ -28,6 +28,7 @@ public interface RoomMapper {
     @Mapping(target = "updatedBy", ignore = true)
     @Mapping(target = "policies", ignore = true)
     @Mapping(target = "amenities", ignore = true)
+    @Mapping(target = "priceRules", ignore = true)
     @Mapping(target = "pendingEditPayload", ignore = true)
     @Mapping(target = "pendingEditStatus", ignore = true)
     @Mapping(target = "pendingEditRejectionNote", ignore = true)
@@ -45,6 +46,7 @@ public interface RoomMapper {
     @Mapping(target = "updatedBy", ignore = true)
     @Mapping(target = "policies", ignore = true)
     @Mapping(target = "amenities", ignore = true)
+    @Mapping(target = "priceRules", ignore = true)
     @Mapping(target = "pendingEditPayload", ignore = true)
     @Mapping(target = "pendingEditStatus", ignore = true)
     @Mapping(target = "pendingEditRejectionNote", ignore = true)
@@ -55,6 +57,8 @@ public interface RoomMapper {
     @Mapping(target = "propertyId", source = "property.id")
     @Mapping(target = "category", source = "category")
     @Mapping(target = "schedules", ignore = true)
+    @Mapping(target = "scheduleBufferMinutes", ignore = true)
+    @Mapping(target = "scheduleIsOverDay", ignore = true)
     @Mapping(target = "name", expression = "java(TranslationUtil.translate(entity.getNameVi(), entity.getNameEn()))")
     @Mapping(target = "description", expression = "java(TranslationUtil.translate(entity.getDescriptionVi(), entity.getDescriptionEn()))")
     @Mapping(target = "location", expression = "java(TranslationUtil.translate(entity.getLocationVi(), entity.getLocationEn()))")

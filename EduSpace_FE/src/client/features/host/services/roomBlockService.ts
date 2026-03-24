@@ -10,10 +10,10 @@ function unwrap<T>(res: unknown): T {
 
 export type RoomBlockType = 'MAINTENANCE' | 'BOOKED' | 'PRIVATE_EVENT' | 'HOLIDAY' | 'SPECIAL_EVENT';
 
-/** Khớp RoomBlockResponse (room-service) — JSON serializes LocalDateTime thành chuỗi ISO. */
+/** Khớp RoomBlockResponse — lịch chặn theo cơ sở (property). */
 export interface RoomBlockDto {
     id: number;
-    roomId: number;
+    propertyId: number;
     startDatetime: string;
     endDatetime: string;
     reason: string | null;
@@ -22,7 +22,7 @@ export interface RoomBlockDto {
 }
 
 export interface RoomBlockCreatePayload {
-    roomId: number;
+    propertyId: number;
     startDatetime: string;
     endDatetime: string;
     reason?: string | null;
@@ -33,6 +33,13 @@ export interface RoomBlockCreatePayload {
 export const roomBlockService = {
     listAll: async (): Promise<RoomBlockDto[]> => {
         const res = await apiClient.get(ROOM_API.ROOM_BLOCKS);
+        const list = unwrap<RoomBlockDto[]>(res);
+        return Array.isArray(list) ? list : [];
+    },
+
+    /** Lọc theo chi nhánh (BE hỗ trợ ?propertyId=). */
+    listByProperty: async (propertyId: number): Promise<RoomBlockDto[]> => {
+        const res = await apiClient.get(ROOM_API.ROOM_BLOCKS, { params: { propertyId } });
         const list = unwrap<RoomBlockDto[]>(res);
         return Array.isArray(list) ? list : [];
     },

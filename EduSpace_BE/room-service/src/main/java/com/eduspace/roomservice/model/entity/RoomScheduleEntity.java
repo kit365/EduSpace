@@ -2,9 +2,12 @@ package com.eduspace.roomservice.model.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.LocalTime;
 import lombok.AccessLevel;
@@ -31,8 +34,9 @@ public class RoomScheduleEntity extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long id;
 
-    @Column(name = "room_id", nullable = false)
-    Integer roomId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "property_id", nullable = false)
+    PropertyEntity property;
 
     /** 2 = Thứ 2 … 8 = Chủ nhật */
     @Column(name = "day_of_week", nullable = false)
@@ -40,6 +44,9 @@ public class RoomScheduleEntity extends BaseEntity {
 
     @Column(name = "is_open", nullable = false)
     Boolean isOpen;
+
+    @Column(name = "is_over_day", nullable = false)
+    Boolean isOverDay;
 
     @Column(name = "open_time")
     LocalTime openTime;

@@ -16,10 +16,34 @@ import { RentalLayout } from '../../../layouts/RentalLayout';
 import { useBranch } from '../context/BranchContext';
 import { useProfile } from '../../customer/profile/hooks/useProfile';
 import { roomApiService } from '@/client/features/room/services/roomApiService';
-import type { RoomDto, RoomScheduleSaveItem } from '@/client/features/room/types';
+import { propertyApiService } from '@/client/features/room/services/propertyApiService';
+import type { PropertyDto, RoomDto, RoomScheduleDto, RoomScheduleSaveItem } from '@/client/features/room/types';
 import { roomBlockService, type RoomBlockDto } from '../services/roomBlockService';
 import { showToast } from '@/utils/toast';
 import { getApiErrorMessage } from '@/utils/apiError';
+import {
+  Alert,
+  AlertTitle,
+  AlertDescription,
+} from '@/components/ui/alert';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 /** Quy ước DB: 2 = Thứ 2 … 7 = Thứ 7, 8 = Chủ nhật */
 const DB_DAYS = [2, 3, 4, 5, 6, 7, 8] as const;
@@ -28,6 +52,7 @@ const DB_DAYS = [2, 3, 4, 5, 6, 7, 8] as const;
 export type DaySchedule = {
   dayOfWeek: number;
   isOpen: boolean;
+  isOverDay: boolean;
   openTime: string;
   closeTime: string;
 };
@@ -46,22 +71,31 @@ function createDefaultSchedules(): DaySchedule[] {
   return WEEKDAY_ROWS.map(({ dayOfWeek }) => ({
     dayOfWeek,
     isOpen: true,
+    isOverDay: false,
     openTime: '07:00',
     closeTime: '22:00',
   }));
 }
 
-/** Map từ RoomDto.schedules (API) → 7 dòng state. */
-function roomToSchedules(room: RoomDto): DaySchedule[] {
-  const rows = room.schedules;
+const OVER_DAY_OPEN_TIME = '00:00';
+const OVER_DAY_CLOSE_TIME = '23:59';
+
+/** Map từ API lịch cơ sở → 7 dòng state. */
+function schedulesFromApiRows(rows: RoomScheduleDto[]): DaySchedule[] {
   if (rows && rows.length > 0) {
     return WEEKDAY_ROWS.map(({ dayOfWeek }) => {
       const r = rows.find((x) => x.dayOfWeek === dayOfWeek);
-      const o = r?.openTime ? toTimeInput(r.openTime) : '07:00';
-      const c = r?.closeTime ? toTimeInput(r.closeTime) : '22:00';
+      const overDay = r ? Boolean(r.isOverDay) : false;
+      const o = overDay
+        ? (r?.openTime ? toTimeInput(r.openTime) : OVER_DAY_OPEN_TIME)
+        : (r?.openTime ? toTimeInput(r.openTime) : '07:00');
+      const c = overDay
+        ? (r?.closeTime ? toTimeInput(r.closeTime) : OVER_DAY_CLOSE_TIME)
+        : (r?.closeTime ? toTimeInput(r.closeTime) : '22:00');
       return {
         dayOfWeek,
         isOpen: r ? Boolean(r.isOpen) : true,
+        isOverDay: overDay,
         openTime: o,
         closeTime: c,
       };
@@ -70,11 +104,11 @@ function roomToSchedules(room: RoomDto): DaySchedule[] {
   return createDefaultSchedules();
 }
 
-/** Hàng hiển thị — khớp room_blocks + tên phòng */
+/** Hàng hiển thị — lịch chặn theo cơ sở (property) */
 type ScheduleBlockRow = {
   id: number;
-  roomId: number;
-  roomName: string;
+  propertyId: number;
+  branchLabel: string;
   startDatetime: string;
   endDatetime: string;
   reason: string;
@@ -117,10 +151,17 @@ function is247WeekPattern(rows: DaySchedule[]): boolean {
   );
 }
 
-/** Phòng đang ở chế độ 24/7 (cờ BE hoặc 7 ngày đều 00:00–23:59). */
-function derive247ModeFromRoom(room: RoomDto, rows: DaySchedule[]): boolean {
-  if (room.is24_7) return true;
+/** Cờ 24/7: ưu tiên phòng đại diện trong cơ sở, không có phòng thì suy từ lịch tuần. */
+function derive247Mode(room: RoomDto | undefined, rows: DaySchedule[]): boolean {
+  if (room?.is24_7) return true;
   return is247WeekPattern(rows);
+}
+
+/** Một phòng bất kỳ trong cơ sở để đồng bộ is24_7 (BE vẫn gắn theo phòng). */
+function firstRoomInProperty(rooms: RoomDto[], propertyId: number): RoomDto | undefined {
+  const inProp = rooms.filter((r) => r.propertyId === propertyId && !r.deletedAt);
+  if (inProp.length === 0) return undefined;
+  return [...inProp].sort((a, b) => a.id - b.id)[0];
 }
 
 /** datetime-local (YYYY-MM-DDTHH:mm) → ISO cho BE */
@@ -129,11 +170,61 @@ function toLocalDateTimeIso(dt: string): string {
   return dt.length === 16 ? `${dt}:00` : dt;
 }
 
-function apiBlockToRow(block: RoomBlockDto, roomNameById: Map<number, string>): ScheduleBlockRow {
+function nowLocalInput(): string {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+}
+
+function addDaysLocalInput(dtLocal: string, days: number): string {
+  const d = new Date(dtLocal);
+  d.setDate(d.getDate() + days);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+}
+
+function splitDateTime(dtLocal: string): { date: string; time: string } {
+  const [date = '', time = ''] = dtLocal.split('T');
+  return { date, time };
+}
+
+function joinDateTime(date: string, time: string): string {
+  if (!date || !time) return '';
+  return `${date}T${time}`;
+}
+
+function clampMinTime(time: string, minTime: string): string {
+  if (!time || !minTime) return time;
+  return time < minTime ? minTime : time;
+}
+
+function formatWeekdayDateVi(dateInput: string): string {
+  if (!dateInput) return '';
+  const parts = dateInput.split('-');
+  if (parts.length !== 3) return '';
+  const [yyyy, mm, dd] = parts.map((p) => Number(p));
+  if (!yyyy || !mm || !dd) return '';
+  const date = new Date(yyyy, mm - 1, dd);
+  const weekdayVi = ['chủ nhật', 'thứ 2', 'thứ 3', 'thứ 4', 'thứ 5', 'thứ 6', 'thứ 7'][date.getDay()] ?? '';
+  const ddText = String(dd).padStart(2, '0');
+  const mmText = String(mm).padStart(2, '0');
+  return `${weekdayVi} (${ddText}/${mmText}/${yyyy})`;
+}
+
+function apiBlockToRow(block: RoomBlockDto, branchNameByPropertyId: Map<number, string>): ScheduleBlockRow {
   return {
     id: block.id,
-    roomId: block.roomId,
-    roomName: roomNameById.get(block.roomId) ?? `Phòng #${block.roomId}`,
+    propertyId: block.propertyId,
+    branchLabel:
+      branchNameByPropertyId.get(block.propertyId) ?? `Chi nhánh #${block.propertyId}`,
     startDatetime: block.startDatetime,
     endDatetime: block.endDatetime,
     reason: (block.reason && block.reason.trim()) || '—',
@@ -156,37 +247,48 @@ function formatBlockedRangeVi(start: string, end: string): string {
 
 export function SchedulePage() {
   const { profile, loading: profileLoading } = useProfile();
-  const { selectedBranch } = useBranch();
+  const { selectedBranch, branches } = useBranch();
 
+  const [properties, setProperties] = useState<PropertyDto[]>([]);
   const [rooms, setRooms] = useState<RoomDto[]>([]);
   const [blocks, setBlocks] = useState<ScheduleBlockRow[]>([]);
   const [loadingRooms, setLoadingRooms] = useState(false);
   const [roomsError, setRoomsError] = useState<string | null>(null);
 
-  const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null);
+  const [selectedPropertyId, setSelectedPropertyId] = useState<number | null>(null);
   const [schedules, setSchedules] = useState<DaySchedule[]>(() => createDefaultSchedules());
+  /** Phút nghỉ giữa các khung giờ liên tiếp (dọn phòng / buffer) — lưu theo cơ sở. */
+  const [bufferMinutes, setBufferMinutes] = useState(0);
   /** Bật: khóa chỉnh từng ngày; chỉ khi Lưu mới gửi 00:00–23:59 cho cả tuần (không đổi state schedules lúc bật). */
   const [is247Mode, setIs247Mode] = useState(false);
 
   const [showBlockForm, setShowBlockForm] = useState(false);
-  const [newBlock, setNewBlock] = useState({ startDt: '', endDt: '', reason: '' });
+  const [newBlock, setNewBlock] = useState({
+    startDate: '',
+    startTime: '',
+    endDate: '',
+    endTime: '',
+    reason: '',
+  });
+  const [blockToDelete, setBlockToDelete] = useState<number | null>(null);
   const [blockSubmitting, setBlockSubmitting] = useState(false);
 
-  const filteredRooms = useMemo(() => {
-    const active = rooms.filter((r) => !r.deletedAt);
-    if (selectedBranch == null) return active;
-    return active.filter((r) => r.propertyId === selectedBranch.id);
-  }, [rooms, selectedBranch]);
+  const filteredProperties = useMemo(() => {
+    const mine = properties.filter((p) => p.ownerId === profile?.id?.trim());
+    if (selectedBranch == null) return mine;
+    return mine.filter((p) => p.id === selectedBranch.id);
+  }, [properties, selectedBranch, profile?.id]);
 
-  /** Chỉ hiển thị lịch chặn khi đã chọn phòng — không gộp tất cả phòng trong chi nhánh. */
-  const blocksForSelectedRoom = useMemo(() => {
-    if (selectedRoomId == null) return [];
-    return blocks.filter((b) => b.roomId === selectedRoomId);
-  }, [blocks, selectedRoomId]);
+  /** Lịch chặn theo cơ sở: chọn cơ sở → xem danh sách chặn của cơ sở đó. */
+  const blocksForSelectedProperty = useMemo(() => {
+    if (selectedPropertyId == null) return [];
+    return blocks.filter((b) => b.propertyId === selectedPropertyId);
+  }, [blocks, selectedPropertyId]);
 
   const loadRoomsAndBlocks = useCallback(async () => {
     const ownerId = profile?.id?.trim();
     if (!ownerId) {
+      setProperties([]);
       setRooms([]);
       setBlocks([]);
       return;
@@ -194,57 +296,126 @@ export function SchedulePage() {
     setLoadingRooms(true);
     setRoomsError(null);
     try {
-      const list = await roomApiService.getAll({ ownerId });
-      const roomList = Array.isArray(list) ? list : [];
-      setRooms(roomList);
-      const roomIds = new Set(roomList.map((r) => r.id));
-      const nameById = new Map(roomList.map((r) => [r.id, r.name] as const));
+      const [propList, roomList] = await Promise.all([
+        propertyApiService.getAll(),
+        roomApiService.getAll({ ownerId }),
+      ]);
+      const roomsNorm = Array.isArray(roomList) ? roomList : [];
+      const propsNorm = Array.isArray(propList) ? propList : [];
+      setProperties(propsNorm.filter((p) => p.ownerId === ownerId));
+      setRooms(roomsNorm);
+      const propertyIds = new Set(roomsNorm.map((r) => r.propertyId));
+      propsNorm
+        .filter((p) => p.ownerId === ownerId)
+        .forEach((p) => propertyIds.add(p.id));
+      const branchNameByPropertyId = new Map(branches.map((br) => [br.id, br.name] as const));
       const allBlocks = await roomBlockService.listAll();
-      const mine = allBlocks.filter((b) => roomIds.has(b.roomId));
-      setBlocks(mine.map((b) => apiBlockToRow(b, nameById)));
+      const mine = allBlocks.filter((b) => propertyIds.has(b.propertyId));
+      setBlocks(mine.map((b) => apiBlockToRow(b, branchNameByPropertyId)));
     } catch {
-      setRoomsError('Không tải được danh sách phòng hoặc lịch chặn. Thử lại sau.');
+      setRoomsError('Không tải được danh sách chi nhánh hoặc lịch chặn. Thử lại sau.');
+      setProperties([]);
       setRooms([]);
       setBlocks([]);
     } finally {
       setLoadingRooms(false);
     }
-  }, [profile?.id]);
+  }, [profile?.id, branches]);
 
   useEffect(() => {
     void loadRoomsAndBlocks();
   }, [loadRoomsAndBlocks]);
 
   useEffect(() => {
-    if (selectedRoomId == null) return;
-    const ok = filteredRooms.some((r) => r.id === selectedRoomId);
-    if (!ok) setSelectedRoomId(null);
-  }, [filteredRooms, selectedRoomId]);
+    if (selectedPropertyId == null) return;
+    const ok = filteredProperties.some((p) => p.id === selectedPropertyId);
+    if (!ok) setSelectedPropertyId(null);
+  }, [filteredProperties, selectedPropertyId]);
 
   useEffect(() => {
-    if (selectedRoomId == null) setShowBlockForm(false);
-  }, [selectedRoomId]);
+    if (selectedPropertyId == null) setShowBlockForm(false);
+  }, [selectedPropertyId]);
 
+  const uid = profile?.id?.trim();
   useEffect(() => {
-    if (selectedRoomId == null) return;
-    const room = filteredRooms.find((r) => r.id === selectedRoomId);
-    if (!room) return;
-    const next = roomToSchedules(room);
-    setSchedules(next);
-    setIs247Mode(derive247ModeFromRoom(room, next));
-  }, [selectedRoomId, filteredRooms]);
+    if (selectedPropertyId == null || !uid) {
+      setSchedules(createDefaultSchedules());
+      setBufferMinutes(0);
+      setIs247Mode(false);
+      setHasExistingScheduleData(false);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const bundle = await propertyApiService.getSchedules(selectedPropertyId, uid);
+        if (cancelled) return;
+        const next = schedulesFromApiRows(bundle.schedules);
+        setSchedules(next);
+        setBufferMinutes(Number.isFinite(bundle.bufferMinutes) ? bundle.bufferMinutes : 0);
+        const rep = firstRoomInProperty(rooms, selectedPropertyId);
+        setIs247Mode(derive247Mode(rep, next));
+        setHasExistingScheduleData(Array.isArray(bundle.schedules) && bundle.schedules.length > 0);
+      } catch {
+        if (!cancelled) {
+          setSchedules(createDefaultSchedules());
+          setBufferMinutes(0);
+          setIs247Mode(false);
+          setHasExistingScheduleData(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedPropertyId, uid, rooms]);
 
-  const selectedRoom = useMemo(
-    () => (selectedRoomId != null ? filteredRooms.find((r) => r.id === selectedRoomId) : undefined),
-    [filteredRooms, selectedRoomId],
+  const selectedProperty = useMemo(
+    () =>
+      selectedPropertyId != null ? filteredProperties.find((p) => p.id === selectedPropertyId) : undefined,
+    [filteredProperties, selectedPropertyId],
   );
 
   const [savedFlash, setSavedFlash] = useState(false);
   const [savingSchedule, setSavingSchedule] = useState(false);
+  const [hasExistingScheduleData, setHasExistingScheduleData] = useState(false);
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowTick(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const startNowMin = useMemo(() => nowLocalInput(), [nowTick]);
+  const startNowMinParts = useMemo(() => splitDateTime(startNowMin), [startNowMin]);
+  const startDateTimeValue = useMemo(
+    () => joinDateTime(newBlock.startDate, newBlock.startTime),
+    [newBlock.startDate, newBlock.startTime],
+  );
+  const endMinDateTimeValue = useMemo(() => {
+    const base = startDateTimeValue || startNowMin;
+    const d = new Date(base);
+    d.setMinutes(d.getMinutes() + 30);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mi = String(d.getMinutes()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+  }, [startDateTimeValue, startNowMin]);
+  const endMinParts = useMemo(() => splitDateTime(endMinDateTimeValue), [endMinDateTimeValue]);
 
   const updateDaySchedule = useCallback((dayOfWeek: number, patch: Partial<DaySchedule>) => {
     if (is247Mode) return;
-    setSchedules((prev) => prev.map((s) => (s.dayOfWeek === dayOfWeek ? { ...s, ...patch } : s)));
+    setSchedules((prev) =>
+      prev.map((s) => {
+        if (s.dayOfWeek !== dayOfWeek) return s;
+        const next = { ...s, ...patch };
+        if (patch.isOverDay === true) {
+          next.openTime = OVER_DAY_OPEN_TIME;
+          next.closeTime = OVER_DAY_CLOSE_TIME;
+        }
+        return next;
+      }),
+    );
   }, [is247Mode]);
 
   /** Sao chép giờ & trạng thái mở của Thứ 2 sang cả tuần */
@@ -267,45 +438,77 @@ export function SchedulePage() {
   }, []);
 
   const handleSaveClick = async () => {
-    if (selectedRoomId == null) {
-      showToast.error('Chọn phòng trước khi lưu.');
+    if (selectedPropertyId == null) {
+      showToast.error('Chọn chi nhánh trước khi lưu.');
       return;
     }
-    const uid = profile?.id?.trim();
+    if (!selectedProperty) {
+      showToast.error('Không tìm thấy chi nhánh đã chọn.');
+      return;
+    }
     if (!uid) {
       showToast.error('Không xác định được tài khoản host.');
       return;
     }
     setSavingSchedule(true);
     try {
-      const items: RoomScheduleSaveItem[] = is247Mode
-        ? DB_DAYS.map((dayOfWeek) => ({
-            dayOfWeek,
-            isOpen: true,
-            openTime: toLocalTime('00:00'),
-            closeTime: toLocalTime('23:59'),
-          }))
-        : schedules.map((s) => ({
-            dayOfWeek: s.dayOfWeek,
-            isOpen: s.isOpen,
-            openTime: s.isOpen ? toLocalTime(s.openTime) : null,
-            closeTime: s.isOpen ? toLocalTime(s.closeTime) : null,
-          }));
-      const updated = await roomApiService.putSchedules(selectedRoomId, uid, items);
+      const items: RoomScheduleSaveItem[] = schedules.map((s) => {
+        const effectiveIsOverDay = is247Mode ? true : Boolean(s.isOverDay);
+        const overDayOpen = toLocalTime(OVER_DAY_OPEN_TIME);
+        const overDayClose = toLocalTime(OVER_DAY_CLOSE_TIME);
+        return {
+          dayOfWeek: s.dayOfWeek,
+          isOpen: s.isOpen,
+          isOverDay: effectiveIsOverDay,
+          openTime: s.isOpen
+            ? (effectiveIsOverDay ? overDayOpen : toLocalTime(s.openTime))
+            : null,
+          closeTime: s.isOpen
+            ? (effectiveIsOverDay ? overDayClose : toLocalTime(s.closeTime))
+            : null,
+        };
+      });
+      const propertyId = selectedPropertyId;
+      const scheduleRows = await propertyApiService.putSchedules(propertyId, uid, {
+        bufferMinutes,
+        isOverDay: false,
+        schedules: items,
+      });
       const is247 = is247Mode;
-      let merged: RoomDto = updated;
+      const repRoom = firstRoomInProperty(rooms, propertyId);
+      let merged: RoomDto | null = null;
       let synced247 = true;
-      try {
-        merged = await roomApiService.update(selectedRoomId, { is24_7: is247 });
-      } catch {
+      if (repRoom) {
+        try {
+          merged = await roomApiService.update(repRoom.id, { is24_7: is247 });
+        } catch {
+          synced247 = false;
+        }
+      } else {
         synced247 = false;
       }
-      setRooms((prev) => prev.map((r) => (r.id === merged.id ? merged : r)));
+      setRooms((prev) =>
+        prev.map((r) => {
+          if (r.propertyId !== propertyId) return r;
+          const base = repRoom && r.id === repRoom.id && merged ? merged : r;
+          return {
+            ...base,
+            schedules: scheduleRows.schedules,
+            scheduleBufferMinutes: scheduleRows.bufferMinutes,
+            scheduleIsOverDay: scheduleRows.isOverDay,
+          };
+        }),
+      );
       if (synced247) {
         showToast.success('Đã lưu lịch & giờ hoạt động.');
       } else {
-        showToast.error('Đã lưu lịch nhưng không cập nhật được cờ 24/7. Thử bấm Lưu lại.');
+        showToast.success(
+          repRoom
+            ? 'Đã lưu lịch. Lưu ý: không cập nhật được cờ 24/7 cho phòng — thử bấm Lưu lại.'
+            : 'Đã lưu lịch & giờ hoạt động cho chi nhánh.',
+        );
       }
+      setHasExistingScheduleData(true);
       setSavedFlash(true);
       setTimeout(() => setSavedFlash(false), 2500);
     } catch (error) {
@@ -316,31 +519,40 @@ export function SchedulePage() {
   };
 
   const submitBlock = async () => {
-    if (!newBlock.startDt || !newBlock.endDt) return;
-    if (new Date(newBlock.startDt).getTime() >= new Date(newBlock.endDt).getTime()) {
-      window.alert('Thời gian kết thúc phải sau thời gian bắt đầu (có thể khác ngày).');
+    const startDt = joinDateTime(newBlock.startDate, newBlock.startTime);
+    const endDt = joinDateTime(newBlock.endDate, newBlock.endTime);
+    if (!startDt || !endDt) return;
+    const startMs = new Date(startDt).getTime();
+    const endMs = new Date(endDt).getTime();
+    const nowMs = Date.now();
+    if (startMs < nowMs) {
+      showToast.error('Thời gian bắt đầu phải từ hiện tại trở đi.');
       return;
     }
-    if (!selectedRoomId) {
-      showToast.error('Chọn phòng ở card “Chọn phòng” phía trên để gắn lịch chặn.');
+    if (endMs < startMs + 30 * 60 * 1000) {
+      showToast.error('Thời gian kết thúc phải cách thời gian bắt đầu ít nhất 30 phút.');
       return;
     }
-    const uid = profile?.id?.trim();
+    if (selectedPropertyId == null) {
+      showToast.error('Chọn chi nhánh ở card “Chọn chi nhánh” phía trên để gắn lịch chặn.');
+      return;
+    }
     if (!uid) {
       showToast.error('Không xác định được tài khoản host.');
       return;
     }
     setBlockSubmitting(true);
     try {
+      const pid = selectedPropertyId;
       await roomBlockService.create({
-        roomId: selectedRoomId,
-        startDatetime: toLocalDateTimeIso(newBlock.startDt),
-        endDatetime: toLocalDateTimeIso(newBlock.endDt),
+        propertyId: pid,
+        startDatetime: toLocalDateTimeIso(startDt),
+        endDatetime: toLocalDateTimeIso(endDt),
         reason: newBlock.reason.trim() || null,
         blockType: 'MAINTENANCE',
         createdBy: uid,
       });
-      setNewBlock({ startDt: '', endDt: '', reason: '' });
+      setNewBlock({ startDate: '', startTime: '', endDate: '', endTime: '', reason: '' });
       setShowBlockForm(false);
       showToast.success('Đã thêm lịch chặn.');
       await loadRoomsAndBlocks();
@@ -351,21 +563,27 @@ export function SchedulePage() {
     }
   };
 
-  const handleUnlockBlock = async (id: number) => {
-    if (!window.confirm('Mở khóa và xóa khoảng chặn này?')) return;
+  const handleUnlockBlock = (id: number) => {
+    setBlockToDelete(id);
+  };
+
+  const confirmUnlockBlock = async () => {
+    if (blockToDelete == null) return;
     try {
-      await roomBlockService.remove(id);
+      await roomBlockService.remove(blockToDelete);
       showToast.success('Đã xóa lịch chặn.');
+      setBlockToDelete(null);
       await loadRoomsAndBlocks();
     } catch (error) {
       showToast.error(getApiErrorMessage(error, 'Không xóa được lịch chặn.'));
     }
   };
 
-  const showScheduleForm = selectedRoomId != null && selectedRoom != null;
-  const noRoomsInScope =
-    !profileLoading && !loadingRooms && Boolean(profile?.id) && filteredRooms.length === 0;
+  const showScheduleForm = selectedPropertyId != null && selectedProperty != null;
+  const noPropertiesInScope =
+    !profileLoading && !loadingRooms && Boolean(profile?.id) && filteredProperties.length === 0;
   const canSave = showScheduleForm && !savingSchedule;
+  const saveActionLabel = hasExistingScheduleData ? 'Cập nhật lịch' : 'Tạo lịch';
 
   return (
     <RentalLayout title="Lịch & Giờ hoạt động">
@@ -374,22 +592,11 @@ export function SchedulePage() {
           <div>
             <h1 className="text-3xl font-black text-gray-900 tracking-tight mb-2">Lịch &amp; Giờ hoạt động</h1>
             <p className="text-gray-500 font-medium text-sm max-w-xl">
-              Lịch và giờ mở cửa được lưu <span className="font-semibold text-gray-700">theo từng phòng</span>. Chọn phòng
-              bên dưới — quy ước ngày trong DB: 2–7 = Thứ 2–Thứ 7,{' '}
-              <span className="font-semibold text-gray-700">8 = Chủ nhật</span>.
+              Giờ mở cửa được lưu <span className="font-semibold text-gray-700">theo chi nhánh</span> — chọn chi nhánh
+              để chỉnh lịch. Cờ 24/7 đồng bộ lên một phòng đại diện trong chi nhánh (nếu đã có phòng).
+              Quy ước ngày trong DB: 2–7 = Thứ 2–Thứ 7, <span className="font-semibold text-gray-700">8 = Chủ nhật</span>.
             </p>
           </div>
-          <button
-            type="button"
-            disabled={!canSave}
-            onClick={() => void handleSaveClick()}
-            className={`shrink-0 flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl font-black shadow-lg transition-all active:scale-[0.98] w-full sm:w-auto disabled:opacity-40 disabled:pointer-events-none ${
-              savedFlash ? 'bg-emerald-500 text-white' : 'bg-gray-900 text-white hover:bg-red-500'
-            }`}
-          >
-            {savingSchedule ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-            {savedFlash ? 'Đã lưu' : savingSchedule ? 'Đang lưu…' : 'Lưu thay đổi'}
-          </button>
         </div>
 
         <div className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm mb-6">
@@ -399,36 +606,36 @@ export function SchedulePage() {
                 <DoorOpen className="w-5 h-5" />
               </div>
               <div className="min-w-0">
-                <h2 className="font-black text-gray-900 text-lg">Chọn phòng</h2>
+                <h2 className="font-black text-gray-900 text-lg">Chọn chi nhánh</h2>
                 <p className="text-xs text-gray-400 font-medium truncate">
                   {selectedBranch
                     ? `Chi nhánh: ${selectedBranch.name}`
-                    : 'Tất cả chi nhánh — chọn phòng trong danh sách của bạn'}
+                    : 'Tất cả chi nhánh — chọn chi nhánh trong danh sách của bạn'}
                 </p>
               </div>
             </div>
             <div className="w-full sm:w-80 shrink-0">
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
-                Phòng cần cài đặt
+                Chi nhánh cần cài đặt
               </label>
               {profileLoading || loadingRooms ? (
                 <div className="flex items-center gap-2 text-gray-500 font-medium text-sm py-3">
                   <Loader2 className="w-5 h-5 animate-spin shrink-0" />
-                  {profileLoading ? 'Đang tải tài khoản…' : 'Đang tải danh sách phòng…'}
+                  {profileLoading ? 'Đang tải tài khoản…' : 'Đang tải danh sách chi nhánh…'}
                 </div>
               ) : (
                 <select
-                  value={selectedRoomId ?? ''}
+                  value={selectedPropertyId ?? ''}
                   onChange={(e) => {
                     const v = e.target.value;
-                    setSelectedRoomId(v === '' ? null : Number(v));
+                    setSelectedPropertyId(v === '' ? null : Number(v));
                   }}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl font-bold text-gray-900 focus:border-red-500 focus:ring-2 focus:ring-red-100 outline-none transition-all"
                 >
-                  <option value="">— Chọn phòng —</option>
-                  {filteredRooms.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name}
+                  <option value="">— Chọn chi nhánh —</option>
+                  {filteredProperties.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
                     </option>
                   ))}
                 </select>
@@ -441,42 +648,42 @@ export function SchedulePage() {
         {!profileLoading && !profile?.id && (
           <div className="rounded-3xl border border-gray-200 bg-white p-8 text-center mb-8">
             <p className="text-gray-700 font-bold mb-2">Cần đăng nhập để quản lý lịch phòng</p>
-            <p className="text-sm text-gray-500">Đăng nhập tài khoản host để tải danh sách phòng.</p>
+            <p className="text-sm text-gray-500">Đăng nhập tài khoản host để tải danh sách chi nhánh.</p>
           </div>
         )}
 
-        {noRoomsInScope && !loadingRooms && (
+        {noPropertiesInScope && !loadingRooms && (
           <div className="rounded-3xl border border-dashed border-gray-200 bg-gray-50/80 p-10 text-center mb-8">
             <p className="text-gray-700 font-bold mb-2">
               {selectedBranch
-                ? `Chưa có phòng nào thuộc chi nhánh “${selectedBranch.name}”.`
-                : 'Bạn chưa có phòng nào để cài đặt lịch giờ.'}
+                ? `Chưa có chi nhánh nào thuộc bộ lọc “${selectedBranch.name}”.`
+                : 'Bạn chưa có chi nhánh nào để cài đặt lịch giờ.'}
             </p>
             <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
-              Hãy đăng phòng trước — lịch &amp; giờ hoạt động gắn với từng phòng trong hệ thống.
+              Hãy tạo chi nhánh trước — sau đó bạn cấu hình giờ mở cửa tại đây.
             </p>
             <Link
-              to="/rental/spaces"
+              to="/rental/branches"
               className="inline-flex items-center justify-center px-6 py-3 rounded-2xl bg-gray-900 text-white font-black text-sm hover:bg-red-500 transition-colors"
             >
-              Đến Phòng của tôi
+              Đến Chi nhánh
             </Link>
           </div>
         )}
 
-        {!noRoomsInScope && !loadingRooms && selectedRoomId == null && (
+        {!noPropertiesInScope && !loadingRooms && selectedPropertyId == null && (
           <div className="rounded-3xl border border-amber-100 bg-amber-50/90 p-6 mb-8 flex gap-3 text-left">
             <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
             <div>
-              <p className="font-bold text-amber-900">Chọn một phòng ở ô phía trên</p>
+              <p className="font-bold text-amber-900">Chọn một chi nhánh ở ô phía trên</p>
               <p className="text-sm text-amber-800/90 mt-1">
-                Cài đặt lịch và giờ chỉ áp dụng khi đã chọn phòng — tránh nhầm với dữ liệu tổng hợp chi nhánh.
+                Chọn chi nhánh để chỉnh giờ mở cửa và lịch chặn (theo chi nhánh).
               </p>
             </div>
           </div>
         )}
 
-        {showScheduleForm && selectedRoom && (
+        {showScheduleForm && selectedProperty && (
           <div className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm mb-8">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
               <div className="flex items-center gap-3">
@@ -486,7 +693,7 @@ export function SchedulePage() {
                 <div>
                   <h2 className="font-black text-gray-900 text-lg">Giờ mở cửa theo từng ngày</h2>
                   <p className="text-xs text-gray-400 font-medium">
-                    Đang chỉnh: <span className="text-gray-600 font-bold">{selectedRoom.name}</span>
+                    Đang chỉnh: <span className="text-gray-600 font-bold">{selectedProperty.name}</span>
                   </p>
                 </div>
               </div>
@@ -499,8 +706,8 @@ export function SchedulePage() {
                     aria-checked={is247Mode}
                     title={
                       is247Mode
-                        ? 'Tắt để chỉnh giờ từng ngày. Giờ 24/7 chỉ được ghi khi bấm Lưu.'
-                        : 'Bật để tạm khóa lịch theo ngày; bấm Lưu để ghi 00:00–23:59 cả tuần.'
+                        ? 'Tắt để chỉnh từng ngày. 24/7 sẽ được lưu dưới dạng isOverDay=true cho các ngày đang mở.'
+                        : 'Bật để khóa chỉnh từng ngày; khi Lưu sẽ áp isOverDay=true (không đổi bật/tắt từng ngày).'
                     }
                     onClick={toggle247Master}
                     className={`relative w-14 h-8 rounded-full transition-colors shrink-0 ${
@@ -517,9 +724,9 @@ export function SchedulePage() {
                 <p className="text-[11px] text-gray-400 font-medium text-right max-w-[280px]">
                   {is247Mode ? (
                     <>
-                      Đang bật 24/7: lịch theo ngày tạm khóa. Bấm{' '}
-                      <span className="font-semibold text-gray-600">Lưu thay đổi</span> để hệ thống ghi 00:00–23:59 cho
-                      Thứ 2–Chủ nhật.
+                      Đang bật 24/7: bạn vẫn có thể bật/tắt từng ngày. Bấm{' '}
+                      <span className="font-semibold text-gray-600">Lưu thay đổi</span> để hệ thống áp{' '}
+                      <span className="font-semibold text-gray-600">isOverDay=true</span> cho tất cả room_schedule.
                     </>
                   ) : (
                     <>
@@ -531,28 +738,50 @@ export function SchedulePage() {
               </div>
             </div>
 
+            <div className="mb-6 rounded-2xl border border-gray-100 bg-gray-50/40 p-4 sm:p-5">
+              <p className="text-xs font-black text-gray-500 uppercase tracking-widest mb-3">Cài đặt khung giờ (slot)</p>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1.5">
+                  Buffer giữa các slot (phút)
+                </label>
+                <p className="text-[11px] text-gray-500 mb-2">
+                  Khoảng cách giữa hai slot liên tiếp — dùng khi tạo khung giờ (ví dụ dọn phòng cho lượt đặt sau).
+                </p>
+                <input
+                  type="number"
+                  min={0}
+                  max={1440}
+                  value={bufferMinutes}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    setBufferMinutes(Number.isFinite(v) ? Math.max(0, Math.min(1440, Math.floor(v))) : 0);
+                  }}
+                  className="w-full max-w-[12rem] px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-bold text-sm text-gray-900 focus:border-red-500 focus:ring-2 focus:ring-red-100 outline-none"
+                />
+              </div>
+            </div>
+
             <div className="rounded-2xl border border-gray-100 bg-gray-50/40 overflow-hidden divide-y divide-gray-100">
               {schedules.map((row) => {
                 const label = WEEKDAY_ROWS.find((w) => w.dayOfWeek === row.dayOfWeek)?.label ?? '';
                 const isMonday = row.dayOfWeek === 2;
-                const rowLocked = is247Mode;
-                const showDayOn = rowLocked ? false : row.isOpen;
+                const showDayOn = row.isOpen;
+                const effectiveIsOverDay = is247Mode || Boolean(row.isOverDay);
+                const showAllDayOn = effectiveIsOverDay;
                 return (
                   <div
                     key={row.dayOfWeek}
-                    className={`flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 px-4 py-4 sm:px-5 bg-white ${
-                      rowLocked ? 'opacity-60' : ''
-                    }`}
+                    className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 px-4 py-4 sm:px-5 bg-white"
                   >
                     <div className="flex items-center gap-3 min-w-0 shrink-0">
                       <button
                         type="button"
                         role="switch"
                         aria-checked={showDayOn}
-                        disabled={rowLocked}
+                        disabled={false}
                         onClick={() => updateDaySchedule(row.dayOfWeek, { isOpen: !row.isOpen })}
                         className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${
-                          rowLocked ? 'bg-gray-200 cursor-not-allowed' : showDayOn ? 'bg-emerald-500' : 'bg-gray-300'
+                          showDayOn ? 'bg-emerald-500' : 'bg-gray-300'
                         }`}
                       >
                         <span
@@ -565,10 +794,10 @@ export function SchedulePage() {
                         {isMonday && (
                           <button
                             type="button"
-                            disabled={rowLocked}
+                            disabled={false}
                             onClick={copyMondayToAllDays}
                             title="Sao chép giờ Thứ 2 cho tất cả các ngày"
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 hover:border-red-200 hover:bg-red-50 hover:text-red-500 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 hover:border-red-200 hover:bg-red-50 hover:text-red-500 transition-colors"
                           >
                             <Copy className="h-3.5 w-3.5" />
                           </button>
@@ -586,34 +815,78 @@ export function SchedulePage() {
 
                     <div
                       className={`flex flex-wrap items-center gap-2 sm:gap-3 flex-1 sm:justify-end ${
-                        !rowLocked && !row.isOpen ? 'opacity-50 pointer-events-none' : ''
+                        !row.isOpen ? 'opacity-50 pointer-events-none' : ''
                       }`}
                     >
+                      <div className="flex items-center gap-2 mr-1">
+                        <span className="text-xs font-semibold text-gray-500 whitespace-nowrap">Cả ngày</span>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={showAllDayOn}
+                          disabled={is247Mode || !row.isOpen}
+                          onClick={() => updateDaySchedule(row.dayOfWeek, { isOverDay: !row.isOverDay })}
+                          className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${
+                            showAllDayOn
+                              ? 'bg-violet-500'
+                              : !row.isOpen
+                              ? 'bg-gray-200 cursor-not-allowed'
+                              : 'bg-gray-300'
+                          }`}
+                        >
+                          <span
+                            className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                              showAllDayOn ? 'translate-x-5' : ''
+                            }`}
+                          />
+                        </button>
+                      </div>
+                      <>
                       <input
                         type="time"
-                        value={row.openTime}
-                        onChange={(e) => updateDaySchedule(row.dayOfWeek, { openTime: e.target.value })}
-                        disabled={rowLocked || !row.isOpen}
+                        value={effectiveIsOverDay ? OVER_DAY_OPEN_TIME : row.openTime}
+                        onChange={(e) => {
+                          if (effectiveIsOverDay) return;
+                          updateDaySchedule(row.dayOfWeek, { openTime: e.target.value });
+                        }}
+                        disabled={!row.isOpen || effectiveIsOverDay}
                         className="min-w-[7.5rem] px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl font-bold text-sm text-gray-900 focus:border-red-500 focus:ring-2 focus:ring-red-100 outline-none disabled:cursor-not-allowed"
                       />
                       <span className="text-xs font-bold text-gray-400">đến</span>
                       <ArrowRight className="hidden sm:block w-4 h-4 text-gray-300 shrink-0" />
                       <input
                         type="time"
-                        value={row.closeTime}
-                        onChange={(e) => updateDaySchedule(row.dayOfWeek, { closeTime: e.target.value })}
-                        disabled={rowLocked || !row.isOpen}
+                        value={effectiveIsOverDay ? OVER_DAY_CLOSE_TIME : row.closeTime}
+                        onChange={(e) => {
+                          if (effectiveIsOverDay) return;
+                          updateDaySchedule(row.dayOfWeek, { closeTime: e.target.value });
+                        }}
+                        disabled={!row.isOpen || effectiveIsOverDay}
                         className="min-w-[7.5rem] px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl font-bold text-sm text-gray-900 focus:border-red-500 focus:ring-2 focus:ring-red-100 outline-none disabled:cursor-not-allowed"
                       />
+                      </>
                     </div>
                   </div>
                 );
               })}
             </div>
+            <div className="mt-5 flex justify-end">
+              <button
+                type="button"
+                disabled={!canSave}
+                onClick={() => void handleSaveClick()}
+                className={`shrink-0 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl font-black shadow-lg transition-all active:scale-[0.98] w-full sm:w-auto disabled:opacity-40 disabled:pointer-events-none ${
+                  savedFlash ? 'bg-emerald-500 text-white' : 'bg-gray-900 text-white hover:bg-red-500'
+                }`}
+              >
+                {savingSchedule ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                {savedFlash ? 'Đã lưu' : savingSchedule ? 'Đang lưu…' : saveActionLabel}
+              </button>
+            </div>
           </div>
         )}
 
-        {!noRoomsInScope && (
+        {!noPropertiesInScope && (
           <div className="bg-white rounded-3xl border border-gray-100 p-8 shadow-sm">
             <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
               <div className="flex items-center gap-3">
@@ -624,9 +897,9 @@ export function SchedulePage() {
               </div>
               <button
                 type="button"
-                disabled={!selectedRoomId}
-                title={!selectedRoomId ? 'Chọn phòng trước khi thêm lịch chặn' : undefined}
-                onClick={() => selectedRoomId && setShowBlockForm(!showBlockForm)}
+                disabled={!selectedPropertyId}
+                title={!selectedPropertyId ? 'Chọn chi nhánh trước khi thêm lịch chặn' : undefined}
+                onClick={() => selectedPropertyId && setShowBlockForm(!showBlockForm)}
                 className="flex items-center gap-2 px-6 py-3 bg-red-50 text-red-500 rounded-xl font-bold hover:bg-red-100 transition-all active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
               >
                 <Plus className="w-4 h-4" /> Thêm khoảng chặn
@@ -635,30 +908,87 @@ export function SchedulePage() {
 
             {showBlockForm && (
               <div className="bg-gray-50 rounded-2xl p-6 mb-6 animate-in slide-in-from-top duration-300">
+                <Alert className="mb-6 border-amber-200 bg-amber-50/50">
+                  <AlertCircle className="h-4 w-4 text-amber-600" />
+                  <AlertTitle className="text-amber-900 font-black">Lưu ý về khoảng chặn</AlertTitle>
+                  <AlertDescription className="text-amber-800 font-medium">
+                    Thời gian bắt đầu chỉ được chọn từ hiện tại trở đi. Thời gian kết thúc phải cách bắt đầu{' '}
+                    <span className="font-bold">ít nhất 30 phút</span>.
+                  </AlertDescription>
+                </Alert>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+                  <div className="rounded-xl border border-gray-200 bg-white p-4">
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
                       Từ (ngày &amp; giờ)
                     </label>
-                    <input
-                      type="datetime-local"
-                      value={newBlock.startDt}
-                      onChange={(e) => setNewBlock((p) => ({ ...p, startDt: e.target.value }))}
-                      disabled={blockSubmitting}
-                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl font-bold text-sm text-gray-900 focus:border-red-500 focus:ring-2 focus:ring-red-100 outline-none disabled:opacity-50"
-                    />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <input
+                          type="date"
+                          value={newBlock.startDate}
+                          min={startNowMinParts.date}
+                          onChange={(e) =>
+                            setNewBlock((p) => {
+                              const nextDate = e.target.value;
+                              const minStartTime = nextDate === startNowMinParts.date ? startNowMinParts.time : '';
+                              const nextStartTime = clampMinTime(p.startTime, minStartTime);
+                              return { ...p, startDate: nextDate, startTime: nextStartTime };
+                            })
+                          }
+                          disabled={blockSubmitting}
+                          className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl font-bold text-sm text-gray-900 focus:border-red-500 focus:ring-2 focus:ring-red-100 outline-none disabled:opacity-50"
+                        />
+                        {newBlock.startDate ? (
+                          <p className="mt-1 text-[11px] font-semibold text-gray-500">
+                            {formatWeekdayDateVi(newBlock.startDate)}
+                          </p>
+                        ) : null}
+                      </div>
+                      <input
+                        type="time"
+                        value={newBlock.startTime}
+                        min={newBlock.startDate === startNowMinParts.date ? startNowMinParts.time : undefined}
+                        onChange={(e) =>
+                          setNewBlock((p) => {
+                            const minStartTime = p.startDate === startNowMinParts.date ? startNowMinParts.time : '';
+                            const nextStartTime = clampMinTime(e.target.value, minStartTime);
+                            return { ...p, startTime: nextStartTime };
+                          })
+                        }
+                        disabled={blockSubmitting}
+                        className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl font-bold text-sm text-gray-900 focus:border-red-500 focus:ring-2 focus:ring-red-100 outline-none disabled:opacity-50"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+                  <div className="rounded-xl border border-gray-200 bg-white p-4">
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
                       Đến (ngày &amp; giờ)
                     </label>
-                    <input
-                      type="datetime-local"
-                      value={newBlock.endDt}
-                      onChange={(e) => setNewBlock((p) => ({ ...p, endDt: e.target.value }))}
-                      disabled={blockSubmitting}
-                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl font-bold text-sm text-gray-900 focus:border-red-500 focus:ring-2 focus:ring-red-100 outline-none disabled:opacity-50"
-                    />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <input
+                          type="date"
+                          value={newBlock.endDate}
+                          min={endMinParts.date}
+                          onChange={(e) => setNewBlock((p) => ({ ...p, endDate: e.target.value }))}
+                          disabled={blockSubmitting}
+                          className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl font-bold text-sm text-gray-900 focus:border-red-500 focus:ring-2 focus:ring-red-100 outline-none disabled:opacity-50"
+                        />
+                        {newBlock.endDate ? (
+                          <p className="mt-1 text-[11px] font-semibold text-gray-500">
+                            {formatWeekdayDateVi(newBlock.endDate)}
+                          </p>
+                        ) : null}
+                      </div>
+                      <input
+                        type="time"
+                        value={newBlock.endTime}
+                        min={newBlock.endDate === endMinParts.date ? endMinParts.time : undefined}
+                        onChange={(e) => setNewBlock((p) => ({ ...p, endTime: e.target.value }))}
+                        disabled={blockSubmitting}
+                        className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl font-bold text-sm text-gray-900 focus:border-red-500 focus:ring-2 focus:ring-red-100 outline-none disabled:opacity-50"
+                      />
+                    </div>
                   </div>
                 </div>
                 <div className="mb-4">
@@ -672,15 +1002,15 @@ export function SchedulePage() {
                     className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl font-bold text-sm text-gray-900 focus:border-red-500 focus:ring-2 focus:ring-red-100 outline-none disabled:opacity-50"
                   />
                 </div>
-                {!selectedRoomId && (
+                {!selectedPropertyId && (
                   <p className="text-xs text-amber-800 font-medium bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 mb-4">
-                    Chọn phòng ở card &quot;Chọn phòng&quot; phía trên để thêm lịch chặn.
+                    Chọn chi nhánh ở card &quot;Chọn chi nhánh&quot; phía trên để thêm lịch chặn.
                   </p>
                 )}
                 <button
                   type="button"
                   onClick={() => void submitBlock()}
-                  disabled={blockSubmitting || !selectedRoomId}
+                  disabled={blockSubmitting || !selectedPropertyId}
                   className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-gray-900 text-white rounded-xl font-bold text-sm hover:bg-red-500 transition-all active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
                 >
                   {blockSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
@@ -689,45 +1019,84 @@ export function SchedulePage() {
               </div>
             )}
 
-            <div className="space-y-3">
-              {blocksForSelectedRoom.map((b) => (
-                <div
-                  key={b.id}
-                  className="flex items-center justify-between gap-3 p-4 bg-red-50/50 border border-red-100 rounded-2xl flex-wrap sm:flex-nowrap"
-                >
-                  <div className="flex items-center gap-4 min-w-0">
-                    <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
-                    <div className="min-w-0">
-                      <p className="font-bold text-gray-900 text-sm break-words">
-                        {formatBlockedRangeVi(b.startDatetime, b.endDatetime)}
-                      </p>
-                      <p className="text-xs text-gray-500 font-medium mt-0.5 break-words">
-                        <span className="font-semibold text-gray-600">{b.roomName}</span>
-                        {' · '}
-                        {b.reason}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => void handleUnlockBlock(b.id)}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-red-600 font-bold text-xs border border-red-100 bg-red-50/50 hover:bg-red-100/80 transition-all shrink-0"
-                  >
-                    <Unlock className="w-3.5 h-3.5" />
-                    Mở khóa
-                  </button>
-                </div>
-              ))}
-              {!loadingRooms && blocksForSelectedRoom.length === 0 && (
-                <div className="text-center py-8 text-gray-400 font-medium">
-                  {selectedRoomId == null
-                    ? 'Chọn phòng ở ô phía trên để xem lịch chặn của phòng đó.'
-                    : 'Chưa có khoảng chặn nào'}
-                </div>
-              )}
+            <div className="overflow-x-auto border border-gray-100 rounded-3xl bg-white shadow-sm overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-gray-50/50 hover:bg-gray-50/50">
+                    <TableHead className="font-black text-[10px] text-gray-400 uppercase tracking-widest pl-8 h-12">Khoảng thời gian</TableHead>
+                    <TableHead className="font-black text-[10px] text-gray-400 uppercase tracking-widest h-12">Chi nhánh</TableHead>
+                    <TableHead className="font-black text-[10px] text-gray-400 uppercase tracking-widest h-12">Lý do</TableHead>
+                    <TableHead className="font-black text-[10px] text-gray-400 uppercase tracking-widest text-right pr-8 h-12">Thao tác</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {blocksForSelectedProperty.map((b) => (
+                    <TableRow key={b.id} className="group hover:bg-white transition-colors border-gray-100">
+                      <TableCell className="pl-8 py-5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 bg-red-50 rounded-xl flex items-center justify-center text-red-500 shrink-0">
+                            <AlertCircle className="w-4 h-4" />
+                          </div>
+                          <span className="font-bold text-gray-900 text-sm">{formatBlockedRangeVi(b.startDatetime, b.endDatetime)}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-black text-xs px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg">{b.branchLabel}</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-gray-500 font-bold text-sm">{b.reason}</span>
+                      </TableCell>
+                      <TableCell className="text-right pr-8">
+                        <button
+                          type="button"
+                          onClick={() => void handleUnlockBlock(b.id)}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-red-600 font-bold text-xs border border-red-100 bg-red-50/50 hover:bg-red-500 hover:text-white transition-all shadow-sm active:scale-95"
+                        >
+                          <Unlock className="w-3.5 h-3.5" />
+                          Mở khóa
+                        </button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {!loadingRooms && blocksForSelectedProperty.length === 0 && (
+                    <TableRow className="hover:bg-transparent">
+                      <TableCell colSpan={4} className="text-center py-16">
+                        <div className="flex flex-col items-center gap-2">
+                           <CalendarOff className="w-8 h-8 text-gray-200" />
+                           <p className="text-gray-400 font-bold text-sm">
+                            {selectedPropertyId == null
+                              ? 'Chọn chi nhánh ở ô phía trên để xem lịch chặn.'
+                              : 'Chưa có khoảng chặn nào được thiết lập.'}
+                           </p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </div>
           </div>
         )}
+
+        <AlertDialog open={blockToDelete !== null} onOpenChange={(open) => !open && setBlockToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="font-black text-gray-900">Xác nhận mở khóa</AlertDialogTitle>
+              <AlertDialogDescription className="text-gray-500 font-medium">
+                Khoảng chặn này sẽ bị xóa và lịch phòng sẽ được mở lại bình thường. Bạn có chắc chắn muốn tiếp tục?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="rounded-xl font-bold">Hủy</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => void confirmUnlockBlock()}
+                className="bg-red-500 text-white hover:bg-red-600 rounded-xl font-bold"
+              >
+                Mở khóa ngay
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </RentalLayout>
   );

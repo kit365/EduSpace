@@ -111,6 +111,7 @@ export function propertyToSpace(property: PropertyDto, rooms: RoomDto[] = []): S
     name: property.name,
     location: property.addressDetail,
     address: property.addressDetail,
+    roomLocationHint: primary?.roomLocationHint ?? undefined,
     capacity: primary?.capacity ?? 0,
     size: primary?.area != null ? Number(primary.area) : undefined,
     price: roomPricePerHour(primary),
@@ -128,6 +129,8 @@ export function propertyToSpace(property: PropertyDto, rooms: RoomDto[] = []): S
     submittedAt: property.submittedAt ?? undefined,
     approvedAt: property.approvedAt ?? undefined,
     is24_7: primary?.is24_7 ?? undefined,
+    minDuration: primary?.minDuration ?? undefined,
+    stepUnit: primary?.stepUnit ?? undefined,
   };
 }
 
@@ -145,6 +148,7 @@ export function propertyToSpaceDetails(
     schedules: rooms[0]?.schedules || [], // Simplification for property level
     timeslots: rooms[0]?.timeslots || [],
     is24_7: rooms[0]?.is24_7 ?? false,
+    roomId: rooms[0]?.id,
   };
 }
 
@@ -157,6 +161,7 @@ export function roomToSpaceCard(room: RoomDto, property: PropertyDto): Space {
     slug: room.slug || undefined,
     name: room.name,
     location: room.location || property.addressDetail,
+    roomLocationHint: room.roomLocationHint ?? undefined,
     address: property.addressDetail,
     capacity: room.capacity,
     size: room.area != null ? Number(room.area) : undefined,
@@ -174,6 +179,8 @@ export function roomToSpaceCard(room: RoomDto, property: PropertyDto): Space {
     hostId: property.ownerId,
     approvalStatus: mapPropertyStatus(property.status),
     is24_7: room.is24_7 ?? undefined,
+    minDuration: room.minDuration ?? undefined,
+    stepUnit: room.stepUnit ?? undefined,
   };
 }
 
@@ -207,5 +214,6 @@ export function roomAndPropertyToSpaceDetails(
     schedules: room.schedules || [],
     timeslots: room.timeslots || [],
     is24_7: room.is24_7 ?? false,
+    roomId: room.id,
   };
 }
