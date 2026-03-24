@@ -85,7 +85,9 @@ app:
       assign-staff-request: ${KAFKA_TOPIC_ASSIGN_STAFF_REQUEST:eduspace.assign-staff.request}
       assign-staff-result: ${KAFKA_TOPIC_ASSIGN_STAFF_RESULT:eduspace.assign-staff.result}
   support-presence:
-    window-ms: ${SUPPORT_PRESENCE_WINDOW_MS:90000}
+    # Keep this slightly above FE heartbeat interval (30s) to avoid false offline,
+    # while minimizing stale "online" assignments after admin disconnect/logout.
+    window-ms: ${SUPPORT_PRESENCE_WINDOW_MS:35000}
 
 springdoc:
   swagger-ui:

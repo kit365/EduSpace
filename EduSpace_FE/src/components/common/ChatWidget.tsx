@@ -25,6 +25,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 
 const STAFF_ASSIGN_FAILED_HINT = 'không có nhân viên';
 const LIST_FETCH_MIN_MS = 2000;
+const MATCHING_TIMEOUT_MS = 15000;
 
 function pickSupportConversation(convs: Conversation[]) {
     return (
@@ -56,6 +57,7 @@ export function ChatWidget() {
     const { chatUserId: currentUserId, identityReady } = useResolvedChatUserId();
     const scrollRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const matchingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     /** Avoid hammering GET /conversations on every CONVERSATION_ACTIVITY / reconnect. */
     const lastListFetchAtRef = useRef(0);
     /** Always current — `loadSupportThread` must not read stale `conversation` from closure. */
@@ -275,6 +277,64 @@ export function ChatWidget() {
             }
         }
     }, [lastMessage, conversation, currentUserId]);
+
+    useEffect(() => {
+        if (!isMatching || !conversation) {
+            if (matchingTimeoutRef.current) {
+                clearTimeout(matchingTimeoutRef.current);
+                matchingTimeoutRef.current = null;
+            }
+            return;
+        }
+
+        if (matchingTimeoutRef.current) {
+            clearTimeout(matchingTimeoutRef.current);
+        }
+
+        matchingTimeoutRef.current = setTimeout(async () => {
+            try {
+                await reloadMessages();
+            } catch {
+                /* best effort */
+            }
+            setIsMatching(false);
+            setMessages((prev) => {
+                const exists = prev.some(
+                    (m) => m.messageType === 'SYSTEM' && (m.content || '').toLowerCase().includes(STAFF_ASSIGN_FAILED_HINT)
+                );
+                if (exists) return prev;
+                const fallback: ChatMessage = {
+                    messageId: `local-no-staff-${Date.now()}`,
+                    conversationId: conversation.conversationId,
+                    content: 'Hiện tại không có nhân viên trống, vui lòng để lại lời nhắn hoặc thử lại sau.',
+                    messageType: 'SYSTEM',
+                    sentAt: new Date().toISOString(),
+                    isRead: true,
+                    isDeleted: false,
+                    mediaUrl: null,
+                    mediaType: null,
+                    readAt: null,
+                    editedAt: null,
+                    reactions: null,
+                    replyToMessageId: null,
+                    sender: {
+                        userId: conversation.otherUser?.userId ?? 'system',
+                        fullName: 'System',
+                        email: null,
+                        avatarUrl: null,
+                    },
+                };
+                return [...prev, fallback];
+            });
+        }, MATCHING_TIMEOUT_MS);
+
+        return () => {
+            if (matchingTimeoutRef.current) {
+                clearTimeout(matchingTimeoutRef.current);
+                matchingTimeoutRef.current = null;
+            }
+        };
+    }, [isMatching, conversation, reloadMessages]);
 
     useEffect(() => {
         if (!lastEdited || !conversation) return;
