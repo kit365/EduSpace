@@ -41,7 +41,11 @@ public class StaffAssignmentSagaHandler {
             } else if (SagaEventConstants.ASSIGN_STAFF_FAILED.equals(event.getEventType())) {
                 log.error("Staff assignment failed for conversation: {}. Notifying user.", conversation.getId());
                 try {
+                    // Compensation: keep support thread but mark it inactive/unassigned.
+                    conversation.setIsActive(false);
+                    conversationRepository.save(conversation);
                     chatService.notifyStaffAssignmentFailed(conversation.getId(), result);
+                    emitAssignmentFailedEvents(conversation, result);
                     sagaService.failSaga(sagaId, "Staff assignment failed");
                 } catch (Exception e) {
                     log.error("Failed to handle saga failure", e);
@@ -95,6 +99,40 @@ public class StaffAssignmentSagaHandler {
             "CONVERSATION_ACTIVITY",
             eventPayload,
             conversation.getUser2Id()
+        );
+    }
+
+    private void emitAssignmentFailedEvents(com.eduspace.conversationservice.model.entity.ConversationEntity conversation, String reason) {
+        String subPath = com.eduspace.conversationservice.infrastructure.constants.WebSocketTopics.CONVERSATIONS;
+        String topicUser1 = com.eduspace.conversationservice.infrastructure.constants.WebSocketTopics.USER + conversation.getUser1Id() + subPath;
+
+        String msg = "No staff available";
+        if (reason != null && !reason.isBlank()) {
+            msg = msg + ": " + reason;
+        }
+
+        java.util.Map<String, Object> eventPayload = new java.util.HashMap<>();
+        eventPayload.put("type", "CONVERSATION_ACTIVITY");
+        eventPayload.put("conversationId", conversation.getId());
+        eventPayload.put("lastMessage", msg);
+        eventPayload.put("lastActivity", java.time.LocalDateTime.now().toString());
+        eventPayload.put("isAdminConversation", true);
+        eventPayload.put("senderId", conversation.getUser1Id());
+        eventPayload.put("messageType", "SYSTEM");
+
+        try {
+            messagingTemplate.convertAndSend(topicUser1, eventPayload);
+            log.info("Broadcasted staff-assignment failure to WebSocket user: {}", conversation.getUser1Id());
+        } catch (Exception e) {
+            log.error("Failed to broadcast staff-assignment failure to WebSocket", e);
+        }
+
+        outboxService.addEvent(
+            com.eduspace.conversationservice.model.event.DomainEventConstants.AGGREGATE_CONVERSATION,
+            conversation.getId(),
+            "CONVERSATION_ACTIVITY",
+            eventPayload,
+            conversation.getUser1Id()
         );
     }
 }
