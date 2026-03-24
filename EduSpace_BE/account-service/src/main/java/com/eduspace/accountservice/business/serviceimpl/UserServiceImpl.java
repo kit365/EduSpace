@@ -340,10 +340,10 @@ public class UserServiceImpl implements UserService {
             log.info("Assigned online admin {} to customer {}", assigned.getEmail(), customerId);
             return assigned.getKeycloakId();
         }
-
-        UserEntity assigned = admins.get(0);
-        log.info("Assigned admin (pool order, none online in Redis) {} to customer {}", assigned.getEmail(), customerId);
-        return assigned.getKeycloakId();
+        // For support-chat saga we only assign currently online staff.
+        // Returning null triggers ASSIGN_STAFF_FAILED and compensation in conversation-service.
+        log.warn("No online support staff available for customer {}", customerId);
+        return null;
     }
 
     private String mapRole(String uiRole) {
