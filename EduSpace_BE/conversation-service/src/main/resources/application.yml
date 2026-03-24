@@ -67,8 +67,13 @@ app:
     # One-time: true → on startup, resolve email in user1_id/user2_id/sender_id to Keycloak id via account-service, then set false.
     backfill-email-participants-on-startup: false
   media:
+    # local: lưu trên đĩa + phục vụ qua /media/** | cloudinary: upload lên Cloudinary (cần CLOUDINARY_URL)
+    storage-type: ${MEDIA_STORAGE_TYPE:local}
     storage-path: ${MEDIA_STORAGE_PATH:./data/media}
     public-base-url: ${MEDIA_PUBLIC_BASE_URL:http://localhost:${GATEWAY_PORT:8080}}
+    cloudinary:
+      # Chat: eduspace-chat | Logo chi nhánh (FE): eduspace-host-branch-logos — tách biệt TeddyPet (pet-avatars, …)
+      default-folder: ${CLOUDINARY_DEFAULT_FOLDER:eduspace-chat}
   outbox:
     publisher-delay-ms: ${OUTBOX_PUBLISHER_DELAY_MS:2000}
   kafka:

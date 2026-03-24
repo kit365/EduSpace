@@ -40,6 +40,7 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/media/**").permitAll()
+                        .requestMatchers("/api/v1/media/**").permitAll()
                         .requestMatchers("/api/v1/conversations/**").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2
