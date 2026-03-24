@@ -4,13 +4,18 @@ import type {
   AmenityCreateRequest,
   AmenityDto,
   PageResponse,
+  RoomAvailabilityCheckRequest,
+  RoomAvailabilityCheckResponse,
   RoomCategoryDto,
   RoomCreateRequest,
   RoomDto,
   RoomOperationalStatus,
   RoomPriceQuoteRequest,
   RoomPriceQuoteResponse,
+  RoomPricingQuoteRequest,
+  RoomPricingQuoteResponse,
   RoomScheduleSaveItem,
+  RoomTimeslotDto,
 } from '../types';
 
 function unwrap<T>(res: unknown): T {
@@ -68,6 +73,23 @@ export const roomApiService = {
     const params = new URLSearchParams({ ownerId: ownerId.trim() });
     const res = await apiClient.put(`${ROOM_API.ROOMS}/${roomId}/schedules?${params}`, items);
     return unwrap<RoomDto>(res);
+  },
+
+  getTimeslots: async (roomId: number, bookingDate: string): Promise<RoomTimeslotDto[]> => {
+    const params = new URLSearchParams({ bookingDate });
+    const res = await apiClient.get(`${ROOM_API.ROOMS}/${roomId}/timeslots?${params}`);
+    return unwrap<RoomTimeslotDto[]>(res);
+  },
+
+  checkAvailability: async (roomId: number, body: RoomAvailabilityCheckRequest): Promise<RoomAvailabilityCheckResponse> => {
+    const res = await apiClient.post(`${ROOM_API.ROOMS}/${roomId}/availability/check`, body);
+    return unwrap<RoomAvailabilityCheckResponse>(res);
+  },
+
+  /** POST /rooms/{id}/pricing/quote — báo giá theo timeslot (dev). */
+  quoteTimeslotPricing: async (roomId: number, body: RoomPricingQuoteRequest): Promise<RoomPricingQuoteResponse> => {
+    const res = await apiClient.post(`${ROOM_API.ROOMS}/${roomId}/pricing/quote`, body);
+    return unwrap<RoomPricingQuoteResponse>(res);
   },
 
   /** PATCH /rooms/{id}/status — chỉ đổi trạng thái vận hành. */

@@ -19,6 +19,8 @@ export type RoomOperationalStatus = 'READY' | 'IN_USE' | 'CLEANING' | 'MAINTENAN
 export type RoomApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export type BookingType = 'SLOT_BASED' | 'FREE_FORM';
+export type TimeslotType = 'DAY' | 'SESSION';
+export type DurationMode = 'MINUTE' | 'HOUR';
 
 export interface RoomPriceRuleDto {
   id?: number;
@@ -138,6 +140,17 @@ export interface RoomScheduleDto {
   closeTime: string | null;
 }
 
+export interface RoomTimeslotDto {
+  id: number;
+  dayOfWeek: number;
+  slotType: TimeslotType;
+  startTime: string;
+  endTime: string;
+  durationMode: DurationMode;
+  durationStep: number;
+  isActive: boolean;
+}
+
 /** PUT /rooms/{id}/schedules — không gửi id. */
 export type RoomScheduleSaveItem = {
   dayOfWeek: number;
@@ -194,6 +207,7 @@ export interface RoomDto {
   weekendApplySunday?: boolean | null;
   /** Lịch 7 ngày — từ room_schedules */
   schedules?: RoomScheduleDto[];
+  timeslots?: RoomTimeslotDto[];
   images: string | null;
   mainImageUrl?: string | null;
   description: string | null;
@@ -213,6 +227,37 @@ export interface RoomDto {
   amenities?: RoomAmenityDto[];
   category?: RoomCategoryDto | null;
   policies?: RoomPolicyDto[];
+}
+
+export interface RoomAvailabilityCheckRequest {
+  slotId: number;
+  bookingDate: string;
+  durationValue: number;
+  durationUnit: DurationMode;
+}
+
+export interface RoomAvailabilityCheckResponse {
+  available: boolean;
+  reason: string;
+  startDateTime: string;
+  endDateTime: string;
+}
+
+export interface RoomPricingQuoteRequest {
+  slotId: number;
+  bookingDate: string;
+  durationValue: number;
+  durationUnit: DurationMode;
+}
+
+export interface RoomPricingQuoteResponse {
+  slotId: number;
+  durationMinutes: number;
+  unitPrice: number;
+  totalPrice: number;
+  startDateTime: string;
+  endDateTime: string;
+  currency: string;
 }
 
 export interface RoomCategoryDto {

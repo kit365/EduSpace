@@ -2,6 +2,7 @@ package com.eduspace.roomservice.business.serviceimpl;
 
 import com.eduspace.roomservice.business.service.RoomScheduleService;
 import com.eduspace.roomservice.business.service.RoomService;
+import com.eduspace.roomservice.business.service.RoomTimeslotService;
 import com.eduspace.roomservice.common.enums.BookingType;
 import com.eduspace.roomservice.common.enums.RoomApprovalStatus;
 import com.eduspace.roomservice.common.enums.RoomStatus;
@@ -61,6 +62,7 @@ public class RoomServiceImpl implements RoomService {
     private final RoomPriceRuleRepository roomPriceRuleRepository;
     private final ObjectMapper objectMapper;
     private final RoomScheduleService roomScheduleService;
+    private final RoomTimeslotService roomTimeslotService;
     private final RoomMapper roomMapper;
     private final RoomPolicyMapper roomPolicyMapper;
 
@@ -193,6 +195,7 @@ public class RoomServiceImpl implements RoomService {
         upsertPriceRules(room, request.getPriceRules());
         RoomEntity saved = roomRepository.save(room);
         roomScheduleService.seedDefaultsForNewRoom(saved.getId());
+        roomTimeslotService.seedDefaultsForNewRoom(saved.getId());
         return mapToResponse(saved);
     }
 
@@ -465,6 +468,7 @@ public class RoomServiceImpl implements RoomService {
         } else {
             response.setSchedules(List.of());
         }
+        response.setTimeslots(roomTimeslotService.listByRoom(e.getId()));
         return response;
     }
 

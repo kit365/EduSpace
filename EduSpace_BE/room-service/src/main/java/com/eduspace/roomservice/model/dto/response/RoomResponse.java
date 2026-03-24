@@ -40,6 +40,7 @@ public class RoomResponse {
     /** Từ property: cho phép sinh slot trên toàn ngày. */
     Boolean scheduleIsOverDay;
     List<RoomScheduleResponse> schedules;
+    List<RoomTimeslotResponse> timeslots;
     List<RoomPolicyResponse> policies;
     List<RoomAmenityResponse> amenities;
     BigDecimal pricePerHour;

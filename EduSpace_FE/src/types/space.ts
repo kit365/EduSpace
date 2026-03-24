@@ -65,11 +65,23 @@ export interface ReservationSchedule {
   closeTime: string | null;
 }
 
+export interface ReservationTimeslot {
+  id: number;
+  dayOfWeek: number;
+  slotType: 'DAY' | 'SESSION';
+  startTime: string;
+  endTime: string;
+  durationMode: 'MINUTE' | 'HOUR';
+  durationStep: number;
+  isActive: boolean;
+}
+
 export interface SpaceDetails extends Space {
   amenitiesDetailed: SpaceAmenity[];
   reviews: SpaceReview[];
   availableSlots?: number;
   schedules?: ReservationSchedule[];
+  timeslots?: ReservationTimeslot[];
   roomId?: number;
   host?: {
     name: string;

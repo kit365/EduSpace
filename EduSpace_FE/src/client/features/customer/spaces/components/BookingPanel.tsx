@@ -147,6 +147,8 @@ export function BookingPanel({
     navigate('/checkout', {
       state: {
         bookingDetails: {
+          roomId,
+          bookingDate: selectedDate,
           date: selectedDate,
           startTime,
           endTime,

@@ -2,15 +2,23 @@ package com.eduspace.roomservice.presentation.controller;
 
 import com.eduspace.roomservice.business.service.RoomService;
 import com.eduspace.roomservice.business.service.RoomScheduleService;
+import com.eduspace.roomservice.business.service.RoomTimeslotService;
+import com.eduspace.roomservice.model.dto.request.RoomAvailabilityCheckRequest;
 import com.eduspace.roomservice.model.dto.request.RoomPriceQuoteRequest;
 import com.eduspace.roomservice.model.dto.request.RoomRequest;
 import com.eduspace.roomservice.model.dto.request.RoomScheduleItemRequest;
 import com.eduspace.roomservice.model.dto.request.RoomStatusPatchRequest;
+import com.eduspace.roomservice.model.dto.request.RoomPricingQuoteRequest;
+import com.eduspace.roomservice.model.dto.request.RoomTimeslotItemRequest;
 import com.eduspace.roomservice.model.dto.response.ApiResponse;
+import com.eduspace.roomservice.model.dto.response.RoomAvailabilityCheckResponse;
+import com.eduspace.roomservice.model.dto.response.RoomPricingQuoteResponse;
 import com.eduspace.roomservice.model.dto.response.RoomPriceQuoteResponse;
 import com.eduspace.roomservice.model.dto.response.RoomResponse;
+import com.eduspace.roomservice.model.dto.response.RoomTimeslotResponse;
 import com.eduspace.roomservice.presentation.constants.ApiPaths;
 
+import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -22,6 +30,7 @@ public class RoomController {
 
     private final RoomService roomService;
     private final RoomScheduleService roomScheduleService;
+    private final RoomTimeslotService roomTimeslotService;
 
     @GetMapping
     public ApiResponse<List<RoomResponse>> getAll(
@@ -99,6 +108,36 @@ public class RoomController {
             @RequestBody List<RoomScheduleItemRequest> body) {
         roomScheduleService.replaceSchedules(id, ownerId, body);
         return ApiResponse.success(roomService.getRoomById(id));
+    }
+
+    @GetMapping("/{id}/timeslots")
+    public ApiResponse<List<RoomTimeslotResponse>> getTimeslots(
+            @PathVariable Integer id,
+            @RequestParam LocalDate bookingDate) {
+        return ApiResponse.success(roomTimeslotService.listByRoomAndDate(id, bookingDate));
+    }
+
+    @PutMapping("/{id}/timeslots")
+    public ApiResponse<RoomResponse> replaceTimeslots(
+            @PathVariable Integer id,
+            @RequestParam String ownerId,
+            @RequestBody List<RoomTimeslotItemRequest> body) {
+        roomTimeslotService.replaceTimeslots(id, ownerId, body);
+        return ApiResponse.success(roomService.getRoomById(id));
+    }
+
+    @PostMapping("/{id}/availability/check")
+    public ApiResponse<RoomAvailabilityCheckResponse> checkAvailability(
+            @PathVariable Integer id,
+            @RequestBody RoomAvailabilityCheckRequest request) {
+        return ApiResponse.success(roomTimeslotService.checkAvailability(id, request));
+    }
+
+    @PostMapping("/{id}/pricing/quote")
+    public ApiResponse<RoomPricingQuoteResponse> quote(
+            @PathVariable Integer id,
+            @RequestBody RoomPricingQuoteRequest request) {
+        return ApiResponse.success(roomTimeslotService.quote(id, request));
     }
 
     @DeleteMapping("/{id}")
