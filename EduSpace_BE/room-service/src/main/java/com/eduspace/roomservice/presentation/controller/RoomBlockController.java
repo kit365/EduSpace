@@ -17,7 +17,12 @@ public class RoomBlockController {
     private final RoomBlockService roomBlockService;
 
     @GetMapping
-    public ApiResponse<List<RoomBlockResponse>> getAll(@RequestParam(required = false) Integer roomId) {
+    public ApiResponse<List<RoomBlockResponse>> getAll(
+            @RequestParam(required = false) Integer propertyId,
+            @RequestParam(required = false) Integer roomId) {
+        if (propertyId != null) {
+            return ApiResponse.success(roomBlockService.getByPropertyId(propertyId));
+        }
         if (roomId != null) {
             return ApiResponse.success(roomBlockService.getByRoomId(roomId));
         }

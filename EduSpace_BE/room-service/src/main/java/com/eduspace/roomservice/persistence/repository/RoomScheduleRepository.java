@@ -6,7 +6,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface RoomScheduleRepository extends JpaRepository<RoomScheduleEntity, Long> {
 
-    List<RoomScheduleEntity> findByRoomIdOrderByDayOfWeekAsc(Integer roomId);
+    List<RoomScheduleEntity> findByProperty_IdOrderByDayOfWeekAsc(Integer propertyId);
 
-    void deleteByRoomId(Integer roomId);
+    void deleteByProperty_Id(Integer propertyId);
+
+    boolean existsByProperty_Id(Integer propertyId);
 }

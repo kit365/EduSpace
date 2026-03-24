@@ -1,12 +1,16 @@
 package com.eduspace.roomservice.presentation.controller;
 
 import com.eduspace.roomservice.business.service.PropertyService;
+import com.eduspace.roomservice.business.service.RoomScheduleService;
 import com.eduspace.roomservice.model.dto.request.PropertyModerationRequest;
 import com.eduspace.roomservice.model.dto.request.PropertyRequest;
+import com.eduspace.roomservice.model.dto.request.PropertyScheduleReplaceRequest;
 import com.eduspace.roomservice.model.dto.response.ApiResponse;
 import com.eduspace.roomservice.model.dto.response.PropertyResponse;
+import com.eduspace.roomservice.model.dto.response.PropertyScheduleBundleResponse;
 import com.eduspace.roomservice.presentation.constants.ApiPaths;
 
+import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 public class PropertyController {
 
     private final PropertyService propertyService;
+    private final RoomScheduleService roomScheduleService;
 
     @GetMapping
     public ApiResponse<List<PropertyResponse>> getAll() {
@@ -26,6 +31,24 @@ public class PropertyController {
     @GetMapping("/{id}")
     public ApiResponse<PropertyResponse> getById(@PathVariable Integer id) {
         return ApiResponse.success(propertyService.getById(id));
+    }
+
+    /** Giờ mở cửa theo cơ sở — host gửi ownerId (UUID) để xác thực. */
+    @GetMapping("/{id}/schedules")
+    public ApiResponse<PropertyScheduleBundleResponse> getSchedules(
+            @PathVariable Integer id, @RequestParam String ownerId) {
+        roomScheduleService.assertPropertyOwner(id, ownerId);
+        return ApiResponse.success(roomScheduleService.getScheduleBundleByPropertyId(id));
+    }
+
+    /** Ghi đè buffer + over-day + lịch 7 ngày cho cả cơ sở. */
+    @PutMapping("/{id}/schedules")
+    public ApiResponse<PropertyScheduleBundleResponse> replaceSchedules(
+            @PathVariable Integer id,
+            @RequestParam String ownerId,
+            @Valid @RequestBody PropertyScheduleReplaceRequest body) {
+        roomScheduleService.replacePropertyScheduleBundle(id, ownerId, body);
+        return ApiResponse.success(roomScheduleService.getScheduleBundleByPropertyId(id));
     }
 
     @PostMapping

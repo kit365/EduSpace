@@ -1,6 +1,5 @@
-package com.eduspace.roomservice.model.dto.response;
+package com.eduspace.roomservice.model.dto.request;
 
-import java.time.LocalTime;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -13,12 +12,9 @@ import lombok.experimental.FieldDefaults;
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class RoomScheduleResponse {
+public class RoomPriceQuoteRequest {
 
-    Long id;
-    Integer dayOfWeek;
-    Boolean isOpen;
-    Boolean isOverDay;
-    LocalTime openTime;
-    LocalTime closeTime;
+    Integer durationMinutes;
+    String startDateTime;
+    String endDateTime;
 }

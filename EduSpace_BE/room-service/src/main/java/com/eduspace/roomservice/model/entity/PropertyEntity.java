@@ -105,4 +105,14 @@ public class PropertyEntity extends BaseEntity {
     @Builder.Default
     @Column(name = "deleted", nullable = false)
     boolean deleted = false;
+
+    /** Phút nghỉ giữa các slot liên tiếp (dọn phòng / buffer). */
+    @Builder.Default
+    @Column(name = "schedule_buffer_minutes", nullable = false)
+    Integer scheduleBufferMinutes = 0;
+
+    /** Cho phép sinh slot trên toàn khung 24h (không giới open/close theo ngày). */
+    @Builder.Default
+    @Column(name = "schedule_is_over_day", nullable = false)
+    Boolean scheduleIsOverDay = false;
 }

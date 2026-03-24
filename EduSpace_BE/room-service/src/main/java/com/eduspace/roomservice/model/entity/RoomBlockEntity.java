@@ -35,8 +35,8 @@ public class RoomBlockEntity extends BaseEntity {
     Integer id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "room_id", nullable = false)
-    RoomEntity room;
+    @JoinColumn(name = "property_id", nullable = false)
+    PropertyEntity property;
 
     @Column(name = "start_datetime")
     LocalDateTime startDatetime;

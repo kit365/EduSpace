@@ -2,10 +2,12 @@ package com.eduspace.roomservice.presentation.controller;
 
 import com.eduspace.roomservice.business.service.RoomService;
 import com.eduspace.roomservice.business.service.RoomScheduleService;
+import com.eduspace.roomservice.model.dto.request.RoomPriceQuoteRequest;
 import com.eduspace.roomservice.model.dto.request.RoomRequest;
 import com.eduspace.roomservice.model.dto.request.RoomScheduleItemRequest;
 import com.eduspace.roomservice.model.dto.request.RoomStatusPatchRequest;
 import com.eduspace.roomservice.model.dto.response.ApiResponse;
+import com.eduspace.roomservice.model.dto.response.RoomPriceQuoteResponse;
 import com.eduspace.roomservice.model.dto.response.RoomResponse;
 import com.eduspace.roomservice.presentation.constants.ApiPaths;
 
@@ -48,6 +50,13 @@ public class RoomController {
     @PostMapping
     public ApiResponse<RoomResponse> create(@RequestBody RoomRequest request) {
         return ApiResponse.success(roomService.create(request));
+    }
+
+    @PostMapping("/{id}/price-quote")
+    public ApiResponse<RoomPriceQuoteResponse> quotePrice(
+            @PathVariable Integer id,
+            @RequestBody RoomPriceQuoteRequest request) {
+        return ApiResponse.success(roomService.quotePrice(id, request));
     }
 
     /** Host gửi chỉnh sửa chờ duyệt — cần ownerId (UUID) khớp property. */

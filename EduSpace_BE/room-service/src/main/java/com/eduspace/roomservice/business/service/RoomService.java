@@ -1,9 +1,11 @@
 package com.eduspace.roomservice.business.service;
 
 import com.eduspace.roomservice.common.enums.RoomStatus;
+import com.eduspace.roomservice.model.dto.request.RoomPriceQuoteRequest;
 import com.eduspace.roomservice.model.dto.request.RoomRequest;
 import com.eduspace.roomservice.model.dto.request.RoomSearchRequest;
 import com.eduspace.roomservice.model.dto.response.PageResponse;
+import com.eduspace.roomservice.model.dto.response.RoomPriceQuoteResponse;
 import com.eduspace.roomservice.model.dto.response.RoomResponse;
 import java.util.List;
 
@@ -38,4 +40,6 @@ public interface RoomService {
     RoomResponse approvePendingEdit(Integer roomId);
 
     RoomResponse rejectPendingEdit(Integer roomId, String rejectionNote);
+
+    RoomPriceQuoteResponse quotePrice(Integer roomId, RoomPriceQuoteRequest request);
 }

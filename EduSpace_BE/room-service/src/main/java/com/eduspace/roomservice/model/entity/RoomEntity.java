@@ -66,6 +66,9 @@ public class RoomEntity extends BaseEntity {
     @Column(name = "location_en", columnDefinition = "TEXT")
     String locationEn;
 
+    @Column(name = "room_location_hint", columnDefinition = "TEXT")
+    String roomLocationHint;
+
     @Column(name = "slug", unique = true)
     String slug;
 
@@ -98,11 +101,39 @@ public class RoomEntity extends BaseEntity {
     BigDecimal pricePerDay;
 
     @Builder.Default
+    @Deprecated
     @Column(name = "min_booking_hours")
     Integer minBookingHours = 1;
 
+    @Builder.Default
+    @Column(name = "min_duration")
+    Integer minDuration = 60;
+
+    @Builder.Default
+    @Column(name = "step_unit")
+    Integer stepUnit = 30;
+
+    @Builder.Default
+    @Column(name = "weekend_surcharge_enabled")
+    Boolean weekendSurchargeEnabled = false;
+
+    @Builder.Default
+    @Column(name = "weekend_surcharge_percent", precision = 5, scale = 2)
+    BigDecimal weekendSurchargePercent = BigDecimal.ZERO;
+
+    @Builder.Default
+    @Column(name = "weekend_apply_saturday")
+    Boolean weekendApplySaturday = false;
+
+    @Builder.Default
+    @Column(name = "weekend_apply_sunday")
+    Boolean weekendApplySunday = true;
+
     @Column(name = "images", columnDefinition = "TEXT")
     String images;
+
+    @Column(name = "main_image_url", columnDefinition = "TEXT")
+    String mainImageUrl;
 
     @Column(name = "images_alt_vi", columnDefinition = "TEXT")
     String imagesAltVi;
@@ -141,6 +172,10 @@ public class RoomEntity extends BaseEntity {
     @Builder.Default
     @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, orphanRemoval = true)
     List<RoomAmenityEntity> amenities = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, orphanRemoval = true)
+    List<RoomPriceRuleEntity> priceRules = new ArrayList<>();
 
     @Builder.Default
     @Column(name = "avg_rating")
