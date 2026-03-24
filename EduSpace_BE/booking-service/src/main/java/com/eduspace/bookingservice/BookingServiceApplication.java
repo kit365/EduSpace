@@ -16,5 +16,4 @@ public class BookingServiceApplication {
     RestTemplate restTemplate() {
         return new RestTemplate();
     }
-
 }
