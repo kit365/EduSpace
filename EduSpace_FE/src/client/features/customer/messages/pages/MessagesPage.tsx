@@ -145,7 +145,7 @@ export function MessagesPage() {
         await refetchMessages();
     }, [selectedConversation, refetchMessages]);
 
-    const { lastMessage, lastReadReceipt, lastEdited, lastDeleted, lastReaction } = useChatWebSocket({
+    const { lastMessage, lastConversationEvent, lastReadReceipt, lastEdited, lastDeleted, lastReaction } = useChatWebSocket({
         conversationId: selectedConversation?.conversationId ?? null,
         userId: currentUserId,
         onReconnect: reloadMessages,
@@ -215,6 +215,13 @@ export function MessagesPage() {
             }
         );
     }, [lastMessage, selectedConversation, queryClient]);
+
+    useEffect(() => {
+        if (!lastConversationEvent || !selectedConversation) return;
+        if (lastConversationEvent.conversationId !== selectedConversation.conversationId) return;
+        // Recover from websocket timing races by reloading persisted history on conversation-level events.
+        void refetchMessages();
+    }, [lastConversationEvent, selectedConversation, refetchMessages]);
 
     useEffect(() => {
         if (!lastEdited || !selectedConversation) return;

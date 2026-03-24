@@ -114,13 +114,16 @@ export function ChatWidget() {
                         setConversation(match);
                         setIsMatching(false);
                     }
+                    // Conversation-level events can arrive before chat-topic subscription is ready.
+                    // Refetching history guarantees system messages (e.g. no staff available) are visible.
+                    await reloadMessages();
                 } catch (err) {
                     console.error('Failed to update conversation after assignment:', err);
                 }
             };
             updateChat();
         }
-    }, [lastConversationEvent, conversation]);
+    }, [lastConversationEvent, conversation, reloadMessages]);
 
     // Listen for open-support-chat event (from Help page)
     useEffect(() => {
