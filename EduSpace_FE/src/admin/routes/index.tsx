@@ -11,6 +11,7 @@ import { SystemSettingsPage, SystemLogsPage } from '../features/system';
 import { RoomManagementPage } from '../features/room-management';
 import { AdminRoomCategoryPage } from '../features/room-categories/pages/AdminRoomCategoryPage';
 import { BookingManagementPage } from '../features/bookings';
+import { DepositRefundPoliciesPage } from '../features/deposit-policies';
 import { ReviewManagementPage } from '../features/reviews';
 import { AdsManagementPage } from '../features/ads';
 import { FacilityManagementPage } from '../features/facilities';
@@ -37,6 +38,7 @@ export const adminRoutes: RouteObject[] = [
             // ─── Operations ───────────────────────────────────
             { path: 'disputes', element: <DisputesPage /> },
             { path: 'bookings', element: <BookingManagementPage /> },
+            { path: 'deposit-policies', element: <DepositRefundPoliciesPage /> },
             { path: 'rooms', element: <RoomManagementPage /> },
             { path: 'room-categories', element: <AdminRoomCategoryPage /> },
             { path: 'reviews', element: <ReviewManagementPage /> },
