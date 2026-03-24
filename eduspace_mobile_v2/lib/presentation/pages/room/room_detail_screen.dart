@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../data/models/response/room/room_model.dart';
+import '../../../data/models/response/room/room_api_models.dart';
 
 class RoomDetailScreen extends StatefulWidget {
-  final RoomModel room;
+  final RoomResponse room;
 
   const RoomDetailScreen({super.key, required this.room});
 
@@ -60,7 +60,9 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final room = widget.room;
-    final images = room.imageUrls.isNotEmpty ? room.imageUrls : [room.imageUrl];
+    final images = room.imageUrls.isNotEmpty 
+        ? room.imageUrls 
+        : (room.imageUrl != null ? [room.imageUrl!] : <String>[]);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F6F6),
@@ -155,8 +157,8 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                             ),
                           ),
                         ),
-                      // FEATURED badge
-                      if (room.isFeatured)
+                      // FEATURED badge (example)
+                      if (room.rating >= 4.8)
                         Positioned(
                           top: 80,
                           left: 16,
@@ -320,7 +322,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                                 child: Text(
                                   room.address.isNotEmpty
                                       ? room.address
-                                      : 'Ho Chi Minh City',
+                                      : 'Đang cập nhật địa chỉ...',
                                   style: const TextStyle(
                                     fontSize: 13,
                                     color: AppColors.textSecondary,
@@ -329,24 +331,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary.withOpacity(0.08),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  '${room.distanceMi} mi',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                              ),
+                              // Distance removed or mocked for now
                             ],
                           ),
                         ],
@@ -366,7 +351,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                           _StatItem(
                             icon: Icons.straighten_outlined,
                             label: 'Area',
-                            value: '${room.sqft} sqft',
+                            value: '${room.area.toInt()} m²',
                           ),
                           _VerticalDivider(),
                           _StatItem(
@@ -394,7 +379,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             children: room.amenities
-                                .map((a) => _AmenityBadge(label: a))
+                                .map((a) => _AmenityBadge(label: a.name))
                                 .toList(),
                           ),
                         ],
@@ -410,7 +395,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                           const SizedBox(height: 12),
                           AnimatedCrossFade(
                             firstChild: Text(
-                              room.description,
+                              room.description ?? 'Không có mô tả cho phòng này.',
                               maxLines: 3,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
@@ -420,7 +405,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                               ),
                             ),
                             secondChild: Text(
-                              room.description,
+                              room.description ?? '',
                               style: const TextStyle(
                                 fontSize: 14,
                                 color: AppColors.textSecondary,
@@ -460,7 +445,9 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                             children: [
                               const _SectionTitle('Availability'),
                               Text(
-                                'Today · Nov 6',
+                                room.schedules.isNotEmpty
+                                  ? 'Open today: ${_getTodaySchedule(room.schedules)}'
+                                  : 'Contact for availability',
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
@@ -474,6 +461,57 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                         ],
                       ),
                     ),
+                    // ── Policies ──────────────────────────────────────
+                    if (room.policies.isNotEmpty)
+                      _SectionCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const _SectionTitle('Policies'),
+                            const SizedBox(height: 12),
+                            ListView.separated(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              padding: EdgeInsets.zero,
+                              itemCount: room.policies.length,
+                              separatorBuilder: (_, __) => const SizedBox(height: 12),
+                              itemBuilder: (context, index) {
+                                final policy = room.policies[index];
+                                return Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(Icons.info_outline, size: 18, color: AppColors.primary),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            policy.name,
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColors.navy900,
+                                            ),
+                                          ),
+                                          if (policy.description != null)
+                                            Text(
+                                              policy.description!,
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                color: AppColors.textSecondary,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
 
                     // ── Reviews ─────────────────────────────────────
                     _SectionCard(
@@ -574,7 +612,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                                       child: Text(
                                         room.address.isNotEmpty
                                             ? room.address
-                                            : 'Ho Chi Minh City',
+                                            : 'Đang cập nhật...',
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 12,
@@ -607,12 +645,12 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
             left: 0,
             right: 0,
             child: _BottomBar(
-              pricePerHour: widget.room.pricePerHour,
+              pricePerHour: room.pricePerHour,
               onBook: () {
                 Navigator.pushNamed(
                   context,
                   '/booking/new',
-                  arguments: widget.room,
+                  arguments: room,
                 );
               },
             ),
@@ -620,6 +658,25 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
         ],
       ),
     );
+  }
+
+  String _getTodaySchedule(List<RoomScheduleModel> schedules) {
+    if (schedules.isEmpty) return 'Closed';
+    final now = DateTime.now();
+    final dayOfWeek = now.weekday; // 1 (Mon) to 7 (Sun)
+
+    // Backend might use 0-6 or 1-7. Let's assume matches 1-7 for now.
+    final todaySchedule = schedules.firstWhere(
+      (s) => s.dayOfWeek == dayOfWeek,
+      orElse: () => schedules.first,
+    );
+
+    if (!todaySchedule.isOpen) return 'Closed';
+    if (todaySchedule.openTime == null || todaySchedule.closeTime == null) {
+      return 'Open 24/7';
+    }
+
+    return '${todaySchedule.openTime!.substring(0, 5)} - ${todaySchedule.closeTime!.substring(0, 5)}';
   }
 }
 

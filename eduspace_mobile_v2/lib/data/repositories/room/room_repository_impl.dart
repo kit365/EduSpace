@@ -1,8 +1,8 @@
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/network/api_response.dart';
-import '../../../models/response/room/room_api_models.dart';
-import 'room_repository.dart';
+import '../../models/response/room/room_api_models.dart';
+import '../../../domain/repositories/room/room_repository.dart';
 
 class RoomRepositoryImpl implements RoomRepository {
   final ApiClient _apiClient = ApiClient();

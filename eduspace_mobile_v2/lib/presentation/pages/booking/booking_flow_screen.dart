@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../routes/app_router.dart';
-import '../../../data/models/response/room/room_model.dart';
+import '../../../data/models/response/room/room_api_models.dart';
 import '../payment/payment_screen.dart';
 
 // ─── Add-on model ────────────────────────────────────────────────────────────
@@ -61,7 +61,7 @@ class _TimeSlot {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class BookingFlowScreen extends StatefulWidget {
-  final RoomModel room;
+  final RoomResponse room;
 
   const BookingFlowScreen({super.key, required this.room});
 
