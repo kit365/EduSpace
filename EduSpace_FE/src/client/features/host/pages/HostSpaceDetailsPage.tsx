@@ -112,11 +112,14 @@ export function HostSpaceDetailsPage() {
                     <div className="lg:col-span-1">
                         <div className="sticky top-32">
                             <BookingPanel
+                                roomId={space.roomId ?? space.id}
                                 price={space.price}
                                 rating={space.rating}
                                 reviewCount={space.reviewCount || 0}
                                 spaceName={space.name}
                                 spaceImage={space.image}
+                                minDuration={space.minDuration}
+                                stepUnit={space.stepUnit}
                             />
                         </div>
                     </div>

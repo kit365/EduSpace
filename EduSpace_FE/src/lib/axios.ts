@@ -30,6 +30,17 @@ function isSessionClearExemptUrl(url: string): boolean {
     return url.includes('/claim-guest');
 }
 
+let authRedirectScheduled = false;
+
+/** After session clear on irrecoverable 401, send user to app home (respects Vite base URL). */
+function scheduleRedirectToHome(): void {
+    if (authRedirectScheduled) return;
+    authRedirectScheduled = true;
+    const base = import.meta.env.BASE_URL || '/';
+    const { pathname, search } = new URL(base, window.location.origin);
+    window.location.replace((pathname || '/') + search);
+}
+
 // Request interceptor: auto-attach access token
 apiClient.interceptors.request.use(
     (config) => {
@@ -100,11 +111,13 @@ apiClient.interceptors.response.use(
             }
 
             useAuthStore.getState().clearTokens();
+            scheduleRedirectToHome();
             return Promise.reject(error);
         }
 
         // Already retried and still 401
         useAuthStore.getState().clearTokens();
+        scheduleRedirectToHome();
         return Promise.reject(error);
     },
 );

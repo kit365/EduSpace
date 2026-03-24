@@ -13,6 +13,7 @@ export interface Space {
   name: string;
   location: string;
   address?: string;
+  roomLocationHint?: string;
   capacity: number;
   size?: number;              // sqm
   price: number;              // VNĐ per hour
@@ -30,6 +31,8 @@ export interface Space {
   description?: string;
   additionalInfo?: string;
   is24_7?: boolean;
+  minDuration?: number;
+  stepUnit?: number;
 
   // Ownership & approval
   hostId?: string;
@@ -62,11 +65,24 @@ export interface ReservationSchedule {
   closeTime: string | null;
 }
 
+export interface ReservationTimeslot {
+  id: number;
+  dayOfWeek: number;
+  slotType: 'DAY' | 'SESSION';
+  startTime: string;
+  endTime: string;
+  durationMode: 'MINUTE' | 'HOUR';
+  durationStep: number;
+  isActive: boolean;
+}
+
 export interface SpaceDetails extends Space {
   amenitiesDetailed: SpaceAmenity[];
   reviews: SpaceReview[];
   availableSlots?: number;
   schedules?: ReservationSchedule[];
+  timeslots?: ReservationTimeslot[];
+  roomId?: number;
   host?: {
     name: string;
     avatar?: string;

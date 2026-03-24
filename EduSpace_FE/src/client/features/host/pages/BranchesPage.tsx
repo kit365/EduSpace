@@ -11,6 +11,7 @@ import {
     Mail,
     Phone,
     Loader2,
+    Upload,
     CheckCircle,
     Clock,
     XCircle,
@@ -27,6 +28,26 @@ import { useBranch } from '../context/BranchContext';
 import { profileService } from '@/client/features/customer/profile/services/profileService';
 import { useTranslation } from 'react-i18next';
 import { addressService } from '@/client/features/customer/profile/services/addressService';
+import { uploadBranchLogoImage } from '../services/mediaUploadService';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 
 const PROPERTY_TYPE_OPTIONS = [
     { value: 'COMMERCIAL_BUILDING', labelKey: 'common.propertyTypes.commercialBuilding' },
@@ -143,6 +164,8 @@ export function BranchesPage() {
     const [loadingWards, setLoadingWards] = useState(false);
     const toolbarRef = useRef<HTMLDivElement | null>(null);
     const filterMenuRef = useRef<HTMLDivElement | null>(null);
+    const branchLogoFileInputRef = useRef<HTMLInputElement | null>(null);
+    const [uploadingBranchLogo, setUploadingBranchLogo] = useState(false);
 
     const provinceCodeNum = branchForm.provinceCode ? Number(branchForm.provinceCode) : undefined;
     const districtCodeNum = branchForm.districtCode ? Number(branchForm.districtCode) : undefined;
@@ -785,153 +808,298 @@ export function BranchesPage() {
                     </div>
                 )}
 
+
                 {!loadingBranches && filteredBranches.length === 0 ? (
                     <div className="mt-4 rounded-2xl border border-dashed border-gray-200 bg-white p-8 text-center">
                         <p className="text-sm font-semibold text-gray-500">Không có cơ sở phù hợp với bộ lọc hiện tại.</p>
                     </div>
                 ) : null}
 
-                {showBranchForm && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-                        <form onSubmit={saveBranch} className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl">
-                            <h3 className="text-xl font-black text-gray-900">
+                <Dialog open={showBranchForm} onOpenChange={(open) => {
+                    if (!open) {
+                        setShowBranchForm(false);
+                        setEditingBranchId(null);
+                    }
+                }}>
+                    <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+                        <DialogHeader>
+                            <DialogTitle className="text-2xl font-black text-gray-900">
                                 {editingBranchId ? 'Cập nhật chi nhánh' : 'Gửi đăng ký chi nhánh'}
-                            </h3>
-                            <p className="mt-1 text-sm text-gray-500">
+                            </DialogTitle>
+                            <DialogDescription className="text-sm text-gray-500">
                                 {editingBranchId
                                     ? 'Thay đổi sẽ được gửi cho admin duyệt. Dữ liệu hiển thị sau khi được xét duyệt.'
                                     : 'Thông tin sẽ được gửi cho admin duyệt. Sau khi duyệt, chi nhánh sẽ hiển thị trong danh sách của bạn.'}
-                            </p>
-                            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-                                <input
-                                    type="text"
-                                    placeholder="Tên chi nhánh"
-                                    value={branchForm.name}
-                                    onChange={(e) => setBranchForm((prev) => ({ ...prev, name: e.target.value }))}
-                                    className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm md:col-span-2"
-                                />
-                                <select
-                                    value={branchForm.propertyType}
-                                    onChange={(e) => setBranchForm((prev) => ({ ...prev, propertyType: e.target.value }))}
-                                    className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm md:col-span-2"
-                                >
-                                    {PROPERTY_TYPE_OPTIONS.map((opt) => (
-                                        <option key={opt.value} value={opt.value}>
-                                            {t(opt.labelKey)}
-                                        </option>
-                                    ))}
-                                </select>
-                                <input
-                                    type="text"
-                                    placeholder="Số điện thoại"
-                                    value={branchForm.phone}
-                                    onChange={(e) => setBranchForm((prev) => ({ ...prev, phone: e.target.value }))}
-                                    className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm"
-                                />
-                                <input
-                                    type="email"
-                                    placeholder="Email"
-                                    value={branchForm.email}
-                                    onChange={(e) => setBranchForm((prev) => ({ ...prev, email: e.target.value }))}
-                                    className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm"
-                                />
-                                <input
-                                    type="text"
-                                    placeholder="Địa chỉ"
-                                    value={branchForm.address}
-                                    onChange={(e) => setBranchForm((prev) => ({ ...prev, address: e.target.value }))}
-                                    className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm md:col-span-2"
-                                />
-                                <select
-                                    value={branchForm.provinceCode}
-                                    onChange={(e) =>
-                                        setBranchForm((prev) => ({
-                                            ...prev,
-                                            provinceCode: e.target.value,
-                                            districtCode: '',
-                                            wardCode: '',
-                                        }))
-                                    }
-                                    disabled={loadingProvinces}
-                                    className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm"
-                                >
-                                    <option value="">{loadingProvinces ? '...' : 'Tỉnh/Thành phố'}</option>
-                                    {provinces.map((p) => (
-                                        <option key={p.code} value={p.code}>
-                                            {p.name}
-                                        </option>
-                                    ))}
-                                </select>
-                                <select
-                                    value={branchForm.districtCode}
-                                    onChange={(e) =>
-                                        setBranchForm((prev) => ({
-                                            ...prev,
-                                            districtCode: e.target.value,
-                                            wardCode: '',
-                                        }))
-                                    }
-                                    disabled={!branchForm.provinceCode || loadingDistricts}
-                                    className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm"
-                                >
-                                    <option value="">{loadingDistricts ? '...' : 'Quận/Huyện'}</option>
-                                    {districts.map((d) => (
-                                        <option key={d.code} value={d.code}>
-                                            {d.name}
-                                        </option>
-                                    ))}
-                                </select>
-                                <select
-                                    value={branchForm.wardCode}
-                                    onChange={(e) => setBranchForm((prev) => ({ ...prev, wardCode: e.target.value }))}
-                                    disabled={!branchForm.districtCode || loadingWards}
-                                    className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm md:col-span-2"
-                                >
-                                    <option value="">{loadingWards ? '...' : 'Phường/Xã'}</option>
-                                    {wards.map((w) => (
-                                        <option key={w.code} value={w.code}>
-                                            {w.name}
-                                        </option>
-                                    ))}
-                                </select>
-                                <input
-                                    type="text"
-                                    placeholder="Logo URL (tuỳ chọn)"
-                                    value={branchForm.logo}
-                                    onChange={(e) => setBranchForm((prev) => ({ ...prev, logo: e.target.value }))}
-                                    className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm md:col-span-2"
-                                />
-                                <input
-                                    type="text"
-                                    placeholder="Mô tả (tuỳ chọn)"
-                                    value={branchForm.description}
-                                    onChange={(e) => setBranchForm((prev) => ({ ...prev, description: e.target.value }))}
-                                    className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm md:col-span-2"
-                                />
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        <form onSubmit={saveBranch} className="space-y-4 py-4">
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <div className="space-y-2 md:col-span-2">
+                                    <Label htmlFor="branch-name" className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                                        Tên chi nhánh <span className="text-red-500">*</span>
+                                    </Label>
+                                    <Input
+                                        id="branch-name"
+                                        placeholder="Nhập tên chi nhánh..."
+                                        value={branchForm.name}
+                                        onChange={(e) => setBranchForm((prev) => ({ ...prev, name: e.target.value }))}
+                                        className="h-11 rounded-xl"
+                                        required
+                                    />
+                                </div>
+
+                                <div className="space-y-2 md:col-span-2">
+                                    <Label htmlFor="property-type" className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                                        Loại mặt bằng <span className="text-red-500">*</span>
+                                    </Label>
+                                    <Select
+                                        value={branchForm.propertyType}
+                                        onValueChange={(val) => setBranchForm((prev) => ({ ...prev, propertyType: val }))}
+                                    >
+                                        <SelectTrigger id="property-type" className="h-11 rounded-xl">
+                                            <SelectValue placeholder="Chọn loại mặt bằng" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {PROPERTY_TYPE_OPTIONS.map((opt) => (
+                                                <SelectItem key={opt.value} value={opt.value}>
+                                                    {t(opt.labelKey)}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="phone" className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                                        Số điện thoại <span className="text-red-500">*</span>
+                                    </Label>
+                                    <Input
+                                        id="phone"
+                                        type="tel"
+                                        placeholder="09xx xxx xxx"
+                                        value={branchForm.phone}
+                                        onChange={(e) => setBranchForm((prev) => ({ ...prev, phone: e.target.value }))}
+                                        className="h-11 rounded-xl"
+                                        required
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="email" className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                                        Email liên hệ <span className="text-red-500">*</span>
+                                    </Label>
+                                    <Input
+                                        id="email"
+                                        type="email"
+                                        placeholder="example@email.com"
+                                        value={branchForm.email}
+                                        onChange={(e) => setBranchForm((prev) => ({ ...prev, email: e.target.value }))}
+                                        className="h-11 rounded-xl"
+                                        required
+                                    />
+                                </div>
+
+                                <div className="space-y-2 md:col-span-2">
+                                    <Label htmlFor="address" className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                                        Địa chỉ cụ thể <span className="text-red-500">*</span>
+                                    </Label>
+                                    <Input
+                                        id="address"
+                                        placeholder="Số nhà, tên đường..."
+                                        value={branchForm.address}
+                                        onChange={(e) => setBranchForm((prev) => ({ ...prev, address: e.target.value }))}
+                                        className="h-11 rounded-xl"
+                                        required
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="province" className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                                        Tỉnh/Thành phố
+                                    </Label>
+                                    <Select
+                                        value={branchForm.provinceCode}
+                                        onValueChange={(val) =>
+                                            setBranchForm((prev) => ({
+                                                ...prev,
+                                                provinceCode: val,
+                                                districtCode: '',
+                                                wardCode: '',
+                                            }))
+                                        }
+                                        disabled={loadingProvinces}
+                                    >
+                                        <SelectTrigger id="province" className="h-11 rounded-xl">
+                                            <SelectValue placeholder={loadingProvinces ? 'Đang tải...' : 'Chọn Tỉnh/Thành phố'} />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {provinces.map((p) => (
+                                                <SelectItem key={p.code} value={String(p.code)}>
+                                                    {p.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="district" className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                                        Quận/Huyện
+                                    </Label>
+                                    <Select
+                                        value={branchForm.districtCode}
+                                        onValueChange={(val) =>
+                                            setBranchForm((prev) => ({
+                                                ...prev,
+                                                districtCode: val,
+                                                wardCode: '',
+                                            }))
+                                        }
+                                        disabled={!branchForm.provinceCode || loadingDistricts}
+                                    >
+                                        <SelectTrigger id="district" className="h-11 rounded-xl">
+                                            <SelectValue placeholder={loadingDistricts ? 'Đang tải...' : 'Chọn Quận/Huyện'} />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {districts.map((d) => (
+                                                <SelectItem key={d.code} value={String(d.code)}>
+                                                    {d.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-2 md:col-span-2">
+                                    <Label htmlFor="ward" className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                                        Phường/Xã
+                                    </Label>
+                                    <Select
+                                        value={branchForm.wardCode}
+                                        onValueChange={(val) => setBranchForm((prev) => ({ ...prev, wardCode: val }))}
+                                        disabled={!branchForm.districtCode || loadingWards}
+                                    >
+                                        <SelectTrigger id="ward" className="h-11 rounded-xl">
+                                            <SelectValue placeholder={loadingWards ? 'Đang tải...' : 'Chọn Phường/Xã'} />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {wards.map((w) => (
+                                                <SelectItem key={w.code} value={String(w.code)}>
+                                                    {w.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-2 md:col-span-2">
+                                    <Label htmlFor="logo" className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                                        Logo URL (tuỳ chọn)
+                                    </Label>
+                                    <div className="flex gap-2">
+                                        <Input
+                                            id="logo"
+                                            placeholder="https://... hoặc tải ảnh bên cạnh"
+                                            value={branchForm.logo}
+                                            onChange={(e) => setBranchForm((prev) => ({ ...prev, logo: e.target.value }))}
+                                            className="h-11 min-w-0 flex-1 rounded-xl"
+                                            autoComplete="off"
+                                        />
+                                        <input
+                                            ref={branchLogoFileInputRef}
+                                            type="file"
+                                            accept="image/*"
+                                            className="sr-only"
+                                            tabIndex={-1}
+                                            onChange={async (e) => {
+                                                const file = e.target.files?.[0];
+                                                e.target.value = '';
+                                                if (!file) return;
+                                                if (!file.type.startsWith('image/')) {
+                                                    showToast.error('Vui lòng chọn file ảnh (JPEG, PNG, WebP...).');
+                                                    return;
+                                                }
+                                                if (file.size > 10 * 1024 * 1024) {
+                                                    showToast.error('Ảnh tối đa 10MB.');
+                                                    return;
+                                                }
+                                                setUploadingBranchLogo(true);
+                                                try {
+                                                    const url = await uploadBranchLogoImage(file);
+                                                    setBranchForm((prev) => ({ ...prev, logo: url }));
+                                                    showToast.success('Đã tải logo lên — URL đã được điền sẵn.');
+                                                } catch (err) {
+                                                    showToast.error(
+                                                        getApiErrorMessage(err, 'Không tải được logo. Vui lòng thử lại.'),
+                                                    );
+                                                } finally {
+                                                    setUploadingBranchLogo(false);
+                                                }
+                                            }}
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-11 w-11 shrink-0 rounded-xl border-gray-200"
+                                            disabled={uploadingBranchLogo || savingBranch}
+                                            title="Tải ảnh logo lên cloud (thư mục EduSpace)"
+                                            aria-label="Tải ảnh logo lên"
+                                            onClick={() => branchLogoFileInputRef.current?.click()}
+                                        >
+                                            {uploadingBranchLogo ? (
+                                                <Loader2 className="h-4 w-4 animate-spin text-gray-600" />
+                                            ) : (
+                                                <Upload className="h-4 w-4 text-gray-700" />
+                                            )}
+                                        </Button>
+                                    </div>
+                                    <p className="text-xs text-gray-500">
+                                        Có thể dán URL thủ công hoặc bấm nút tải — ảnh lưu trên cloud trong thư mục riêng
+                                        EduSpace (không dùng chung folder với hệ thống khác).
+                                    </p>
+                                </div>
+
+                                <div className="space-y-2 md:col-span-2">
+                                    <Label htmlFor="description" className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                                        Mô tả (tuỳ chọn)
+                                    </Label>
+                                    <Textarea
+                                        id="description"
+                                        placeholder="Giới thiệu ngắn gọn về chi nhánh..."
+                                        value={branchForm.description}
+                                        onChange={(e) => setBranchForm((prev) => ({ ...prev, description: e.target.value }))}
+                                        className="min-h-24 rounded-xl px-4 py-3"
+                                    />
+                                </div>
                             </div>
-                            <div className="mt-5 flex justify-end gap-2">
-                                <button
+
+                            <DialogFooter className="mt-4 gap-2 border-t pt-6">
+                                <Button
                                     type="button"
+                                    variant="outline"
                                     onClick={() => {
                                         setShowBranchForm(false);
                                         setEditingBranchId(null);
                                     }}
-                                    className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-bold text-gray-600"
+                                    className="h-11 rounded-xl px-8 font-bold"
                                 >
                                     Hủy
-                                </button>
-                                <button
+                                </Button>
+                                <Button
                                     type="submit"
                                     disabled={!canSaveBranch || savingBranch}
-                                    className="inline-flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-bold text-white disabled:opacity-40"
+                                    className="h-11 min-w-32 rounded-xl px-8 font-bold"
                                 >
-                                    {savingBranch ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                                    {savingBranch ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                                     {editingBranchId ? 'Lưu thay đổi' : 'Gửi đăng ký'}
-                                </button>
-                            </div>
+                                </Button>
+                            </DialogFooter>
                         </form>
-                    </div>
-                )}
+                    </DialogContent>
+                </Dialog>
+
             </div>
         </RentalLayout>
     );

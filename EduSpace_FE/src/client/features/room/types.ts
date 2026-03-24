@@ -19,6 +19,41 @@ export type RoomOperationalStatus = 'READY' | 'IN_USE' | 'CLEANING' | 'MAINTENAN
 export type RoomApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export type BookingType = 'SLOT_BASED' | 'FREE_FORM';
+export type TimeslotType = 'DAY' | 'SESSION';
+export type DurationMode = 'MINUTE' | 'HOUR';
+
+export interface RoomPriceRuleDto {
+  id?: number;
+  minHours: number;
+  maxHours?: number | null;
+  pricePerHour?: number | null;
+  flatPrice?: number | null;
+  label?: string | null;
+  /** 2 = Thứ 2 … 8 = CN. Trống/undefined = mọi ngày (tương thích cũ). */
+  applicableDayOfWeeks?: number[] | null;
+}
+
+export interface RoomPriceQuoteRequest {
+  durationMinutes?: number;
+  startDateTime?: string;
+  endDateTime?: string;
+}
+
+export interface RoomPriceQuoteResponse {
+  roomId: number;
+  durationMinutes: number;
+  durationHours: number;
+  minDuration: number;
+  stepUnit: number;
+  matchedRuleId?: number | null;
+  pricingMode: 'RULE_FLAT_PRICE' | 'RULE_PRICE_PER_HOUR' | 'ROOM_DEFAULT_PER_UNIT';
+  unitPrice?: number | null;
+  subtotal: number;
+  weekendSurchargeApplied: boolean;
+  weekendSurchargePercent?: number | null;
+  weekendSurchargeAmount?: number | null;
+  total: number;
+}
 
 export interface PropertyDto {
   id: number;
@@ -66,6 +101,8 @@ export interface RoomCreateRequest {
   /** Tuỳ chọn; BE tự ghép từ địa chỉ chi nhánh + phòng/tầng nếu bỏ trống. */
   locationVi?: string | null;
   locationEn?: string | null;
+  /** Gợi ý vị trí phòng cụ thể khi check-in (vd: gần thang máy, cuối hành lang). */
+  roomLocationHint?: string | null;
   capacity: number;
   area?: number | null;
   roomNumber?: string | null;
@@ -74,8 +111,17 @@ export interface RoomCreateRequest {
   is24_7?: boolean;
   pricePerHour?: number | null;
   pricePerDay?: number | null;
+  /** Legacy from BE, kept for compatibility only. */
   minBookingHours?: number | null;
+  minDuration?: number | null;
+  stepUnit?: number | null;
+  weekendSurchargeEnabled?: boolean | null;
+  weekendSurchargePercent?: number | null;
+  weekendApplySaturday?: boolean | null;
+  weekendApplySunday?: boolean | null;
+  priceRules?: RoomPriceRuleDto[] | null;
   images?: string | null;
+  mainImageUrl?: string | null;
   descriptionVi?: string | null;
   descriptionEn?: string | null;
   status?: RoomStatus;
@@ -88,18 +134,44 @@ export interface RoomScheduleDto {
   id?: number;
   dayOfWeek: number;
   isOpen: boolean;
+  isOverDay?: boolean;
   /** HH:mm:ss hoặc null */
   openTime: string | null;
   closeTime: string | null;
+}
+
+export interface RoomTimeslotDto {
+  id: number;
+  dayOfWeek: number;
+  slotType: TimeslotType;
+  startTime: string;
+  endTime: string;
+  durationMode: DurationMode;
+  durationStep: number;
+  isActive: boolean;
 }
 
 /** PUT /rooms/{id}/schedules — không gửi id. */
 export type RoomScheduleSaveItem = {
   dayOfWeek: number;
   isOpen: boolean;
+  isOverDay?: boolean;
   openTime: string | null;
   closeTime: string | null;
 };
+
+/** GET/PUT /properties/{id}/schedules — buffer + cờ over-day + 7 dòng lịch. */
+export interface PropertyScheduleBundleDto {
+  bufferMinutes: number;
+  isOverDay: boolean;
+  schedules: RoomScheduleDto[];
+}
+
+export interface PropertyScheduleReplacePayload {
+  bufferMinutes: number;
+  isOverDay: boolean;
+  schedules: RoomScheduleSaveItem[];
+}
 
 
 export interface RoomDto {
@@ -113,15 +185,31 @@ export interface RoomDto {
   area: number | null;
   /** Có thể không còn từ API; ưu tiên property.address khi map. */
   location?: string | null;
+  roomLocationHint?: string | null;
   roomNumber?: string | null;
   floorNumber?: string | null;
   /** JSON key khớp BE `is24_7` */
   is24_7?: boolean | null;
+  /** Từ property: phút nghỉ giữa các slot (turnover). */
+  scheduleBufferMinutes?: number | null;
+  /** Từ property: cho phép sinh slot trên toàn ngày. */
+  scheduleIsOverDay?: boolean | null;
   pricePerHour?: number | null;
   pricePerDay?: number | null;
+  minDuration?: number | null;
+  stepUnit?: number | null;
+  /** Legacy field; prefer minDuration. */
+  minBookingHours?: number | null;
+  priceRules?: RoomPriceRuleDto[] | null;
+  weekendSurchargeEnabled?: boolean | null;
+  weekendSurchargePercent?: number | null;
+  weekendApplySaturday?: boolean | null;
+  weekendApplySunday?: boolean | null;
   /** Lịch 7 ngày — từ room_schedules */
   schedules?: RoomScheduleDto[];
+  timeslots?: RoomTimeslotDto[];
   images: string | null;
+  mainImageUrl?: string | null;
   description: string | null;
   status: RoomStatus;
   approvalStatus: RoomApprovalStatus;
@@ -141,6 +229,37 @@ export interface RoomDto {
   policies?: RoomPolicyDto[];
 }
 
+export interface RoomAvailabilityCheckRequest {
+  slotId: number;
+  bookingDate: string;
+  durationValue: number;
+  durationUnit: DurationMode;
+}
+
+export interface RoomAvailabilityCheckResponse {
+  available: boolean;
+  reason: string;
+  startDateTime: string;
+  endDateTime: string;
+}
+
+export interface RoomPricingQuoteRequest {
+  slotId: number;
+  bookingDate: string;
+  durationValue: number;
+  durationUnit: DurationMode;
+}
+
+export interface RoomPricingQuoteResponse {
+  slotId: number;
+  durationMinutes: number;
+  unitPrice: number;
+  totalPrice: number;
+  startDateTime: string;
+  endDateTime: string;
+  currency: string;
+}
+
 export interface RoomCategoryDto {
   id: number;
   name: string;
@@ -156,6 +275,14 @@ export interface AmenityDto {
   icon: string;
   type: 'EQUIPMENT' | 'SERVICE' | 'FEATURE' | string;
   position: number;
+}
+
+export interface AmenityCreateRequest {
+  nameVi: string;
+  nameEn?: string | null;
+  icon: string;
+  type: 'BASIC' | 'EQUIPMENT' | 'SERVICE' | 'FEATURE' | 'POLICY';
+  position?: number | null;
 }
 
 export interface RoomAmenityDto {

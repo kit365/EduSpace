@@ -2,6 +2,7 @@ package com.eduspace.roomservice.business.serviceimpl;
 
 import com.eduspace.roomservice.business.service.RoomScheduleService;
 import com.eduspace.roomservice.business.service.RoomService;
+import com.eduspace.roomservice.business.service.RoomTimeslotService;
 import com.eduspace.roomservice.common.enums.BookingType;
 import com.eduspace.roomservice.common.enums.RoomApprovalStatus;
 import com.eduspace.roomservice.common.enums.RoomStatus;
@@ -9,23 +10,35 @@ import com.eduspace.roomservice.common.enums.RoomType;
 import com.eduspace.roomservice.common.util.SlugUtil;
 import com.eduspace.roomservice.exception.AppException;
 import com.eduspace.roomservice.exception.ErrorCode;
+import com.eduspace.roomservice.model.dto.request.RoomPriceQuoteRequest;
+import com.eduspace.roomservice.model.dto.request.RoomPriceRuleRequest;
 import com.eduspace.roomservice.model.dto.request.RoomRequest;
 import com.eduspace.roomservice.model.dto.request.RoomSearchRequest;
 import com.eduspace.roomservice.model.dto.response.PageResponse;
+import com.eduspace.roomservice.model.dto.response.RoomPriceQuoteResponse;
 import com.eduspace.roomservice.model.dto.response.RoomResponse;
+import com.eduspace.roomservice.model.dto.response.RoomScheduleResponse;
 import com.eduspace.roomservice.model.entity.*;
 import com.eduspace.roomservice.model.mapper.RoomMapper;
 import com.eduspace.roomservice.model.mapper.RoomPolicyMapper;
 import com.eduspace.roomservice.persistence.repository.AmenityRepository;
 import com.eduspace.roomservice.persistence.repository.PropertyRepository;
 import com.eduspace.roomservice.persistence.repository.RoomCategoryRepository;
+import com.eduspace.roomservice.persistence.repository.RoomPriceRuleRepository;
 import com.eduspace.roomservice.persistence.repository.RoomRepository;
 import com.eduspace.roomservice.persistence.specification.RoomSpecification;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Duration;
+import java.time.DayOfWeek;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -46,8 +59,10 @@ public class RoomServiceImpl implements RoomService {
     private final PropertyRepository propertyRepository;
     private final RoomCategoryRepository categoryRepository;
     private final AmenityRepository amenityRepository;
+    private final RoomPriceRuleRepository roomPriceRuleRepository;
     private final ObjectMapper objectMapper;
     private final RoomScheduleService roomScheduleService;
+    private final RoomTimeslotService roomTimeslotService;
     private final RoomMapper roomMapper;
     private final RoomPolicyMapper roomPolicyMapper;
 
@@ -128,6 +143,7 @@ public class RoomServiceImpl implements RoomService {
         if (request.getPropertyId() == null) {
             throw new AppException(ErrorCode.PROPERTY_NOT_FOUND);
         }
+        normalizeDurationConfig(request);
         PropertyEntity property = propertyRepository.findById(request.getPropertyId())
                 .orElseThrow(() -> new AppException(ErrorCode.PROPERTY_NOT_FOUND));
         RoomEntity room = roomMapper.toEntity(request);
@@ -176,14 +192,17 @@ public class RoomServiceImpl implements RoomService {
             room.setAmenities(roomAmenities);
         }
 
+        upsertPriceRules(room, request.getPriceRules());
         RoomEntity saved = roomRepository.save(room);
         roomScheduleService.seedDefaultsForNewRoom(saved.getId());
-        return roomMapper.toResponse(saved);
+        roomTimeslotService.seedDefaultsForNewRoom(saved.getId());
+        return mapToResponse(saved);
     }
 
     @Override
     @Transactional
     public RoomResponse update(Integer id, RoomRequest request) {
+        normalizeDurationConfig(request);
         RoomEntity existing = roomRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.ROOM_NOT_FOUND));
 
@@ -225,8 +244,11 @@ public class RoomServiceImpl implements RoomService {
             existing.getAmenities().addAll(newAmenities);
         }
 
+        if (request.getPriceRules() != null) {
+            upsertPriceRules(existing, request.getPriceRules());
+        }
         RoomEntity saved = roomRepository.save(existing);
-        return roomMapper.toResponse(saved);
+        return mapToResponse(saved);
     }
 
     @Override
@@ -317,6 +339,81 @@ public class RoomServiceImpl implements RoomService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public RoomPriceQuoteResponse quotePrice(Integer roomId, RoomPriceQuoteRequest request) {
+        RoomEntity room = roomRepository.findByIdAndDeletedAtIsNull(roomId)
+                .orElseThrow(() -> new AppException(ErrorCode.ROOM_NOT_FOUND));
+
+        int durationMinutes = extractDurationMinutes(request);
+        int minDuration = room.getMinDuration() != null ? room.getMinDuration() : 60;
+        int stepUnit = room.getStepUnit() != null ? room.getStepUnit() : 30;
+        if (durationMinutes < minDuration || durationMinutes % stepUnit != 0) {
+            throw new AppException(ErrorCode.INVALID_KEY);
+        }
+
+        BigDecimal durationHours = BigDecimal.valueOf(durationMinutes)
+                .divide(BigDecimal.valueOf(60), 4, RoundingMode.HALF_UP);
+
+        Integer bookingDayOfWeekDb = parseBookingDayOfWeekDb(request);
+        List<RoomPriceRuleEntity> rules = roomPriceRuleRepository.findByRoom_IdOrderByIdAsc(roomId).stream()
+                .filter(r -> ruleAppliesOnWeekday(r, bookingDayOfWeekDb))
+                .toList();
+        RoomPriceRuleEntity matchedRule = rules.stream()
+                .filter(r -> ruleMatches(r, durationHours))
+                .findFirst()
+                .orElse(null);
+
+        BigDecimal unitPrice;
+        BigDecimal subtotal;
+        String mode;
+        Integer matchedRuleId = matchedRule != null ? matchedRule.getId() : null;
+
+        if (matchedRule != null && matchedRule.getFlatPrice() != null) {
+            mode = "RULE_FLAT_PRICE";
+            unitPrice = null;
+            subtotal = matchedRule.getFlatPrice();
+        } else if (matchedRule != null && matchedRule.getPricePerHour() != null) {
+            mode = "RULE_PRICE_PER_HOUR";
+            unitPrice = matchedRule.getPricePerHour();
+            subtotal = durationHours.multiply(unitPrice).setScale(2, RoundingMode.HALF_UP);
+        } else {
+            mode = "ROOM_DEFAULT_PER_UNIT";
+            BigDecimal pricePerHour = room.getPricePerHour() != null ? room.getPricePerHour() : BigDecimal.ZERO;
+            unitPrice = pricePerHour
+                    .multiply(BigDecimal.valueOf(stepUnit))
+                    .divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
+            BigDecimal units = BigDecimal.valueOf(durationMinutes)
+                    .divide(BigDecimal.valueOf(stepUnit), 0, RoundingMode.UNNECESSARY);
+            subtotal = unitPrice.multiply(units).setScale(2, RoundingMode.HALF_UP);
+        }
+
+        BigDecimal weekendSurchargePercent = room.getWeekendSurchargePercent() != null
+                ? room.getWeekendSurchargePercent()
+                : BigDecimal.ZERO;
+        boolean weekendSurchargeApplied = isWeekendSurchargeApplied(room, request);
+        BigDecimal weekendSurchargeAmount = weekendSurchargeApplied
+                ? subtotal.multiply(weekendSurchargePercent).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+        BigDecimal total = subtotal.add(weekendSurchargeAmount).setScale(2, RoundingMode.HALF_UP);
+
+        return RoomPriceQuoteResponse.builder()
+                .roomId(roomId)
+                .durationMinutes(durationMinutes)
+                .durationHours(durationHours)
+                .minDuration(minDuration)
+                .stepUnit(stepUnit)
+                .matchedRuleId(matchedRuleId)
+                .pricingMode(mode)
+                .unitPrice(unitPrice)
+                .subtotal(subtotal)
+                .weekendSurchargeApplied(weekendSurchargeApplied)
+                .weekendSurchargePercent(weekendSurchargePercent)
+                .weekendSurchargeAmount(weekendSurchargeAmount)
+                .total(total)
+                .build();
+    }
+
+    @Override
     @Transactional
     public RoomResponse updateStatus(Integer id, RoomStatus status) {
         if (status == null) {
@@ -342,7 +439,36 @@ public class RoomServiceImpl implements RoomService {
 
     private RoomResponse mapToResponse(RoomEntity e) {
         RoomResponse response = roomMapper.toResponse(e);
-        response.setSchedules(roomScheduleService.listByRoomId(e.getId()));
+        if (response.getMainImageUrl() == null || response.getMainImageUrl().isBlank()) {
+            String images = response.getImages();
+            if (images != null && !images.isBlank()) {
+                String first = images.split(",")[0].trim();
+                if (!first.isBlank()) {
+                    response.setMainImageUrl(first);
+                }
+            }
+        }
+        response.setMinBookingHours(toLegacyMinBookingHours(response.getMinDuration()));
+        response.setPriceRules(roomPriceRuleRepository.findByRoom_IdOrderByIdAsc(e.getId()).stream()
+                .map(r -> com.eduspace.roomservice.model.dto.response.RoomPriceRuleResponse.builder()
+                        .id(r.getId())
+                        .minHours(r.getMinHours())
+                        .maxHours(r.getMaxHours())
+                        .pricePerHour(r.getPricePerHour())
+                        .flatPrice(r.getFlatPrice())
+                        .label(r.getLabel())
+                        .applicableDayOfWeeks(sortedApplicableDays(r))
+                        .build())
+                .toList());
+        if (e.getProperty() != null) {
+            var p = e.getProperty();
+            response.setScheduleBufferMinutes(p.getScheduleBufferMinutes() != null ? p.getScheduleBufferMinutes() : 0);
+            response.setScheduleIsOverDay(p.getScheduleIsOverDay());
+            response.setSchedules(roomScheduleService.listByPropertyId(p.getId()));
+        } else {
+            response.setSchedules(List.of());
+        }
+        response.setTimeslots(roomTimeslotService.listByRoom(e.getId()));
         return response;
     }
 
@@ -354,6 +480,223 @@ public class RoomServiceImpl implements RoomService {
             return RoomApprovalStatus.valueOf(s);
         } catch (IllegalArgumentException ex) {
             return null;
+        }
+    }
+
+    private static int extractDurationMinutes(RoomPriceQuoteRequest request) {
+        if (request == null) {
+            throw new AppException(ErrorCode.INVALID_KEY);
+        }
+        if (request.getDurationMinutes() != null && request.getDurationMinutes() > 0) {
+            return request.getDurationMinutes();
+        }
+        if (request.getStartDateTime() != null && request.getEndDateTime() != null) {
+            try {
+                LocalDateTime start = LocalDateTime.parse(request.getStartDateTime().trim());
+                LocalDateTime end = LocalDateTime.parse(request.getEndDateTime().trim());
+                long minutes = Duration.between(start, end).toMinutes();
+                if (minutes <= 0) {
+                    throw new AppException(ErrorCode.INVALID_KEY);
+                }
+                return Math.toIntExact(minutes);
+            } catch (RuntimeException ex) {
+                throw new AppException(ErrorCode.INVALID_KEY);
+            }
+        }
+        throw new AppException(ErrorCode.INVALID_KEY);
+    }
+
+    private static List<Integer> sortedApplicableDays(RoomPriceRuleEntity r) {
+        if (r.getApplicableDayOfWeeks() == null || r.getApplicableDayOfWeeks().isEmpty()) {
+            return List.of();
+        }
+        return r.getApplicableDayOfWeeks().stream().sorted().toList();
+    }
+
+    private static Integer parseBookingDayOfWeekDb(RoomPriceQuoteRequest request) {
+        if (request == null || request.getStartDateTime() == null || request.getStartDateTime().isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDateTime.parse(request.getStartDateTime().trim()).getDayOfWeek().getValue() + 1;
+        } catch (RuntimeException ex) {
+            return null;
+        }
+    }
+
+    private static boolean ruleAppliesOnWeekday(RoomPriceRuleEntity rule, Integer bookingDayOfWeekDb) {
+        if (rule.getApplicableDayOfWeeks() == null || rule.getApplicableDayOfWeeks().isEmpty()) {
+            return true;
+        }
+        if (bookingDayOfWeekDb == null) {
+            return true;
+        }
+        return rule.getApplicableDayOfWeeks().contains(bookingDayOfWeekDb);
+    }
+
+    private static BigDecimal operatingHours(RoomScheduleResponse s) {
+        if (s == null || !Boolean.TRUE.equals(s.getIsOpen())) {
+            return BigDecimal.ZERO;
+        }
+        if (Boolean.TRUE.equals(s.getIsOverDay())) {
+            return BigDecimal.valueOf(24);
+        }
+        LocalTime o = s.getOpenTime();
+        LocalTime c = s.getCloseTime();
+        if (o == null || c == null) {
+            return BigDecimal.ZERO;
+        }
+        long minutes = Duration.between(o, c).toMinutes();
+        return BigDecimal.valueOf(minutes).divide(BigDecimal.valueOf(60), 4, RoundingMode.HALF_UP);
+    }
+
+    private void applyApplicableDays(
+            RoomPriceRuleRequest req, List<RoomScheduleResponse> schedules, RoomPriceRuleEntity entity) {
+        List<Integer> raw = req.getApplicableDayOfWeeks();
+        if (raw == null || raw.isEmpty()) {
+            entity.setApplicableDayOfWeeks(new HashSet<>());
+            return;
+        }
+        Set<Integer> normalized = new HashSet<>();
+        for (Integer d : raw) {
+            if (d == null || d < 2 || d > 8) {
+                throw new AppException(ErrorCode.INVALID_KEY);
+            }
+            normalized.add(d);
+        }
+        BigDecimal minH = BigDecimal.valueOf(req.getMinHours());
+        if (!schedules.isEmpty()) {
+            for (Integer dow : normalized) {
+                RoomScheduleResponse row = schedules.stream()
+                        .filter(s -> dow.equals(s.getDayOfWeek()))
+                        .findFirst()
+                        .orElse(null);
+                BigDecimal opH = operatingHours(row);
+                if (minH.compareTo(opH) > 0) {
+                    throw new AppException(ErrorCode.INVALID_KEY);
+                }
+            }
+        }
+        entity.setApplicableDayOfWeeks(normalized);
+    }
+
+    private static boolean ruleMatches(RoomPriceRuleEntity rule, BigDecimal durationHours) {
+        if (rule == null || rule.getMinHours() == null) {
+            return false;
+        }
+        BigDecimal min = BigDecimal.valueOf(rule.getMinHours());
+        if (durationHours.compareTo(min) < 0) {
+            return false;
+        }
+        if (rule.getMaxHours() == null) {
+            return true;
+        }
+        BigDecimal max = BigDecimal.valueOf(rule.getMaxHours());
+        return durationHours.compareTo(max) <= 0;
+    }
+
+    private static int toLegacyMinBookingHours(Integer minDuration) {
+        if (minDuration == null || minDuration <= 0) {
+            return 1;
+        }
+        return (int) Math.ceil(minDuration / 60.0d);
+    }
+
+    private static void normalizeDurationConfig(RoomRequest request) {
+        if (request == null) {
+            return;
+        }
+        Integer minDuration = request.getMinDuration();
+        if (minDuration == null || minDuration <= 0) {
+            if (request.getMinBookingHours() != null && request.getMinBookingHours() > 0) {
+                minDuration = request.getMinBookingHours() * 60;
+            } else {
+                minDuration = 60;
+            }
+        }
+        Integer stepUnit = request.getStepUnit();
+        if (stepUnit == null || stepUnit <= 0) {
+            stepUnit = 30;
+        }
+        if (minDuration % stepUnit != 0) {
+            throw new AppException(ErrorCode.INVALID_KEY);
+        }
+        Boolean weekendEnabled = request.getWeekendSurchargeEnabled();
+        if (weekendEnabled == null) {
+            weekendEnabled = false;
+        }
+        BigDecimal weekendPercent = request.getWeekendSurchargePercent();
+        if (weekendPercent == null || weekendPercent.compareTo(BigDecimal.ZERO) < 0) {
+            weekendPercent = BigDecimal.ZERO;
+        }
+        Boolean applySat = request.getWeekendApplySaturday();
+        Boolean applySun = request.getWeekendApplySunday();
+        if (applySat == null) applySat = false;
+        if (applySun == null) applySun = true;
+        request.setMinDuration(minDuration);
+        request.setStepUnit(stepUnit);
+        request.setMinBookingHours(toLegacyMinBookingHours(minDuration));
+        request.setWeekendSurchargeEnabled(weekendEnabled);
+        request.setWeekendSurchargePercent(weekendPercent);
+        request.setWeekendApplySaturday(applySat);
+        request.setWeekendApplySunday(applySun);
+    }
+
+    private void upsertPriceRules(RoomEntity room, List<RoomPriceRuleRequest> requests) {
+        room.getPriceRules().clear();
+        if (requests == null || requests.isEmpty()) {
+            return;
+        }
+        Integer propertyId = room.getProperty() != null ? room.getProperty().getId() : null;
+        List<RoomScheduleResponse> schedules =
+                propertyId != null ? roomScheduleService.listByPropertyId(propertyId) : List.of();
+        List<RoomPriceRuleEntity> entities = requests.stream()
+                .map(req -> {
+                    if (req == null || req.getMinHours() == null || req.getMinHours() <= 0) {
+                        throw new AppException(ErrorCode.INVALID_KEY);
+                    }
+                    if (req.getMaxHours() != null && req.getMaxHours() < req.getMinHours()) {
+                        throw new AppException(ErrorCode.INVALID_KEY);
+                    }
+                    if (req.getFlatPrice() == null && req.getPricePerHour() == null) {
+                        throw new AppException(ErrorCode.INVALID_KEY);
+                    }
+                    RoomPriceRuleEntity built = RoomPriceRuleEntity.builder()
+                            .room(room)
+                            .minHours(req.getMinHours())
+                            .maxHours(req.getMaxHours())
+                            .pricePerHour(req.getPricePerHour())
+                            .flatPrice(req.getFlatPrice())
+                            .label(req.getLabel())
+                            .build();
+                    applyApplicableDays(req, schedules, built);
+                    return built;
+                })
+                .collect(Collectors.toList());
+        room.getPriceRules().addAll(entities);
+    }
+
+    private static boolean isWeekendSurchargeApplied(RoomEntity room, RoomPriceQuoteRequest request) {
+        if (room.getWeekendSurchargeEnabled() == null || !room.getWeekendSurchargeEnabled()) {
+            return false;
+        }
+        if (room.getWeekendSurchargePercent() == null || room.getWeekendSurchargePercent().compareTo(BigDecimal.ZERO) <= 0) {
+            return false;
+        }
+        if (request == null || request.getStartDateTime() == null || request.getStartDateTime().isBlank()) {
+            return false;
+        }
+        try {
+            DayOfWeek dow = LocalDateTime.parse(request.getStartDateTime().trim()).getDayOfWeek();
+            if (dow == DayOfWeek.SATURDAY) {
+                return Boolean.TRUE.equals(room.getWeekendApplySaturday());
+            }
+            if (dow == DayOfWeek.SUNDAY) {
+                return Boolean.TRUE.equals(room.getWeekendApplySunday());
+            }
+            return false;
+        } catch (RuntimeException ex) {
+            return false;
         }
     }
 }

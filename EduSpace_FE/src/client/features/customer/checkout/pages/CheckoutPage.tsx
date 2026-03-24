@@ -1,24 +1,30 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ApiResponse, CreateBookingReq, BookingPriceCalculationResult } from '@/types';
+import { CreateBookingReq, BookingPriceCalculationResult } from '@/types';
+import { roomApiService } from '@/client/features/room';
+import { checkoutBookingApiService } from '../services/checkoutBookingApiService';
+import { profileService } from '../../profile/services/profileService';
 import { CustomerLayout } from '../../../../layouts/CustomerLayout';
 import { Calendar, Clock, CreditCard, ChevronRight, CheckCircle2, ShieldCheck, Loader2, Timer, Info } from 'lucide-react';
+import { toast } from 'sonner';
+import { bookingDepositService } from '../services/bookingDepositService';
 import { formatCurrency } from '../../../../../utils';
 
 export function CheckoutPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation();
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const bookingDetails = (location.state as any)?.bookingDetails;
 
   // Form State aligned with CreateBookingReq
   const [bookingData, setBookingData] = useState<Partial<CreateBookingReq>>({
-    startDate: '2024-01-20',
-    durationDays: 1,
-    startTime: '09:00',
-    endTime: '12:00',
-    guests: 15,
-    paymentMethod: 'card'
+    roomId: bookingDetails?.roomId,
+    bookingDate: bookingDetails?.bookingDate,
+    slotId: bookingDetails?.slotId,
+    durationValue: bookingDetails?.durationValue,
+    durationUnit: bookingDetails?.durationUnit ?? 'HOUR',
   });
 
   // Mock Pricing Result from BE
@@ -36,6 +42,9 @@ export function CheckoutPage() {
 
   const [holdTimer, setHoldTimer] = useState(600); // 10 mins
   const [paymentTimer, setPaymentTimer] = useState(900); // 15 mins
+  const [payerName, setPayerName] = useState('');
+  const [payerEmail, setPayerEmail] = useState('');
+  const [payingDeposit, setPayingDeposit] = useState(false);
 
   useEffect(() => {
     let interval: any;
@@ -53,8 +62,78 @@ export function CheckoutPage() {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const nextStep = () => setStep(prev => (prev < 4 ? prev + 1 : prev) as any);
+  const nextStep = async () => {
+    if (step === 3) {
+      if (!bookingData.roomId || !bookingData.slotId || !bookingData.bookingDate || !bookingData.durationValue || !bookingData.durationUnit) {
+        return;
+      }
+      const profile = await profileService.getProfile();
+      await checkoutBookingApiService.createBooking({
+        roomId: bookingData.roomId,
+        userId: profile.id,
+        bookingDate: bookingData.bookingDate,
+        slotId: bookingData.slotId,
+        durationValue: bookingData.durationValue,
+        durationUnit: bookingData.durationUnit,
+      });
+    }
+    setStep((prev) => (prev < 4 ? prev + 1 : prev) as any);
+  };
   const prevStep = () => setStep(prev => (prev > 1 ? prev - 1 : prev) as any);
+
+  useEffect(() => {
+    if (!bookingData.roomId || !bookingData.slotId || !bookingData.bookingDate || !bookingData.durationValue || !bookingData.durationUnit) {
+      return;
+    }
+    roomApiService
+      .quoteTimeslotPricing(bookingData.roomId, {
+        slotId: bookingData.slotId,
+        bookingDate: bookingData.bookingDate,
+        durationValue: bookingData.durationValue,
+        durationUnit: bookingData.durationUnit,
+      })
+      .then((quote) => {
+        setPricing({
+          dailyBreakdown: [
+            {
+              date: bookingData.bookingDate ?? '',
+              hours: quote.durationMinutes / 60,
+              basePrice: quote.unitPrice,
+              appliedPrice: quote.unitPrice,
+              isWeekend: false,
+            },
+          ],
+          totalRoomPrice: quote.totalPrice,
+          cleaningFee: 50000,
+          serviceFee: 100000,
+          extraCharges: [],
+          grandTotal: quote.totalPrice + 150000,
+          currency: quote.currency,
+        });
+      })
+      .catch(() => undefined);
+  }, [bookingData.roomId, bookingData.slotId, bookingData.bookingDate, bookingData.durationValue, bookingData.durationUnit]);
+
+  const handlePayDeposit = async () => {
+    setPayingDeposit(true);
+    try {
+      const intent = await bookingDepositService.createIntent({
+        grandTotal: pricing.grandTotal,
+        customerName: payerName.trim() || 'Guest',
+        customerEmail: payerEmail.trim() || 'guest@example.com',
+        spaceRef: 'CHECKOUT-DEMO',
+      });
+      const pathBase = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
+      const returnUrl = `${window.location.origin}${pathBase}/checkout/deposit-return?depositId=${intent.depositId}`;
+      const payos = await bookingDepositService.createPayos(intent.depositId, returnUrl);
+      toast.info(t('customer.checkout.payment.redirecting'));
+      window.location.href = payos.checkoutUrl;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'PayOS');
+    } finally {
+      setPayingDeposit(false);
+    }
+  };
 
   const steps = [
     { id: 1, name: t('customer.checkout.steps.schedule') },
@@ -111,27 +190,27 @@ export function CheckoutPage() {
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t('customer.checkout.schedule.startDate')}</label>
                       <input
                         type="date"
-                        value={bookingData.startDate}
-                        onChange={(e) => setBookingData({ ...bookingData, startDate: e.target.value })}
+                        value={bookingData.bookingDate}
+                        onChange={(e) => setBookingData({ ...bookingData, bookingDate: e.target.value })}
                         className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-100 focus:border-red-400 transition-all"
                       />
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t('customer.checkout.schedule.numDays')}</label>
                       <select
-                        value={bookingData.durationDays}
-                        onChange={(e) => setBookingData({ ...bookingData, durationDays: parseInt(e.target.value) })}
+                        value={bookingData.durationValue}
+                        onChange={(e) => setBookingData({ ...bookingData, durationValue: parseInt(e.target.value), durationUnit: 'HOUR' })}
                         className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-100 focus:border-red-400 transition-all appearance-none"
                       >
-                        {[1, 2, 3, 4, 5, 6, 7].map(d => <option key={d} value={d}>{d} ngày</option>)}
+                        {[1, 2, 3, 4, 5, 6, 7].map(d => <option key={d} value={d}>{d} giờ</option>)}
                       </select>
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t('customer.checkout.schedule.startTime')}</label>
                       <input
                         type="time"
-                        value={bookingData.startTime}
-                        onChange={(e) => setBookingData({ ...bookingData, startTime: e.target.value })}
+                        value={bookingDetails?.startTime || ''}
+                        readOnly
                         className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-100 transition-all"
                       />
                     </div>
@@ -139,8 +218,8 @@ export function CheckoutPage() {
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t('customer.checkout.schedule.endTime')}</label>
                       <input
                         type="time"
-                        value={bookingData.endTime}
-                        onChange={(e) => setBookingData({ ...bookingData, endTime: e.target.value })}
+                        value={bookingDetails?.endTime || ''}
+                        readOnly
                         className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-100 transition-all"
                       />
                     </div>
@@ -240,7 +319,22 @@ export function CheckoutPage() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="col-span-2">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Full Name</label>
-                        <input className="w-full px-5 py-4 border border-gray-200 rounded-2xl font-bold bg-white" placeholder="Nguyễn Văn A" />
+                        <input
+                          value={payerName}
+                          onChange={(e) => setPayerName(e.target.value)}
+                          className="w-full px-5 py-4 border border-gray-200 rounded-2xl font-bold bg-white"
+                          placeholder="Nguyễn Văn A"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Email</label>
+                        <input
+                          type="email"
+                          value={payerEmail}
+                          onChange={(e) => setPayerEmail(e.target.value)}
+                          className="w-full px-5 py-4 border border-gray-200 rounded-2xl font-bold bg-white"
+                          placeholder="you@email.com"
+                        />
                       </div>
                       <div>
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Card Number</label>
@@ -315,10 +409,25 @@ export function CheckoutPage() {
                     ← {t('common.goBack')}
                   </button>
                   <button
-                    onClick={nextStep}
-                    className="bg-gray-900 text-white px-10 py-5 rounded-2xl font-black shadow-xl hover:shadow-2xl active:scale-95 transition-all flex items-center gap-3 group"
+                    onClick={() => {
+                      if (step === 3) void handlePayDeposit();
+                      else nextStep();
+                    }}
+                    disabled={step === 3 && payingDeposit}
+                    className="bg-gray-900 text-white px-10 py-5 rounded-2xl font-black shadow-xl hover:shadow-2xl active:scale-95 transition-all flex items-center gap-3 group disabled:opacity-60"
                   >
-                    {step === 3 ? t('customer.checkout.payment.submit') : `Tiếp tục → ${steps[step].name}`}
+                    {step === 3 ? (
+                      payingDeposit ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          PayOS…
+                        </>
+                      ) : (
+                        t('customer.checkout.payment.payDeposit')
+                      )
+                    ) : (
+                      `Tiếp tục → ${steps[step].name}`
+                    )}
                   </button>
                 </div>
               )}
@@ -339,10 +448,10 @@ export function CheckoutPage() {
                     <div>
                       <div className="font-bold text-gray-900 text-sm line-clamp-1">Modern Training Room A</div>
                       <div className="flex items-center gap-1 text-[10px] text-gray-400 font-bold mt-1">
-                        <Calendar className="w-3 h-3" /> {bookingData.startDate}
+                        <Calendar className="w-3 h-3" /> {bookingData.bookingDate}
                       </div>
                       <div className="flex items-center gap-1 text-[10px] text-gray-400 font-bold">
-                        <Clock className="w-3 h-3" /> {bookingData.startTime} - {bookingData.endTime}
+                        <Clock className="w-3 h-3" /> {bookingDetails?.startTime} - {bookingDetails?.endTime}
                       </div>
                     </div>
                   </div>

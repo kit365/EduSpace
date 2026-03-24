@@ -1,6 +1,12 @@
 import apiClient from '@/lib/axios';
 import { ROOM_API } from '@/config/api';
-import type { PropertyCreateRequest, PropertyDto } from '../types';
+import type {
+  PropertyCreateRequest,
+  PropertyDto,
+  PropertyScheduleBundleDto,
+  PropertyScheduleReplacePayload,
+  RoomScheduleDto,
+} from '../types';
 
 function unwrap<T>(res: unknown): T {
   if (res && typeof res === 'object' && 'data' in res && (res as { data: unknown }).data !== undefined) {
@@ -24,5 +30,39 @@ export const propertyApiService = {
   create: async (body: PropertyCreateRequest): Promise<PropertyDto> => {
     const res = await apiClient.post(ROOM_API.PROPERTIES, body);
     return unwrap<PropertyDto>(res);
+  },
+
+  /** Giờ mở cửa + buffer + over-day (cơ sở). */
+  getSchedules: async (propertyId: number, ownerId: string): Promise<PropertyScheduleBundleDto> => {
+    const params = new URLSearchParams({ ownerId: ownerId.trim() });
+    const res = await apiClient.get(`${ROOM_API.PROPERTIES}/${propertyId}/schedules?${params}`);
+    const data = unwrap<PropertyScheduleBundleDto | RoomScheduleDto[]>(res);
+    if (Array.isArray(data)) {
+      return {
+        bufferMinutes: 0,
+        isOverDay: false,
+        schedules: data,
+      };
+    }
+    return {
+      bufferMinutes: data.bufferMinutes ?? 0,
+      isOverDay: Boolean(data.isOverDay),
+      schedules: Array.isArray(data.schedules) ? data.schedules : [],
+    };
+  },
+
+  putSchedules: async (
+    propertyId: number,
+    ownerId: string,
+    body: PropertyScheduleReplacePayload,
+  ): Promise<PropertyScheduleBundleDto> => {
+    const params = new URLSearchParams({ ownerId: ownerId.trim() });
+    const res = await apiClient.put(`${ROOM_API.PROPERTIES}/${propertyId}/schedules?${params}`, body);
+    const data = unwrap<PropertyScheduleBundleDto>(res);
+    return {
+      bufferMinutes: data.bufferMinutes ?? 0,
+      isOverDay: Boolean(data.isOverDay),
+      schedules: Array.isArray(data.schedules) ? data.schedules : [],
+    };
   },
 };
