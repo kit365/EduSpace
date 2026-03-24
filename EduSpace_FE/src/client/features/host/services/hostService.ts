@@ -1,7 +1,7 @@
 import { profileService } from '@/client/features/customer/profile/services/profileService';
 import { propertyApiService } from '@/client/features/room/services/propertyApiService';
 import { roomApiService } from '@/client/features/room/services/roomApiService';
-import type { RoomCreateRequest, RoomScheduleSaveItem, RoomType } from '@/client/features/room/types';
+import type { RoomCreateRequest, RoomPriceRuleDto, RoomType } from '@/client/features/room/types';
 
 export interface HostPublishFormData {
   branchId: number | null;
@@ -13,20 +13,22 @@ export interface HostPublishFormData {
   /** Tiêu đề hiển thị công khai (mô tả / marketing) */
   title: string;
   address: string;
+  roomLocationHint: string;
   roomNumber: string;
   capacity: number;
   size: number;
   floor: number;
-  basePrice: number;
-  pricePerDay: number;
-  weekendSurcharge: number;
-  is24_7: boolean;
-  /** HH:mm */
-  openTime: string;
-  /** HH:mm */
-  closeTime: string;
+  defaultPricePerUnit: number;
+  minDuration: number;
+  stepUnit: number;
+  weekendSurchargeEnabled: boolean;
+  weekendSurchargePercent: number;
+  weekendApplySaturday: boolean;
+  weekendApplySunday: boolean;
+  priceRules: RoomPriceRuleDto[];
   amenities: string[];
   images: string[];
+  mainImageUrl?: string | null;
 }
 
 function mapRoomType(displayName: string): RoomType {
@@ -45,32 +47,20 @@ function mapRoomType(displayName: string): RoomType {
   return 'MEETING_ROOM';
 }
 
-function toLocalTime(isoOrHm: string): string {
-  const s = isoOrHm.trim();
-  if (/^\d{1,2}:\d{2}$/.test(s)) {
-    const [h, m] = s.split(':');
-    return `${h.padStart(2, '0')}:${m.padStart(2, '0')}:00`;
-  }
-  if (s.split(':').length === 3) return s;
-  return `${s}:00`;
-}
-
-function timeToMinutes(isoOrHm: string): number {
-  const normalized = toLocalTime(isoOrHm);
-  const [h, m] = normalized.split(':').map((x) => parseInt(x, 10));
-  return h * 60 + m;
-}
-
-/** Một khung giờ cho mỗi ngày: mở–đóng hoặc 24/7 (00:00–23:59:59). */
 /** Payload đồng bộ với RoomRequest (BE) — dùng cho tạo / cập nhật / chỉnh sửa chờ duyệt. */
 function buildRoomPayload(data: HostPublishFormData, propertyId: number): RoomCreateRequest {
   const roomName = data.roomName?.trim() ?? '';
   const floorNum = Number(data.floor);
   const floorStr = String(floorNum);
-  const base = Math.max(0, Math.round(Number(data.basePrice) || 0));
-  const dayPrice = Math.round(Number(data.pricePerDay) || 0);
+  const stepUnit = Math.max(15, Math.round(Number(data.stepUnit) || 30));
+  const defaultPricePerUnit = Math.max(0, Math.round(Number(data.defaultPricePerUnit) || 0));
+  const base = Math.max(0, Math.round((defaultPricePerUnit * 60) / stepUnit));
+  const mainImageUrl = data.mainImageUrl?.trim() || data.images[0] || null;
+  const orderedImages = mainImageUrl
+    ? [mainImageUrl, ...data.images.filter((img) => img !== mainImageUrl)]
+    : [...data.images];
   const images =
-    data.images.length > 0 ? data.images.join(',') : 'https://placehold.co/1200x800/e2e8f0/64748b?text=EduSpace';
+    orderedImages.length > 0 ? orderedImages.join(',') : 'https://placehold.co/1200x800/e2e8f0/64748b?text=EduSpace';
   
   const descParts = [
     data.title?.trim(),
@@ -99,41 +89,36 @@ function buildRoomPayload(data: HostPublishFormData, propertyId: number): RoomCr
     nameEn: roomName.slice(0, 200),
     locationVi: locationLine,
     locationEn: locationLine,
+    roomLocationHint: data.roomLocationHint?.trim() || null,
     capacity: Math.max(1, Number(data.capacity) || 1),
     area: data.size > 0 ? data.size : null,
     roomNumber: data.roomNumber.trim(),
     floorNumber: floorStr,
-    is24_7: data.is24_7,
     pricePerHour: base,
-    pricePerDay: dayPrice,
+    pricePerDay: null,
     minBookingHours: 1,
+    minDuration: Math.max(30, Math.round(Number(data.minDuration) || 30)),
+    stepUnit,
+    weekendSurchargeEnabled: Boolean(data.weekendSurchargeEnabled),
+    weekendSurchargePercent: Math.max(0, Math.round(Number(data.weekendSurchargePercent) || 0)),
+    weekendApplySaturday: Boolean(data.weekendApplySaturday),
+    weekendApplySunday: Boolean(data.weekendApplySunday),
+    priceRules: (data.priceRules ?? []).map((r) => ({
+      minHours: Math.max(1, Math.round(Number(r.minHours) || 1)),
+      maxHours: r.maxHours != null && Number.isFinite(Number(r.maxHours)) ? Math.round(Number(r.maxHours)) : null,
+      pricePerHour: r.pricePerHour != null ? Number(r.pricePerHour) : null,
+      flatPrice: r.flatPrice != null ? Number(r.flatPrice) : null,
+      label: r.label?.trim() || null,
+      applicableDayOfWeeks:
+        r.applicableDayOfWeeks != null && r.applicableDayOfWeeks.length > 0 ? [...r.applicableDayOfWeeks] : null,
+    })),
     images,
+    mainImageUrl,
     descriptionVi: descParts.join('\n') || null,
     descriptionEn: descParts.join('\n') || null,
     status: 'ACTIVE',
     isActive: true,
   };
-}
-
-/** 7 ngày (2–8) từ form đăng phòng — đồng bộ với seed BE / PUT schedules. */
-export function buildWeeklySchedulesFromForm(data: HostPublishFormData): RoomScheduleSaveItem[] {
-  const days = [2, 3, 4, 5, 6, 7, 8] as const;
-  if (data.is24_7) {
-    return days.map((dayOfWeek) => ({
-      dayOfWeek,
-      isOpen: true,
-      openTime: '00:00:00',
-      closeTime: '23:59:00',
-    }));
-  }
-  const o = toLocalTime(data.openTime);
-  const c = toLocalTime(data.closeTime);
-  return days.map((dayOfWeek) => ({
-    dayOfWeek,
-    isOpen: true,
-    openTime: o,
-    closeTime: c,
-  }));
 }
 
 function validateHostPublishForm(data: HostPublishFormData): void {
@@ -147,25 +132,44 @@ function validateHostPublishForm(data: HostPublishFormData): void {
   if (!data.roomNumber?.trim()) {
     throw new Error('Vui lòng nhập số phòng / mã phòng.');
   }
-  if (!data.is24_7) {
-    const o = data.openTime?.trim();
-    const c = data.closeTime?.trim();
-    if (!o || !c) {
-      throw new Error('Vui lòng chọn giờ mở cửa và giờ đóng cửa, hoặc bật hoạt động 24/7.');
+  const defaultPricePerUnit = Math.max(0, Math.round(Number(data.defaultPricePerUnit) || 0));
+  if (defaultPricePerUnit <= 0) {
+    throw new Error('Vui lòng nhập đơn giá mặc định theo bước lớn hơn 0.');
+  }
+  const minDuration = Math.round(Number(data.minDuration) || 0);
+  if (!Number.isFinite(minDuration) || minDuration <= 0) {
+    throw new Error('Vui lòng nhập thời lượng tối thiểu hợp lệ (phút).');
+  }
+  const stepUnit = Math.round(Number(data.stepUnit) || 0);
+  if (!Number.isFinite(stepUnit) || stepUnit <= 0) {
+    throw new Error('Vui lòng nhập bước nhảy hợp lệ (phút).');
+  }
+  if (minDuration % stepUnit !== 0) {
+    throw new Error('Thời lượng tối thiểu phải là bội số của bước nhảy.');
+  }
+  if (data.weekendSurchargeEnabled) {
+    const percent = Math.round(Number(data.weekendSurchargePercent) || 0);
+    if (percent < 0) {
+      throw new Error('Phụ thu cuối tuần phải >= 0%.');
     }
-    const mo = timeToMinutes(o);
-    const mc = timeToMinutes(c);
-    if (mc <= mo) {
-      throw new Error('Giờ đóng cửa phải sau giờ mở cửa (cùng một ngày).');
+    if (!data.weekendApplySaturday && !data.weekendApplySunday) {
+      throw new Error('Bật phụ thu cuối tuần thì cần chọn ít nhất Thứ 7 hoặc Chủ nhật.');
     }
   }
-  const base = Math.max(0, Math.round(Number(data.basePrice) || 0));
-  if (base <= 0) {
-    throw new Error('Vui lòng nhập giá theo giờ lớn hơn 0.');
-  }
-  const dayPrice = Math.round(Number(data.pricePerDay) || 0);
-  if (!Number.isFinite(dayPrice) || dayPrice <= 0) {
-    throw new Error('Vui lòng nhập giá theo ngày lớn hơn 0.');
+  for (const r of data.priceRules ?? []) {
+    const minHours = Math.round(Number(r.minHours) || 0);
+    if (minHours <= 0) {
+      throw new Error('Mỗi rule giá phải có min_hours > 0.');
+    }
+    const maxHours = r.maxHours != null ? Math.round(Number(r.maxHours)) : null;
+    if (maxHours != null && maxHours < minHours) {
+      throw new Error('max_hours phải lớn hơn hoặc bằng min_hours.');
+    }
+    const hasFlat = r.flatPrice != null && Number(r.flatPrice) > 0;
+    const hasHourly = r.pricePerHour != null && Number(r.pricePerHour) > 0;
+    if (!hasFlat && !hasHourly) {
+      throw new Error('Mỗi rule giá cần flat_price hoặc price_per_hour.');
+    }
   }
   const floorNum = Number(data.floor);
   if (!Number.isFinite(floorNum) || floorNum < 0) {
@@ -175,7 +179,7 @@ function validateHostPublishForm(data: HostPublishFormData): void {
 
 class HostService {
   /**
-   * Gắn phòng vào chi nhánh (property) đã có → room → room_slots (một khung/ngày theo open–đóng hoặc 24/7).
+   * Gắn phòng vào chi nhánh (property) đã có.
    * Không tạo property mới — tránh trùng card ở mục Chi nhánh.
    */
   /**
@@ -231,7 +235,6 @@ class HostService {
       ...payload,
       approvalStatus: 'PENDING',
     });
-    await roomApiService.putSchedules(roomId, profile.id.trim(), buildWeeklySchedulesFromForm(data));
   }
 
   async publishSpace(data: HostPublishFormData): Promise<void> {
@@ -259,11 +262,10 @@ class HostService {
     }
 
     const payload = buildRoomPayload(data, property.id);
-    const created = await roomApiService.create({
+    await roomApiService.create({
       ...payload,
       approvalStatus: 'PENDING',
     });
-    await roomApiService.putSchedules(created.id, profile.id.trim(), buildWeeklySchedulesFromForm(data));
   }
 
   async getHostStats(): Promise<any> {

@@ -1,6 +1,17 @@
 import apiClient from '@/lib/axios';
 import { ROOM_API } from '@/config/api';
-import type { AmenityDto, PageResponse, RoomCategoryDto, RoomCreateRequest, RoomDto, RoomOperationalStatus, RoomScheduleSaveItem } from '../types';
+import type {
+  AmenityCreateRequest,
+  AmenityDto,
+  PageResponse,
+  RoomCategoryDto,
+  RoomCreateRequest,
+  RoomDto,
+  RoomOperationalStatus,
+  RoomPriceQuoteRequest,
+  RoomPriceQuoteResponse,
+  RoomScheduleSaveItem,
+} from '../types';
 
 function unwrap<T>(res: unknown): T {
   if (res && typeof res === 'object' && 'data' in res && (res as { data: unknown }).data !== undefined) {
@@ -45,6 +56,11 @@ export const roomApiService = {
   update: async (id: number, body: Partial<RoomCreateRequest> & { rejectionNote?: string | null }): Promise<RoomDto> => {
     const res = await apiClient.put(`${ROOM_API.ROOMS}/${id}`, body);
     return unwrap<RoomDto>(res);
+  },
+
+  quotePrice: async (roomId: number, body: RoomPriceQuoteRequest): Promise<RoomPriceQuoteResponse> => {
+    const res = await apiClient.post(`${ROOM_API.ROOMS}/${roomId}/price-quote`, body);
+    return unwrap<RoomPriceQuoteResponse>(res);
   },
 
   /** Thay toàn bộ lịch 7 ngày (host — ownerId khớp property). */
@@ -128,5 +144,22 @@ export const roomApiService = {
   getAllAmenities: async (): Promise<AmenityDto[]> => {
     const res = await apiClient.get(ROOM_API.AMENITIES);
     return unwrap<AmenityDto[]>(res);
+  },
+
+  createAmenity: async (body: AmenityCreateRequest): Promise<AmenityDto> => {
+    const res = await apiClient.post(ROOM_API.AMENITIES, body);
+    return unwrap<AmenityDto>(res);
+  },
+
+  uploadRoomImage: async (file: File, folder?: string): Promise<string> => {
+    const fd = new FormData();
+    fd.append('file', file);
+    if (folder?.trim()) {
+      fd.append('folder', folder.trim());
+    }
+    const res = await apiClient.post(ROOM_API.ROOM_MEDIA_UPLOAD, fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return unwrap<string>(res);
   },
 };
