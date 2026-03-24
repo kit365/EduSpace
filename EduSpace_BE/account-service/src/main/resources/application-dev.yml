@@ -33,3 +33,9 @@ keycloak:
   realm: ${KEYCLOAK_REALM:eduspace}
   client-id: ${KEYCLOAK_CLIENT_ID:eduspace-be}
   client-secret: ${KEYCLOAK_CLIENT_SECRET:eduspace-secret}
+
+# Dev: khong bat buoc chay discovery-server truoc.
+# Khi can dang ky Eureka: dat EUREKA_CLIENT_ENABLED=true.
+eureka:
+  client:
+    enabled: ${EUREKA_CLIENT_ENABLED:false}

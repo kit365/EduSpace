@@ -26,3 +26,7 @@ keycloak:
   realm: ${KEYCLOAK_REALM}
   client-id: ${KEYCLOAK_CLIENT_ID}
   client-secret: ${KEYCLOAK_CLIENT_SECRET}
+
+eureka:
+  client:
+    enabled: true
