@@ -1,3 +1,10 @@
 .env
 .env.*
 !.env.example
+
+# Local uploads / runtime data (do not commit)
+EduSpace_BE/data/
+EduSpace_BE/room-service/data/
+
+# Editor (optional local)
+.vscode/
