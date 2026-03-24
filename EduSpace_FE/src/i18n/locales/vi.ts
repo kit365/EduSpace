@@ -400,7 +400,17 @@ export const vi = {
             payment: {
                 onlineTitle: "Thanh toán Online",
                 submit: "Xác nhận & Thanh toán",
-                escrowNote: "Tiền được giữ an toàn và chỉ chuyển cho Host sau khi bạn check-in."
+                escrowNote: "Tiền được giữ an toàn và chỉ chuyển cho Host sau khi bạn check-in.",
+                payDeposit: "Thanh toán cọc (PayOS)",
+                redirecting: "Đang chuyển tới cổng thanh toán PayOS..."
+            },
+            depositReturn: {
+                title: "Kết quả thanh toán cọc",
+                waiting: "Đang xác nhận giao dịch...",
+                success: "Đã thanh toán cọc thành công.",
+                bookingCode: "Mã booking",
+                pending: "Chưa nhận được xác nhận. Vui lòng đợi hoặc tải lại trang.",
+                goBookings: "Xem đơn đặt phòng"
             },
             success: "Đặt phòng thành công! 🎉"
         },
@@ -578,9 +588,42 @@ export const vi = {
         roles: "Vai trò & Quyền",
         settings: "Cài đặt Hệ thống",
         points: "Điểm thưởng & Quà",
+        depositPolicies: "Cọc & Hoàn tiền",
         signOut: "Đăng xuất",
         adminPortal: "Admin Portal",
         systemControl: "Điều khiển Hệ thống"
+    },
+    depositPolicies: {
+        title: "Chính sách cọc & hoàn tiền",
+        subtitle: "Cấu hình % cọc và cửa sổ hoàn tiền (admin)",
+        add: "Thêm chính sách",
+        name: "Tên chính sách",
+        description: "Mô tả",
+        depositPct: "% cọc",
+        default: "Mặc định",
+        active: "Kích hoạt",
+        actions: "Thao tác",
+        create: "Tạo chính sách",
+        edit: "Sửa chính sách",
+        defaultPolicy: "Chính sách mặc định",
+        displayOrder: "Thứ tự hiển thị",
+        saved: "Đã lưu chính sách",
+        deleted: "Đã xóa chính sách",
+        confirmDelete: "Xóa chính sách này?"
+    },
+    bookingAdmin: {
+        refundsTitle: "Yêu cầu hoàn tiền theo booking",
+        bookingIdPlaceholder: "Nhập ID booking",
+        loadRefunds: "Tải danh sách",
+        refundStatus: "Trạng thái",
+        refundAmount: "Số tiền",
+        refundReason: "Lý do",
+        handleRefund: "Xử lý",
+        approve: "Duyệt hoàn",
+        reject: "Từ chối",
+        adminNote: "Ghi chú admin",
+        transactionId: "Mã giao dịch hoàn",
+        refundHandled: "Đã cập nhật"
     },
     admin_management: {
         title: "Quản lý Người dùng",

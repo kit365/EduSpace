@@ -1,12 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Star, Clock } from 'lucide-react';
 import { formatCurrency } from '../../../../../utils';
 
 import { ReservationSchedule } from '@/types/space';
+import { roomApiService } from '@/client/features/room/services/roomApiService';
+import { showToast } from '@/utils/toast';
+import { getApiErrorMessage } from '@/utils/apiError';
 
 interface BookingPanelProps {
+  roomId: number;
   price: number;
   rating: number;
   reviewCount: number;
@@ -15,15 +19,48 @@ interface BookingPanelProps {
   capacity?: number;
   schedules?: ReservationSchedule[];
   is24_7?: boolean;
+  minDuration?: number;
+  stepUnit?: number;
 }
 
-export function BookingPanel({ price, rating, reviewCount, spaceName, spaceImage, capacity = 100, schedules = [], is24_7 = false }: BookingPanelProps) {
+function parseMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map((v) => parseInt(v, 10));
+  return h * 60 + m;
+}
+
+function minutesToHm(totalMinutes: number): string {
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+export function BookingPanel({
+  roomId,
+  price,
+  rating,
+  reviewCount,
+  spaceName,
+  spaceImage,
+  capacity = 100,
+  schedules = [],
+  is24_7 = false,
+  minDuration = 60,
+  stepUnit = 30,
+}: BookingPanelProps) {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('11:00');
   const [guests, setGuests] = useState(1);
+  const [quotedTotal, setQuotedTotal] = useState<number | null>(null);
+  const [quotedUnitPrice, setQuotedUnitPrice] = useState<number | null>(null);
+  const [quoteMode, setQuoteMode] = useState<string>('ROOM_DEFAULT_PER_UNIT');
+  const [quoteSubtotal, setQuoteSubtotal] = useState<number | null>(null);
+  const [weekendSurchargeApplied, setWeekendSurchargeApplied] = useState(false);
+  const [weekendSurchargeAmount, setWeekendSurchargeAmount] = useState<number>(0);
+  const [weekendSurchargePercent, setWeekendSurchargePercent] = useState<number>(0);
+  const [quoteLoading, setQuoteLoading] = useState(false);
 
   // Derived validation
   const jsDay = new Date(selectedDate).getDay(); // 0 (Sun) - 6 (Sat)
@@ -44,12 +81,66 @@ export function BookingPanel({ price, rating, reviewCount, spaceName, spaceImage
   };
 
   const isCapacityValid = guests <= capacity;
-  const canReserve = !isClosed && isTimeValid() && isCapacityValid;
+  const durationMinutes = useMemo(() => {
+    const diff = parseMinutes(endTime) - parseMinutes(startTime);
+    return Math.max(0, diff);
+  }, [startTime, endTime]);
+  const meetsDurationRules = durationMinutes >= minDuration && durationMinutes % stepUnit === 0;
+  const canReserve = !isClosed && isTimeValid() && isCapacityValid && meetsDurationRules && !quoteLoading;
 
-  const hours = parseInt(endTime.split(':')[0]) - parseInt(startTime.split(':')[0]);
+  const hours = durationMinutes / 60;
   const serviceFee = 100000;
   const cleaningFee = 50000;
-  const total = price * Math.max(hours, 1) + serviceFee + cleaningFee;
+  const roomCost = quotedTotal ?? price * Math.max(hours, 1);
+  const roomSubtotal = quoteSubtotal ?? roomCost;
+  const total = roomCost + serviceFee + cleaningFee;
+
+  useEffect(() => {
+    if (isClosed || !isTimeValid() || durationMinutes <= 0 || !meetsDurationRules) {
+      setQuotedTotal(null);
+      setQuoteSubtotal(null);
+      setQuotedUnitPrice(null);
+      setWeekendSurchargeApplied(false);
+      setWeekendSurchargeAmount(0);
+      setWeekendSurchargePercent(0);
+      return;
+    }
+    let cancelled = false;
+    const loadQuote = async () => {
+      setQuoteLoading(true);
+      try {
+        const quote = await roomApiService.quotePrice(roomId, {
+          durationMinutes,
+          startDateTime: `${selectedDate}T${startTime}:00`,
+          endDateTime: `${selectedDate}T${endTime}:00`,
+        });
+        if (cancelled) return;
+        setQuotedTotal(Number(quote.total));
+        setQuoteSubtotal(Number(quote.subtotal));
+        setQuotedUnitPrice(quote.unitPrice != null ? Number(quote.unitPrice) : null);
+        setQuoteMode(quote.pricingMode);
+        setWeekendSurchargeApplied(Boolean(quote.weekendSurchargeApplied));
+        setWeekendSurchargeAmount(Number(quote.weekendSurchargeAmount ?? 0));
+        setWeekendSurchargePercent(Number(quote.weekendSurchargePercent ?? 0));
+      } catch (err) {
+        if (!cancelled) {
+          setQuotedTotal(null);
+          setQuoteSubtotal(null);
+          setQuotedUnitPrice(null);
+          setWeekendSurchargeApplied(false);
+          setWeekendSurchargeAmount(0);
+          setWeekendSurchargePercent(0);
+          showToast.error(getApiErrorMessage(err, 'Không tính được giá phòng. Vui lòng thử lại.'));
+        }
+      } finally {
+        if (!cancelled) setQuoteLoading(false);
+      }
+    };
+    void loadQuote();
+    return () => {
+      cancelled = true;
+    };
+  }, [roomId, durationMinutes, isClosed, selectedDate, startTime, endTime, minDuration, stepUnit]);
 
   const handleReserve = () => {
     if (!canReserve) return;
@@ -73,15 +164,21 @@ export function BookingPanel({ price, rating, reviewCount, spaceName, spaceImage
   };
 
   const getAvailableHours = () => {
-    if (is24_7) return [...Array(24)].map((_, i) => i.toString().padStart(2, '0'));
+    const interval = Math.max(stepUnit, 1);
+    if (is24_7) {
+      const available: string[] = [];
+      for (let m = 0; m < 24 * 60; m += interval) {
+        available.push(minutesToHm(m));
+      }
+      return available;
+    }
     if (!daySchedule || !daySchedule.openTime || !daySchedule.closeTime) return [];
-    
-    const openHour = parseInt(daySchedule.openTime.split(':')[0]);
-    const closeHour = parseInt(daySchedule.closeTime.split(':')[0]);
-    
-    const available = [];
-    for (let i = openHour; i <= closeHour; i++) {
-        available.push(i.toString().padStart(2, '0'));
+
+    const openMinutes = parseMinutes(daySchedule.openTime.substring(0, 5));
+    const closeMinutes = parseMinutes(daySchedule.closeTime.substring(0, 5));
+    const available: string[] = [];
+    for (let m = openMinutes; m <= closeMinutes; m += interval) {
+      available.push(minutesToHm(m));
     }
     return available;
   };
@@ -128,8 +225,8 @@ export function BookingPanel({ price, rating, reviewCount, spaceName, spaceImage
               disabled={isClosed}
             >
               {availableHours.length > 0 ? (
-                availableHours.map((hour) => (
-                  <option key={hour} value={`${hour}:00`}>{hour}:00</option>
+                availableHours.map((slot) => (
+                  <option key={slot} value={slot}>{slot}</option>
                 ))
               ) : (
                 <option value="">{isClosed ? 'Closed' : '--:--'}</option>
@@ -145,8 +242,8 @@ export function BookingPanel({ price, rating, reviewCount, spaceName, spaceImage
               disabled={isClosed}
             >
               {availableHours.length > 0 ? (
-                availableHours.map((hour) => (
-                  <option key={hour} value={`${hour}:00`}>{hour}:00</option>
+                availableHours.map((slot) => (
+                  <option key={slot} value={slot}>{slot}</option>
                 ))
               ) : (
                 <option value="">{isClosed ? 'Closed' : '--:--'}</option>
@@ -173,6 +270,13 @@ export function BookingPanel({ price, rating, reviewCount, spaceName, spaceImage
           />
         </div>
       </div>
+      {!meetsDurationRules && (
+        <div className="bg-red-50 border border-red-100 rounded-xl p-3 mb-4">
+          <p className="text-xs font-semibold text-red-700">
+            Thời lượng phải {'>='} {minDuration} phút và là bội số của {stepUnit} phút.
+          </p>
+        </div>
+      )}
 
       {isClosed && (
         <div className="bg-red-50 border border-red-100 rounded-xl p-4 mb-6 flex items-start gap-3">
@@ -205,8 +309,22 @@ export function BookingPanel({ price, rating, reviewCount, spaceName, spaceImage
       <div className="space-y-3 pt-6 border-t border-gray-100">
         <div className="flex justify-between text-sm font-medium text-gray-500">
           <span>{formatCurrency(price)} × {hours} {t('customer.spaceDetail.hours')}</span>
-          <span className="text-gray-900">{formatCurrency(price * hours)}</span>
+          <span className="text-gray-900">{formatCurrency(roomSubtotal)}</span>
         </div>
+        {quotedTotal != null && (
+          <div className="flex justify-between text-xs font-medium text-gray-500">
+            <span>Định giá theo rule ({quoteMode})</span>
+            <span className="text-gray-700">
+              {quotedUnitPrice != null ? `${formatCurrency(quotedUnitPrice)} / đơn vị` : 'Giá trọn gói'}
+            </span>
+          </div>
+        )}
+        {weekendSurchargeApplied && weekendSurchargeAmount > 0 ? (
+          <div className="flex justify-between text-sm font-medium text-amber-700">
+            <span>Phụ thu cuối tuần (+{weekendSurchargePercent}%)</span>
+            <span>{formatCurrency(weekendSurchargeAmount)}</span>
+          </div>
+        ) : null}
         <div className="flex justify-between text-sm font-medium text-gray-500">
           <span>{t('customer.spaceDetail.cleaningFee')}</span>
           <span className="text-gray-900">{formatCurrency(cleaningFee)}</span>

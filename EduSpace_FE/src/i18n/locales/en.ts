@@ -400,7 +400,17 @@ export const en = {
             payment: {
                 onlineTitle: "Online Payment",
                 submit: "Confirm & Pay",
-                escrowNote: "Your payment is held in escrow and only released after check-in."
+                escrowNote: "Your payment is held in escrow and only released after check-in.",
+                payDeposit: "Pay deposit (PayOS)",
+                redirecting: "Redirecting to PayOS..."
+            },
+            depositReturn: {
+                title: "Deposit payment result",
+                waiting: "Confirming transaction...",
+                success: "Deposit paid successfully.",
+                bookingCode: "Booking code",
+                pending: "Not confirmed yet. Please wait or refresh.",
+                goBookings: "View bookings"
             },
             success: "Booking Successful! 🎉"
         },
@@ -578,9 +588,42 @@ export const en = {
         roles: "Role & Perms",
         settings: "System Settings",
         points: "Points & Rewards",
+        depositPolicies: "Deposits & Refunds",
         signOut: "Sign Out",
         adminPortal: "Admin Portal",
         systemControl: "System Control"
+    },
+    depositPolicies: {
+        title: "Deposit & refund policies",
+        subtitle: "Configure deposit % and refund windows",
+        add: "Add policy",
+        name: "Policy name",
+        description: "Description",
+        depositPct: "Deposit %",
+        default: "Default",
+        active: "Active",
+        actions: "Actions",
+        create: "Create policy",
+        edit: "Edit policy",
+        defaultPolicy: "Default policy",
+        displayOrder: "Display order",
+        saved: "Policy saved",
+        deleted: "Policy deleted",
+        confirmDelete: "Delete this policy?"
+    },
+    bookingAdmin: {
+        refundsTitle: "Refund requests by booking",
+        bookingIdPlaceholder: "Booking ID",
+        loadRefunds: "Load list",
+        refundStatus: "Status",
+        refundAmount: "Amount",
+        refundReason: "Reason",
+        handleRefund: "Handle",
+        approve: "Approve refund",
+        reject: "Reject",
+        adminNote: "Admin note",
+        transactionId: "Refund transaction ID",
+        refundHandled: "Updated"
     },
     admin_management: {
         title: "User Management",
