@@ -6,6 +6,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/utils/snackbar_utils.dart';
 import '../../providers/auth/auth_provider.dart';
+import '../../providers/message/message_provider.dart';
 import '../../../routes/app_router.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -49,6 +50,14 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (success) {
+      final token = authProvider.token;
+      if (token != null) {
+        // Authenticate MessageProvider so WebSocket reconnects with token
+        if (mounted) {
+          context.read<MessageProvider>().authenticate(token);
+        }
+      }
+      
       SnackBarUtils.show(context, 'Đăng nhập thành công!');
       Navigator.pushReplacementNamed(context, AppRouter.home);
     } else {

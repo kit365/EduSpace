@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 class ChatMessageResponse {
   final String messageId;
   final String conversationId;
@@ -33,8 +35,8 @@ class ChatMessageResponse {
 
   factory ChatMessageResponse.fromJson(Map<String, dynamic> json) {
     try {
-      // debugPrint('--- ChatMessageResponse: Parsing JSON ---');
-      // debugPrint(json.toString());
+      debugPrint('--- ChatMessageResponse: Parsing JSON ---');
+      debugPrint(json.toString());
 
       // Handle both REST (nested sender) and WebSocket (flat senderId/senderUsername)
       MessageSender? sender;
