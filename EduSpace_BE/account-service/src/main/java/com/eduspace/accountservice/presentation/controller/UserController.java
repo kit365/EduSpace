@@ -242,4 +242,11 @@ public class UserController {
                 userService.rejectUserKyc(userId, reason);
                 return ApiResponse.success(null, SuccessCode.USER_PROFILE_UPDATE_SUCCESS, "User KYC rejected");
         }
+
+        @PatchMapping(AccountPaths.ADMIN + AccountPaths.USERS + "/{userId}/status")
+        @PreAuthorize(PreAuthorizeConstants.HAS_ANY_ROLE_ADMIN_OR_SUPER)
+        public ApiResponse<Void> toggleUserStatus(@PathVariable String userId, @RequestParam boolean active) {
+                userService.toggleUserStatus(userId, active);
+                return ApiResponse.success(null, SuccessCode.USER_PROFILE_UPDATE_SUCCESS, "User status updated");
+        }
 }

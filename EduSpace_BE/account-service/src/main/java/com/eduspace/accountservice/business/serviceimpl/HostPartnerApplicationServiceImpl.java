@@ -367,4 +367,10 @@ public class HostPartnerApplicationServiceImpl implements HostPartnerApplication
                 .reviewedBy(e.getReviewedBy())
                 .build();
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countPendingApplications() {
+        return applicationRepository.countByStatus(PartnerAppStatus.PENDING);
+    }
 }

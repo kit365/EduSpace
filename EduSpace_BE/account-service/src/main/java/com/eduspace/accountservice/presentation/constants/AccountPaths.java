@@ -23,4 +23,6 @@ public final class AccountPaths {
     public static final String PUBLIC_SUPPORT_ELIGIBLE_STAFF_COUNT = "/public/support/eligible-staff-count";
     public static final String PUBLIC_SUPPORT_ONLINE_STAFF_COUNT = "/public/support/online-staff-count";
     public static final String ME_SUPPORT_PRESENCE = ME + "/support-presence";
+    /** POST multipart eKYC (front, optional back, selfie) — proxied to internal eduspace-ai (FastAPI) */
+    public static final String EKYC_VERIFY = ME + "/ekyc/verify";
 }

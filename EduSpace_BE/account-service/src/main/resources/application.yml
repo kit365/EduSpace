@@ -86,7 +86,25 @@ app:
       assign-staff-result: ${KAFKA_TOPIC_ASSIGN_STAFF_RESULT:eduspace.assign-staff.result}
   support-presence:
     window-ms: ${SUPPORT_PRESENCE_WINDOW_MS:90000}
+  kyc-ai:
+    base-url: ${APP_KYC_AI_BASE_URL:http://localhost:8000}
+    api-key: ${APP_KYC_AI_API_KEY:}
+    face-distance-threshold: ${APP_KYC_AI_FACE_THRESHOLD:0.55}
+    liveness-min-score: ${APP_KYC_AI_LIVENESS_MIN:0.08}
 
 springdoc:
   swagger-ui:
     persist-authorization: true
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      dashboardService:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        permittedNumberOfCallsInHalfOpenState: 3
+        slidingWindowType: TIME_BASED
+        minimumNumberOfCalls: 5
+        waitDurationInOpenState: 50s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10

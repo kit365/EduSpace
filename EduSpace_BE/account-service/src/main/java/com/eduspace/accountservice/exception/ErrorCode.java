@@ -24,7 +24,10 @@ public enum ErrorCode {
     HOST_APPLICATION_PENDING_EXISTS(HttpStatus.CONFLICT, "HOST_APPLICATION_PENDING_EXISTS",
             "host.application.pending-exists"),
     HOST_APPLICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "HOST_APPLICATION_NOT_FOUND", "host.application.not-found"),
-    HOST_APPLICATION_BAD_STATE(HttpStatus.BAD_REQUEST, "HOST_APPLICATION_BAD_STATE", "host.application.bad-state");
+    HOST_APPLICATION_BAD_STATE(HttpStatus.BAD_REQUEST, "HOST_APPLICATION_BAD_STATE", "host.application.bad-state"),
+    EKYC_VERIFICATION_FAILED(HttpStatus.BAD_REQUEST, "EKYC_VERIFICATION_FAILED", "error.ekyc.verification-failed"),
+    EKYC_AI_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "EKYC_AI_UNAVAILABLE", "error.ekyc.ai-unavailable"),
+    EKYC_INVALID_DOCUMENTS(HttpStatus.BAD_REQUEST, "EKYC_INVALID_DOCUMENTS", "error.ekyc.invalid-documents");
 
     ErrorCode(HttpStatus httpStatus, String code, String messageKey) {
         this.httpStatus = httpStatus;

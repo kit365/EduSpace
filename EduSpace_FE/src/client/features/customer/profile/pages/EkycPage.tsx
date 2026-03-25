@@ -1,46 +1,83 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CustomerLayout } from '../../../../layouts/CustomerLayout';
 import { Camera, Upload, CheckCircle2, XCircle, Loader2, ShieldCheck, ScanFace, CreditCard, ArrowRight, AlertTriangle } from 'lucide-react';
-import { EkycResult } from '@/types';
+import { submitEkycVerification } from '../services/ekycService';
 
 type EkycStep = 'intro' | 'front' | 'back' | 'selfie' | 'processing' | 'result';
 
 export function EkycPage() {
     const { t } = useTranslation();
     const [step, setStep] = useState<EkycStep>('intro');
-    const [frontImage, setFrontImage] = useState<string | null>(null);
-    const [backImage, setBackImage] = useState<string | null>(null);
-    const [selfieImage, setSelfieImage] = useState<string | null>(null);
-    const [verifyResult, setVerifyResult] = useState<EkycResult['status'] | null>(null);
-    const [ocrData, setOcrData] = useState<EkycResult['ocrData'] | null>(null);
+    const [frontFile, setFrontFile] = useState<File | null>(null);
+    const [backFile, setBackFile] = useState<File | null>(null);
+    const [selfieFile, setSelfieFile] = useState<File | null>(null);
+    const [frontPreview, setFrontPreview] = useState<string | null>(null);
+    const [backPreview, setBackPreview] = useState<string | null>(null);
+    const [selfiePreview, setSelfiePreview] = useState<string | null>(null);
+    const [verifyResult, setVerifyResult] = useState<'success' | 'failed' | null>(null);
+    const [ocrData, setOcrData] = useState<{
+        name: string | null;
+        idNumber: string | null;
+        dob: string | null;
+        address: string | null;
+        expiryDate: string | null;
+    } | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-    const handleImageUpload = (type: 'front' | 'back' | 'selfie') => {
-        // Simulate file upload
-        const mockImages: Record<string, string> = {
-            front: 'https://images.unsplash.com/photo-1633265486064-086b219458ec?w=400&h=250&fit=crop',
-            back: 'https://images.unsplash.com/photo-1633265486064-086b219458ec?w=400&h=250&fit=crop',
-            selfie: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=300&fit=crop',
-        };
-        if (type === 'front') { setFrontImage(mockImages.front); setStep('back'); }
-        else if (type === 'back') { setBackImage(mockImages.back); setStep('selfie'); }
-        else { setSelfieImage(mockImages.selfie); handleVerify(); }
+    const frontInputRef = useRef<HTMLInputElement>(null);
+    const backInputRef = useRef<HTMLInputElement>(null);
+    const selfieInputRef = useRef<HTMLInputElement>(null);
+
+    const pickFile = (type: 'front' | 'back' | 'selfie', file: File | null) => {
+        if (!file) return;
+        const url = URL.createObjectURL(file);
+        if (type === 'front') {
+            setFrontFile(file);
+            setFrontPreview(url);
+            setStep('back');
+        } else if (type === 'back') {
+            setBackFile(file);
+            setBackPreview(url);
+            setStep('selfie');
+        } else {
+            setSelfieFile(file);
+            setSelfiePreview(url);
+            void runVerify(file);
+        }
     };
 
-    const handleVerify = () => {
+    const runVerify = async (selfie: File) => {
+        if (!frontFile) return;
         setStep('processing');
-        // Simulate API call to VNPT eKYC / FPT.AI
-        setTimeout(() => {
-            setOcrData({
-                name: 'Nguyễn Văn An',
-                idNumber: '079200012345',
-                dob: '15/03/2000',
-                address: 'Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh',
-                expiryDate: '15/03/2030'
+        setErrorMessage(null);
+        try {
+            const data = await submitEkycVerification({
+                front: frontFile,
+                back: backFile ?? undefined,
+                selfie,
             });
-            setVerifyResult('success');
+            if (data.status === 'success' && data.ocrData) {
+                setOcrData({
+                    name: data.ocrData.name,
+                    idNumber: data.ocrData.idNumber,
+                    dob: data.ocrData.dob,
+                    address: data.ocrData.address,
+                    expiryDate: data.ocrData.expiryDate,
+                });
+                setVerifyResult('success');
+            } else {
+                setOcrData(null);
+                setVerifyResult('failed');
+                setErrorMessage(data.message ?? t('customer.ekyc.failed'));
+            }
             setStep('result');
-        }, 3000);
+        } catch (e) {
+            setVerifyResult('failed');
+            setOcrData(null);
+            setErrorMessage(e instanceof Error ? e.message : t('customer.ekyc.failed'));
+            setStep('result');
+        }
     };
 
     const stepLabels = [
@@ -55,6 +92,31 @@ export function EkycPage() {
         <CustomerLayout>
             <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white py-12 animate-in fade-in duration-700">
                 <div className="max-w-2xl mx-auto px-4">
+
+                    <input
+                        ref={frontInputRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={(e) => pickFile('front', e.target.files?.[0] ?? null)}
+                    />
+                    <input
+                        ref={backInputRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={(e) => pickFile('back', e.target.files?.[0] ?? null)}
+                    />
+                    <input
+                        ref={selfieInputRef}
+                        type="file"
+                        accept="image/*"
+                        capture="user"
+                        className="hidden"
+                        onChange={(e) => pickFile('selfie', e.target.files?.[0] ?? null)}
+                    />
 
                     {/* Intro Screen */}
                     {step === 'intro' && (
@@ -71,10 +133,10 @@ export function EkycPage() {
                                 <h3 className="font-black text-gray-900 mb-6">EduSpace eKYC Protocol</h3>
                                 <div className="space-y-4">
                                     {[
-                                        { icon: CreditCard, title: t('customer.ekyc.steps.front'), desc: 'OCR automatically extracts your information' },
-                                        { icon: CreditCard, title: t('customer.ekyc.steps.back'), desc: 'Verifying additional identity details' },
-                                        { icon: ScanFace, title: t('customer.ekyc.steps.selfie'), desc: 'Face matching using AI' },
-                                        { icon: CheckCircle2, title: t('customer.ekyc.steps.result'), desc: 'Powered by VNPT eKYC / FPT.AI' },
+                                        { icon: CreditCard, title: t('customer.ekyc.steps.front'), desc: 'OCR extracts your information (local AI on our servers)' },
+                                        { icon: CreditCard, title: t('customer.ekyc.steps.back'), desc: 'Additional identity details' },
+                                        { icon: ScanFace, title: t('customer.ekyc.steps.selfie'), desc: 'Face matching with DeepFace' },
+                                        { icon: CheckCircle2, title: t('customer.ekyc.steps.result'), desc: 'Processed by EduSpace — data stays on your infrastructure' },
                                     ].map((item, i) => (
                                         <div key={i} className="flex items-start gap-4">
                                             <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -95,6 +157,7 @@ export function EkycPage() {
                             </div>
 
                             <button
+                                type="button"
                                 onClick={() => setStep('front')}
                                 className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-12 py-4 rounded-2xl font-black text-lg shadow-xl shadow-blue-200 hover:shadow-2xl transition-all active:scale-95 inline-flex items-center gap-3"
                             >
@@ -141,9 +204,13 @@ export function EkycPage() {
                                     : 'Place ID card on a flat surface, ensure all 4 corners are visible.'}
                             </p>
 
-                            {/* Upload area */}
-                            <div
-                                onClick={() => handleImageUpload(step)}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (step === 'front') frontInputRef.current?.click();
+                                    else if (step === 'back') backInputRef.current?.click();
+                                    else selfieInputRef.current?.click();
+                                }}
                                 className="w-full aspect-[16/10] bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-dashed border-gray-300 rounded-3xl flex flex-col items-center justify-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all group mb-6"
                             >
                                 {step === 'selfie' ? (
@@ -154,20 +221,19 @@ export function EkycPage() {
                                 <span className="font-bold text-gray-400 group-hover:text-blue-500 transition-colors uppercase text-xs tracking-widest">
                                     {step === 'selfie' ? 'Open Camera' : 'Upload Doc'}
                                 </span>
-                            </div>
+                            </button>
 
-                            {/* Preview of previous steps */}
-                            {(frontImage || backImage) && (
+                            {(frontPreview || backPreview) && (
                                 <div className="flex gap-4 justify-center">
-                                    {frontImage && (
+                                    {frontPreview && (
                                         <div className="w-24 h-16 bg-gray-100 rounded-xl overflow-hidden border-2 border-green-500 relative">
-                                            <img src={frontImage} alt="Mặt trước" className="w-full h-full object-cover" />
+                                            <img src={frontPreview} alt="Front" className="w-full h-full object-cover" />
                                             <CheckCircle2 className="w-4 h-4 text-green-500 absolute top-1 right-1" />
                                         </div>
                                     )}
-                                    {backImage && (
+                                    {backPreview && (
                                         <div className="w-24 h-16 bg-gray-100 rounded-xl overflow-hidden border-2 border-green-500 relative">
-                                            <img src={backImage} alt="Mặt sau" className="w-full h-full object-cover" />
+                                            <img src={backPreview} alt="Back" className="w-full h-full object-cover" />
                                             <CheckCircle2 className="w-4 h-4 text-green-500 absolute top-1 right-1" />
                                         </div>
                                     )}
@@ -209,9 +275,11 @@ export function EkycPage() {
                                 <h2 className="text-3xl font-black text-gray-900 mb-2">
                                     {verifyResult === 'success' ? t('customer.ekyc.success') : t('customer.ekyc.failed')}
                                 </h2>
+                                {verifyResult === 'failed' && errorMessage && (
+                                    <p className="text-sm text-red-700 font-medium mt-2 max-w-md mx-auto">{errorMessage}</p>
+                                )}
                             </div>
 
-                            {/* OCR Data Display */}
                             {ocrData && verifyResult === 'success' && (
                                 <div className="bg-white rounded-3xl border border-gray-100 p-8 shadow-sm">
                                     <h3 className="font-black text-gray-900 mb-6 flex items-center gap-2">
@@ -220,10 +288,10 @@ export function EkycPage() {
                                     </h3>
                                     <div className="grid grid-cols-2 gap-6">
                                         {[
-                                            { label: 'Name', value: ocrData.name },
-                                            { label: 'ID Number', value: ocrData.idNumber },
-                                            { label: 'Date of Birth', value: ocrData.dob },
-                                            { label: 'Address', value: ocrData.address },
+                                            { label: 'Name', value: ocrData.name ?? '—' },
+                                            { label: 'ID Number', value: ocrData.idNumber ?? '—' },
+                                            { label: 'Date of Birth', value: ocrData.dob ?? '—' },
+                                            { label: 'Address', value: ocrData.address ?? '—' },
                                         ].map((field, i) => (
                                             <div key={i}>
                                                 <div className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-1">{field.label}</div>
@@ -236,7 +304,19 @@ export function EkycPage() {
 
                             {verifyResult === 'failed' && (
                                 <button
-                                    onClick={() => { setStep('front'); setFrontImage(null); setBackImage(null); setSelfieImage(null); }}
+                                    type="button"
+                                    onClick={() => {
+                                        setStep('front');
+                                        setFrontFile(null);
+                                        setBackFile(null);
+                                        setSelfieFile(null);
+                                        setFrontPreview(null);
+                                        setBackPreview(null);
+                                        setSelfiePreview(null);
+                                        setVerifyResult(null);
+                                        setOcrData(null);
+                                        setErrorMessage(null);
+                                    }}
                                     className="w-full bg-gray-900 text-white py-4 rounded-2xl font-black shadow-xl hover:shadow-2xl transition-all active:scale-95"
                                 >
                                     {t('customer.ekyc.retry')}

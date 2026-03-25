@@ -22,4 +22,6 @@ public interface HostPartnerApplicationService {
     void approve(UUID applicationId, String adminKeycloakId);
 
     void reject(UUID applicationId, String adminKeycloakId, RejectHostPartnerApplicationRequest request);
+
+    long countPendingApplications();
 }

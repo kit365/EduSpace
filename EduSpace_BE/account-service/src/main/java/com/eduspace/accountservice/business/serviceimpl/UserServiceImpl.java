@@ -258,16 +258,15 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public PageResponse<UserResponse> getAllUsers(Pageable pageable, String search, List<String> roles, String status, String kyc, String identifier, boolean isEmail) {
-        UserEntity requester;
-        if (isEmail) {
-            requester = userRepository.findByEmail(identifier)
-                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        } else {
-            requester = userRepository.findByKeycloakId(identifier)
-                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        UserEntity requester = null;
+        if (identifier != null) {
+            requester = isEmail 
+                ? userRepository.findByEmail(identifier).orElse(null)
+                : userRepository.findByKeycloakId(identifier).orElse(null);
         }
 
-        boolean isSuperAdmin = requester.getRoles().stream().anyMatch(r -> "SUPER_ADMIN".equals(r.getName()));
+        boolean isSuperAdmin = requester != null && requester.getRoles() != null && 
+                               requester.getRoles().stream().anyMatch(r -> "SUPER_ADMIN".equals(r.getName()));
 
         List<String> mappedRoles = (roles != null && !roles.isEmpty())
                 ? roles.stream()
@@ -372,6 +371,27 @@ public class UserServiceImpl implements UserService {
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
         user.setVerificationStatus("REJECTED");
+        userRepository.save(user);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countTotalUsers() {
+        return userRepository.count();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countUsersByRole(String roleName) {
+        return userRepository.findByRoleName(roleName).size();
+    }
+
+    @Override
+    @Transactional
+    public void toggleUserStatus(String userId, boolean active) {
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        user.setIsActive(active);
         userRepository.save(user);
     }
 }

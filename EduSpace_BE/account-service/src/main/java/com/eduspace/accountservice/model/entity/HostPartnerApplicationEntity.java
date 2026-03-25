@@ -4,6 +4,7 @@ import com.eduspace.accountservice.common.enums.PartnerAppStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -12,11 +13,11 @@ import java.util.UUID;
 @Table(name = "host_partner_applications")
 @Getter
 @Setter
-@Builder
+@SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class HostPartnerApplicationEntity {
+public class HostPartnerApplicationEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -65,24 +66,10 @@ public class HostPartnerApplicationEntity {
     @Column(name = "reviewed_by")
     String reviewedBy;
 
-    @Column(name = "created_at")
-    LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    LocalDateTime updatedAt;
-
     @PrePersist
-    void onCreate() {
-        LocalDateTime now = LocalDateTime.now();
-        createdAt = now;
-        updatedAt = now;
+    void onCreateStatus() {
         if (status == null) {
             status = com.eduspace.accountservice.common.enums.PartnerAppStatus.PENDING;
         }
-    }
-
-    @PreUpdate
-    void onUpdate() {
-        updatedAt = LocalDateTime.now();
     }
 }

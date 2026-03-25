@@ -9,6 +9,7 @@ export interface UserFilterParams {
     role?: string;
     status?: string;
     kyc?: string;
+    sort?: string;
 }
 
 /** BE UserResponse shape (account-service) */
@@ -102,5 +103,11 @@ export const userService = {
             ? `?reason=${encodeURIComponent(reason.trim())}`
             : '';
         await apiClient.post(`/api/v1/accounts/admin/users/${userId}/kyc/reject${query}`);
+    },
+
+    toggleUserStatus: async (userId: string, active: boolean): Promise<void> => {
+        await apiClient.patch(`/api/v1/accounts/admin/users/${userId}/status`, null, {
+            params: { active }
+        });
     },
 };
