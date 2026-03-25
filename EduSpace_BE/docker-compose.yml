@@ -193,11 +193,31 @@ services:
       SPRING_MAIL_FROM: ${SPRING_MAIL_FROM}
       SPRING_MAIL_DISPLAY_NAME: ${SPRING_MAIL_DISPLAY_NAME:-EduSpace Support}
       SPRING_MAIL_DEBUG: ${SPRING_MAIL_DEBUG:-false}
+      APP_KYC_AI_BASE_URL: http://eduspace-ai:8000
+      APP_KYC_AI_API_KEY: ${KYC_AI_API_KEY:-dev-kyc-ai-secret}
     depends_on:
       - account-db
       - redis
       - keycloak
       - discovery-server
+      - eduspace-ai
+    networks:
+      - eduspace-network
+
+  # Local AI inference (FastAPI) — internal only; not routed through API Gateway
+  eduspace-ai:
+    build:
+      context: ./eduspace-ai-service
+      dockerfile: Dockerfile
+    container_name: eduspace-ai
+    restart: unless-stopped
+    environment:
+      KYC_AI_API_KEY: ${KYC_AI_API_KEY:-dev-kyc-ai-secret}
+      LOG_LEVEL: info
+    ports:
+      - "${KYC_AI_PORT:-8000}:8000"
+    expose:
+      - "8000"
     networks:
       - eduspace-network
 

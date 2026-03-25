@@ -1,3 +1,37 @@
 .env
 .env.*
 !.env.example
+
+# macOS
+.DS_Store
+
+# Flutter/Dart
+build/
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+android/app/debug/
+android/app/profile/
+android/app/release/
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/ServiceDefinitions.json
+Podfile.lock
+
+# Java/Maven
+target/
+*.class
+*.jar
+*.war
+*.ear
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+*.swp

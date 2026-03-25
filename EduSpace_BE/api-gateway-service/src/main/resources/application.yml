@@ -28,7 +28,7 @@ spring:
         - id: booking-service
           uri: lb://BOOKING-SERVICE
           predicates:
-            - Path=/api/v1/bookings/**
+            - Path=/api/v1/bookings/**, /api/v1/admin/**
 
         # Booking Service Swagger Docs
         - id: booking-service-docs
