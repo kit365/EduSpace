@@ -458,8 +458,10 @@ export const en = {
             header: {
                 roles: {
                     renter: "Student / Learner",
+                    guest: "Guest",
                     host: "Hoster",
                     staff: "Staff",
+                    manager: "Manager",
                     admin: "Admin"
                 },
                 memberSince: "Member since",
@@ -643,8 +645,10 @@ export const en = {
             all: "All Roles",
             super_admin: "Super Admin",
             admin: "Admin",
-            staff: "Staff",
+            manager: "Manager",
             host: "Host",
+            guest: "Guest",
+            staff: "Staff",
             renter: "Customer"
         },
         status: {

@@ -1,7 +1,10 @@
 import { NavLink } from 'react-router-dom';
 import { Users, Shield } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export function UserRoleTabs() {
+    const { i18n } = useTranslation();
+    const isVi = i18n.language?.toLowerCase().startsWith('vi');
     return (
         <div className="flex gap-2 mb-8 border-b border-gray-200">
             <NavLink
@@ -15,7 +18,7 @@ export function UserRoleTabs() {
                 }
             >
                 <Users className="w-4 h-4" />
-                Người dùng
+                {isVi ? 'Người dùng' : 'Users'}
             </NavLink>
             <NavLink
                 to="/admin/roles"
@@ -28,7 +31,7 @@ export function UserRoleTabs() {
                 }
             >
                 <Shield className="w-4 h-4" />
-                Vai trò & quyền
+                {isVi ? 'Vai trò & quyền' : 'Roles & Permissions'}
             </NavLink>
         </div>
     );

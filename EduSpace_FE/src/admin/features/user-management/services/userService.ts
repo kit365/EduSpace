@@ -41,9 +41,10 @@ function mapApiUserToUser(api: ApiUser): User {
     const roles = Array.isArray(api.roles) ? api.roles : [];
     const role = roles.includes('SUPER_ADMIN') ? 'super_admin'
         : roles.includes('ADMIN') ? 'admin'
-        : roles.includes('TUTOR') ? 'host'
-        : roles.includes('STUDENT') ? 'renter'
-        : ('renter' as User['role']);
+        : roles.includes('HOST') ? 'host'
+        : roles.includes('MANAGER') ? 'manager'
+        : roles.includes('GUEST') ? 'guest'
+        : ('guest' as User['role']);
     const rawKyc = (api.verificationStatus ?? '').toLowerCase();
     const kycStatus: User['kycStatus'] =
         rawKyc === 'pending' ? 'pending'
@@ -66,14 +67,14 @@ function mapApiUserToUser(api: ApiUser): User {
     };
 }
 
-/** Map BE role name (STUDENT, TUTOR, ...) to filter value for getUsers */
+/** Map BE role name to filter value for getUsers */
 export function roleNameToFilterValue(roleName: string): string {
     const map: Record<string, string> = {
-        STUDENT: 'Khách hàng',
-        TUTOR: 'Host',
+        GUEST: 'Khách hàng',
+        HOST: 'Host',
+        MANAGER: 'Quản lý',
         ADMIN: 'Admin',
         SUPER_ADMIN: 'Super Admin',
-        STAFF: 'Nhân viên',
     };
     return map[roleName] ?? roleName;
 }

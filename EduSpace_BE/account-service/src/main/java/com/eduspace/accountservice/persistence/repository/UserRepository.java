@@ -40,4 +40,7 @@ public interface UserRepository extends JpaRepository<UserEntity, String>, JpaSp
             WHERE u.isActive = true AND r.name IN ('ADMIN', 'SUPER_ADMIN')
             """)
     long countDistinctActiveUsersWithSupportRoles();
+
+    @Query("SELECT COUNT(DISTINCT u.id) FROM UserEntity u JOIN u.roles r WHERE r.id = :roleId")
+    long countUsersByRoleId(@Param("roleId") Long roleId);
 }

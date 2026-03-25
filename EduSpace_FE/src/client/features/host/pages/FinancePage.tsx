@@ -1,12 +1,25 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, Wallet, CircleDollarSign, ArrowUpRight, Clock, Download } from 'lucide-react';
 import { RentalLayout } from '../../../layouts/RentalLayout';
 import { HOST_FINANCE, BOOKING_REQUESTS } from '../data/mockData';
 import { formatCurrency } from '../../../../utils';
+import { useAuthStore } from '@/stores/authStore';
+import { hasHostPermission } from '@/utils/keycloakTokenRoles';
+import { hostPermissions } from '../permissions/hostPermissions';
+import { refreshHostPermissionsFromAccount } from '@/utils/refreshHostPermissionsFromAccount';
 
 export function FinancePage() {
     const [period, setPeriod] = useState<'week' | 'month' | 'year'>('month');
+    const accessToken = useAuthStore((s) => s.accessToken);
+    const hostPermissionsFromAccount = useAuthStore((s) => s.hostPermissionsFromAccount);
+
+    useEffect(() => {
+        void refreshHostPermissionsFromAccount();
+    }, [accessToken]);
     const finance = HOST_FINANCE;
+    const canViewFinance = hasHostPermission(accessToken, hostPermissions.finance.view, hostPermissionsFromAccount);
+    const canExportFinance = hasHostPermission(accessToken, hostPermissions.finance.export, hostPermissionsFromAccount);
+    const canCreatePayout = hasHostPermission(accessToken, hostPermissions.finance.payoutCreate, hostPermissionsFromAccount);
 
     const revenueChange = ((finance.thisMonthRevenue - finance.lastMonthRevenue) / finance.lastMonthRevenue * 100).toFixed(1);
     const isUp = finance.thisMonthRevenue >= finance.lastMonthRevenue;
@@ -17,6 +30,16 @@ export function FinancePage() {
         { id: 2, amount: 3_800_000, date: '2024-12-08', status: 'completed' as const },
         { id: 3, amount: 8_500_000, date: '2024-12-15', status: 'pending' as const },
     ];
+
+    if (!canViewFinance) {
+        return (
+            <RentalLayout title="Tài chính">
+                <div className="mx-auto max-w-lg p-8 text-center text-gray-600">
+                    Bạn không có quyền xem module tài chính.
+                </div>
+            </RentalLayout>
+        );
+    }
 
     return (
         <RentalLayout title="Tài chính">
@@ -77,9 +100,10 @@ export function FinancePage() {
                     </div>
                 </div>
 
+                {/* Trên mobile: đưa “Lịch sử rút tiền” lên trước để dễ thấy (cột 2 order-1, cột 1 order-2) */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     {/* Recent Bookings Revenue */}
-                    <div className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm">
+                    <div className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm order-2 lg:order-1">
                         <h3 className="font-black text-gray-900 mb-6">Doanh thu theo đơn gần đây</h3>
                         <div className="space-y-3">
                             {BOOKING_REQUESTS.filter(b => b.revenueAmount).map(b => (
@@ -103,10 +127,26 @@ export function FinancePage() {
                     </div>
 
                     {/* Payout History */}
-                    <div className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm">
-                        <div className="flex items-center justify-between mb-6">
+                    <div className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm order-1 lg:order-2">
+                        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
                             <h3 className="font-black text-gray-900">Lịch sử rút tiền</h3>
-                            <button className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-gray-900 transition-all"><Download className="w-4 h-4" /> Xuất CSV</button>
+                            {canExportFinance ? (
+                                <button
+                                    type="button"
+                                    className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm font-bold text-gray-800 shadow-sm hover:bg-white hover:border-gray-300 transition-all"
+                                >
+                                    <Download className="w-4 h-4 shrink-0" /> Xuất CSV
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    disabled
+                                    title="Chưa có quyền xuất. Trong Admin Portal, bật « Tài chính: Xuất » cho vai trò HOST, lưu, rồi tải lại trang này."
+                                    className="flex items-center gap-2 rounded-xl border border-dashed border-gray-200 px-4 py-2 text-sm font-bold text-gray-400 cursor-not-allowed"
+                                >
+                                    <Download className="w-4 h-4 shrink-0 opacity-60" /> Xuất CSV
+                                </button>
+                            )}
                         </div>
                         <div className="space-y-3">
                             {recentPayouts.map(p => (
@@ -126,9 +166,11 @@ export function FinancePage() {
                                 </div>
                             ))}
                         </div>
-                        <button className="w-full mt-6 bg-gradient-to-r from-gray-900 to-gray-800 text-white py-4 rounded-2xl font-black shadow-lg hover:shadow-xl transition-all active:scale-95">
-                            💰 Yêu cầu rút tiền
-                        </button>
+                        {canCreatePayout && (
+                            <button className="w-full mt-6 bg-gradient-to-r from-gray-900 to-gray-800 text-white py-4 rounded-2xl font-black shadow-lg hover:shadow-xl transition-all active:scale-95">
+                                💰 Yêu cầu rút tiền
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>

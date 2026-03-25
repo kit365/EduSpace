@@ -48,6 +48,9 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { useAuthStore } from '@/stores/authStore';
+import { hasHostPermission } from '@/utils/keycloakTokenRoles';
+import { hostPermissions } from '../permissions/hostPermissions';
 
 const PROPERTY_TYPE_OPTIONS = [
     { value: 'COMMERCIAL_BUILDING', labelKey: 'common.propertyTypes.commercialBuilding' },
@@ -162,10 +165,16 @@ export function BranchesPage() {
     const [loadingProvinces, setLoadingProvinces] = useState(false);
     const [loadingDistricts, setLoadingDistricts] = useState(false);
     const [loadingWards, setLoadingWards] = useState(false);
+    const accessToken = useAuthStore((s) => s.accessToken);
+    const hostPermissionsFromAccount = useAuthStore((s) => s.hostPermissionsFromAccount);
     const toolbarRef = useRef<HTMLDivElement | null>(null);
     const filterMenuRef = useRef<HTMLDivElement | null>(null);
     const branchLogoFileInputRef = useRef<HTMLInputElement | null>(null);
     const [uploadingBranchLogo, setUploadingBranchLogo] = useState(false);
+    const canViewBranch = hasHostPermission(accessToken, hostPermissions.branch.view, hostPermissionsFromAccount);
+    const canCreateBranch = hasHostPermission(accessToken, hostPermissions.branch.create, hostPermissionsFromAccount);
+    const canEditBranch = hasHostPermission(accessToken, hostPermissions.branch.edit, hostPermissionsFromAccount);
+    const canDeleteBranch = hasHostPermission(accessToken, hostPermissions.branch.delete, hostPermissionsFromAccount);
 
     const provinceCodeNum = branchForm.provinceCode ? Number(branchForm.provinceCode) : undefined;
     const districtCodeNum = branchForm.districtCode ? Number(branchForm.districtCode) : undefined;
@@ -314,6 +323,7 @@ export function BranchesPage() {
         branchForm.email.trim();
 
     const openCreateBranch = () => {
+        if (!canCreateBranch) return;
         setEditingBranchId(null);
         setBranchForm({
             name: '',
@@ -331,6 +341,7 @@ export function BranchesPage() {
     };
 
     const openEditBranch = (branch: HostBranch) => {
+        if (!canEditBranch) return;
         setEditingBranchId(branch.id);
         setBranchForm({
             name: branch.name,
@@ -348,6 +359,7 @@ export function BranchesPage() {
     };
 
     const removeBranch = async (branch: HostBranch) => {
+        if (!canDeleteBranch) return;
         const confirmed = window.confirm(
             `Ẩn chi nhánh "${branch.name}" khỏi danh sách?\n(Dữ liệu được giữ trong hệ thống — xóa mềm.)`
         );
@@ -366,6 +378,8 @@ export function BranchesPage() {
 
     const saveBranch = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+        if (editingBranchId && !canEditBranch) return;
+        if (!editingBranchId && !canCreateBranch) return;
         if (!canSaveBranch || savingBranch) return;
         setSavingBranch(true);
         try {
@@ -452,6 +466,16 @@ export function BranchesPage() {
         }
     };
 
+    if (!canViewBranch) {
+        return (
+            <RentalLayout title="Quản lý Cơ sở / Chi nhánh">
+                <div className="mx-auto max-w-lg p-8 text-center text-gray-600">
+                    Bạn không có quyền xem module chi nhánh.
+                </div>
+            </RentalLayout>
+        );
+    }
+
     return (
         <RentalLayout title="Quản lý Cơ sở / Chi nhánh">
             <div className="w-full animate-in fade-in duration-500">
@@ -461,13 +485,15 @@ export function BranchesPage() {
                         <h2 className="mb-1 text-2xl font-black text-gray-900">Cơ sở hoạt động ({branches.length})</h2>
                         <p className="text-gray-500 text-sm">Dữ liệu lấy từ backend room-service.</p>
                     </div>
-                    <button
-                        onClick={openCreateBranch}
-                        className="inline-flex h-10 items-center gap-2 rounded-xl bg-red-500 px-4 text-sm font-bold text-white shadow-md transition-all hover:bg-red-600 active:scale-95"
-                    >
-                        <Plus className="h-4 w-4" />
-                        Thêm cơ sở mới
-                    </button>
+                    {canCreateBranch && (
+                        <button
+                            onClick={openCreateBranch}
+                            className="inline-flex h-10 items-center gap-2 rounded-xl bg-red-500 px-4 text-sm font-bold text-white shadow-md transition-all hover:bg-red-600 active:scale-95"
+                        >
+                            <Plus className="h-4 w-4" />
+                            Thêm cơ sở mới
+                        </button>
+                    )}
                 </div>
 
                 {/* Toolbar: status tabs (left) + controls (right) */}
@@ -630,29 +656,35 @@ export function BranchesPage() {
                                                 {cfg.labelVi}
                                             </div>
                                         </div>
-                                        <div className="absolute right-2.5 top-2.5 z-10 flex gap-1.5">
-                                            <button
-                                                type="button"
-                                                onClick={() => openEditBranch(branch)}
-                                                className="rounded-lg bg-white/95 p-2 text-gray-600 shadow-md backdrop-blur-sm transition-all hover:bg-white hover:text-blue-600 active:scale-95"
-                                                title="Chỉnh sửa"
-                                            >
-                                                <Edit2 className="h-3.5 w-3.5" />
-                                            </button>
-                                            <button
-                                                type="button"
-                                                disabled={deletingBranchId === branch.id}
-                                                onClick={() => void removeBranch(branch)}
-                                                className="rounded-lg bg-white/95 p-2 text-gray-600 shadow-md backdrop-blur-sm transition-all hover:bg-white hover:text-red-600 disabled:opacity-50 active:scale-95"
-                                                title="Xóa"
-                                            >
-                                                {deletingBranchId === branch.id ? (
-                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                ) : (
-                                                    <Trash2 className="h-3.5 w-3.5" />
+                                        {(canEditBranch || canDeleteBranch) && (
+                                            <div className="absolute right-2.5 top-2.5 z-10 flex gap-1.5">
+                                                {canEditBranch && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => openEditBranch(branch)}
+                                                        className="rounded-lg bg-white/95 p-2 text-gray-600 shadow-md backdrop-blur-sm transition-all hover:bg-white hover:text-blue-600 active:scale-95"
+                                                        title="Chỉnh sửa"
+                                                    >
+                                                        <Edit2 className="h-3.5 w-3.5" />
+                                                    </button>
                                                 )}
-                                            </button>
-                                        </div>
+                                                {canDeleteBranch && (
+                                                    <button
+                                                        type="button"
+                                                        disabled={deletingBranchId === branch.id}
+                                                        onClick={() => void removeBranch(branch)}
+                                                        className="rounded-lg bg-white/95 p-2 text-gray-600 shadow-md backdrop-blur-sm transition-all hover:bg-white hover:text-red-600 disabled:opacity-50 active:scale-95"
+                                                        title="Xóa"
+                                                    >
+                                                        {deletingBranchId === branch.id ? (
+                                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                        ) : (
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        )}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="p-5">
@@ -706,7 +738,7 @@ export function BranchesPage() {
                             );
                         })}
 
-                        {!loadingBranches && (
+                        {!loadingBranches && canCreateBranch && (
                             <button
                                 type="button"
                                 onClick={openCreateBranch}
@@ -756,34 +788,40 @@ export function BranchesPage() {
                                             </p>
                                         </div>
 
-                                        <div className="flex items-center gap-2 self-start">
+                                        {(canEditBranch || canDeleteBranch || pendingUpdatePropertyIds.has(branch.id)) && (
+                                            <div className="flex items-center gap-2 self-start">
                                             {pendingUpdatePropertyIds.has(branch.id) ? (
                                                 <span className="rounded-lg bg-blue-50 px-2 py-1 text-[11px] font-bold text-blue-700">
                                                     Chờ duyệt cập nhật
                                                 </span>
                                             ) : null}
-                                            <button
-                                                type="button"
-                                                onClick={() => openEditBranch(branch)}
-                                                className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-blue-600"
-                                                title="Chỉnh sửa"
-                                            >
-                                                <Edit2 className="h-3.5 w-3.5" />
-                                            </button>
-                                            <button
-                                                type="button"
-                                                disabled={deletingBranchId === branch.id}
-                                                onClick={() => void removeBranch(branch)}
-                                                className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-red-600 disabled:opacity-50"
-                                                title="Xóa"
-                                            >
-                                                {deletingBranchId === branch.id ? (
-                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                ) : (
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                )}
-                                            </button>
+                                            {canEditBranch && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => openEditBranch(branch)}
+                                                    className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-blue-600"
+                                                    title="Chỉnh sửa"
+                                                >
+                                                    <Edit2 className="h-3.5 w-3.5" />
+                                                </button>
+                                            )}
+                                            {canDeleteBranch && (
+                                                <button
+                                                    type="button"
+                                                    disabled={deletingBranchId === branch.id}
+                                                    onClick={() => void removeBranch(branch)}
+                                                    className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-red-600 disabled:opacity-50"
+                                                    title="Xóa"
+                                                >
+                                                    {deletingBranchId === branch.id ? (
+                                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                    ) : (
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    )}
+                                                </button>
+                                            )}
                                         </div>
+                                        )}
                                     </div>
 
                                     {branch.rejectionNote ? (
@@ -795,7 +833,7 @@ export function BranchesPage() {
                             );
                         })}
 
-                        {!loadingBranches && (
+                        {!loadingBranches && canCreateBranch && (
                             <button
                                 type="button"
                                 onClick={openCreateBranch}
@@ -815,6 +853,7 @@ export function BranchesPage() {
                     </div>
                 ) : null}
 
+                {showBranchForm && (canCreateBranch || canEditBranch) && (
                 <Dialog open={showBranchForm} onOpenChange={(open) => {
                     if (!open) {
                         setShowBranchForm(false);
@@ -1099,6 +1138,7 @@ export function BranchesPage() {
                         </form>
                     </DialogContent>
                 </Dialog>
+                )}
 
             </div>
         </RentalLayout>

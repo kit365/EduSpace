@@ -24,7 +24,12 @@ public enum ErrorCode {
     HOST_APPLICATION_PENDING_EXISTS(HttpStatus.CONFLICT, "HOST_APPLICATION_PENDING_EXISTS",
             "host.application.pending-exists"),
     HOST_APPLICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "HOST_APPLICATION_NOT_FOUND", "host.application.not-found"),
-    HOST_APPLICATION_BAD_STATE(HttpStatus.BAD_REQUEST, "HOST_APPLICATION_BAD_STATE", "host.application.bad-state");
+    HOST_APPLICATION_BAD_STATE(HttpStatus.BAD_REQUEST, "HOST_APPLICATION_BAD_STATE", "host.application.bad-state"),
+    HOST_STAFF_FORBIDDEN(HttpStatus.FORBIDDEN, "HOST_STAFF_FORBIDDEN", "host.staff.forbidden"),
+    HOST_STAFF_NOT_FOUND(HttpStatus.NOT_FOUND, "HOST_STAFF_NOT_FOUND", "host.staff.not-found"),
+    INVALID_STAFF_PERMISSION(HttpStatus.BAD_REQUEST, "INVALID_STAFF_PERMISSION", "host.staff.invalid-permission"),
+    HOST_MANAGER_INVALID_USER(HttpStatus.BAD_REQUEST, "HOST_MANAGER_INVALID_USER", "host.manager.invalid-user"),
+    HOST_MANAGER_ALREADY_LINKED(HttpStatus.CONFLICT, "HOST_MANAGER_ALREADY_LINKED", "host.manager.already-linked");
 
     ErrorCode(HttpStatus httpStatus, String code, String messageKey) {
         this.httpStatus = httpStatus;

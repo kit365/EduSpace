@@ -11,6 +11,8 @@ class CommonTest {
     void roleEnum_Works() {
         assertThat(Role.GUEST.getName()).isEqualTo("GUEST");
         assertThat(Role.HOST.getName()).isEqualTo("HOST");
+        assertThat(Role.MANAGER.getName()).isEqualTo("MANAGER");
+        assertThat(Role.STAFF.getName()).isEqualTo("STAFF");
         assertThat(Role.ADMIN.getName()).isEqualTo("ADMIN");
     }
 }

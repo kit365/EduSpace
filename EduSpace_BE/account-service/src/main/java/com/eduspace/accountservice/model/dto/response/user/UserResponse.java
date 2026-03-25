@@ -38,6 +38,8 @@ public class UserResponse {
     Boolean is2faEnabled;
     Integer pointBalance;
     Set<String> roles;
+    /** Quyền gán qua các role (tên permission trong DB, ví dụ view_rooms, branch.room.view). */
+    Set<String> permissions;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
 }

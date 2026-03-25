@@ -12,6 +12,7 @@ import com.eduspace.accountservice.business.service.SupportStaffPresenceService;
 import com.eduspace.accountservice.business.service.UserService;
 import com.eduspace.accountservice.exception.AppException;
 import com.eduspace.accountservice.exception.ErrorCode;
+import com.eduspace.accountservice.persistence.repository.UserPermissionRepository;
 import com.eduspace.accountservice.persistence.repository.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -41,19 +42,24 @@ public class UserServiceImpl implements UserService {
     private final UserMapper userMapper;
     private final KeycloakUserService keycloakUserService;
     private final SupportStaffPresenceService supportStaffPresenceService;
+    private final UserPermissionRepository userPermissionRepository;
+
+    private UserResponse toUserResponseWithMergedPermissions(UserEntity user) {
+        return userMapper.toUserResponse(user, userPermissionRepository.findPermissionNamesByUserId(user.getId()));
+    }
 
     @Override
     public UserResponse getProfile(String keycloakId) {
         UserEntity user = userRepository.findByKeycloakId(keycloakId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        return userMapper.toUserResponse(user);
+        return toUserResponseWithMergedPermissions(user);
     }
 
     @Override
     public UserResponse getProfileByEmail(String email) {
         UserEntity user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        return userMapper.toUserResponse(user);
+        return toUserResponseWithMergedPermissions(user);
     }
 
     @Override
@@ -75,7 +81,7 @@ public class UserServiceImpl implements UserService {
         userRepository.save(user);
         log.info("Profile updated for user: {}", keycloakId);
 
-        return userMapper.toUserResponse(user);
+        return toUserResponseWithMergedPermissions(user);
     }
 
     @Override
@@ -284,7 +290,7 @@ public class UserServiceImpl implements UserService {
         Page<UserEntity> pageResult = userRepository.findAll(spec, pageable);
 
         return PageResponse.<UserResponse>builder()
-                .content(pageResult.getContent().stream().map(userMapper::toUserResponse).collect(Collectors.toList()))
+                .content(pageResult.getContent().stream().map(this::toUserResponseWithMergedPermissions).collect(Collectors.toList()))
                 .page(pageResult.getNumber())
                 .size(pageResult.getSize())
                 .totalElements(pageResult.getTotalElements())
@@ -348,9 +354,9 @@ public class UserServiceImpl implements UserService {
 
     private String mapRole(String uiRole) {
         return switch (uiRole) {
-            case "Nhân viên" -> "STAFF";
-            case "Khách hàng" -> "STUDENT";
-            case "Host" -> "TUTOR";
+            case "Quản lý", "Nhân viên" -> "MANAGER";
+            case "Khách hàng" -> "GUEST";
+            case "Host" -> "HOST";
             case "Admin" -> "ADMIN";
             case "Super Admin" -> "SUPER_ADMIN";
             default -> uiRole.toUpperCase();
