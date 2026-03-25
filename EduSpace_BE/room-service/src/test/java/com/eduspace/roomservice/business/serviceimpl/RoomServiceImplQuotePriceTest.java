@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
 import com.eduspace.roomservice.business.service.RoomScheduleService;
+import com.eduspace.roomservice.business.service.RoomTimeslotService;
 import com.eduspace.roomservice.model.dto.request.RoomPriceQuoteRequest;
 import com.eduspace.roomservice.model.dto.response.RoomPriceQuoteResponse;
 import com.eduspace.roomservice.model.entity.RoomEntity;
@@ -37,6 +38,7 @@ class RoomServiceImplQuotePriceTest {
     @Mock private AmenityRepository amenityRepository;
     @Mock private RoomPriceRuleRepository roomPriceRuleRepository;
     @Mock private RoomScheduleService roomScheduleService;
+    @Mock private RoomTimeslotService roomTimeslotService;
     @Mock private RoomMapper roomMapper;
     @Mock private RoomPolicyMapper roomPolicyMapper;
 
@@ -52,6 +54,7 @@ class RoomServiceImplQuotePriceTest {
                 roomPriceRuleRepository,
                 new ObjectMapper(),
                 roomScheduleService,
+                roomTimeslotService,
                 roomMapper,
                 roomPolicyMapper
         );
