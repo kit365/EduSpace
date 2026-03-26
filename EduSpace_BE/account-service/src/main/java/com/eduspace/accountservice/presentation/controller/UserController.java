@@ -27,7 +27,6 @@ import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.Arrays;
 import java.util.List;
 
@@ -201,6 +200,7 @@ public class UserController {
                 userService.disable2fa(email, code);
                 return ApiResponse.success(null, SuccessCode.USER_PROFILE_UPDATE_SUCCESS, "2FA disabled successfully");
         }
+
 
         @GetMapping(AccountPaths.ADMIN + AccountPaths.USERS)
         @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")

@@ -65,14 +65,16 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
         HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(map, headers);
 
         try {
+            log.info("Attempting authentication for user: {} at URL: {}", email, tokenUrl);
             return restTemplate.postForObject(tokenUrl, request, LoginResponse.class);
         } catch (org.springframework.web.client.HttpClientErrorException e) {
-            log.error("Authentication failed for user: {}. Status: {}, Body: {}", email, e.getStatusCode(),
-                    e.getResponseBodyAsString());
+            log.error("Authentication failed for user: {}. Status: {}, Body: {}, Headers: {}", 
+                    email, e.getStatusCode(), e.getResponseBodyAsString(), e.getResponseHeaders());
             throw new com.eduspace.accountservice.exception.AppException(
                     com.eduspace.accountservice.exception.ErrorCode.UNAUTHORIZED);
         } catch (Exception e) {
-            log.error("Authentication failed for user: {}. Error: {}", email, e.getMessage());
+            log.error("Authentication failed for user: {}. Error type: {}, Message: {}", 
+                    email, e.getClass().getName(), e.getMessage());
             throw new com.eduspace.accountservice.exception.AppException(
                     com.eduspace.accountservice.exception.ErrorCode.UNAUTHORIZED);
         }

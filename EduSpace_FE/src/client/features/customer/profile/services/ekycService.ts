@@ -46,9 +46,32 @@ type FaceApiResponse = {
     error?: string;
 };
 
+/** Body khớp `EkycCommitRequest` (account-service) — `ocrData` camelCase như `OcrPayload` Java */
+type EkycCommitBody = {
+    status: string;
+    ocrData: {
+        name: string | null;
+        idNumber: string | null;
+        dob: string | null;
+        address: string | null;
+        expiryDate: string | null;
+    };
+    faceDistance: number;
+    faceVerified: boolean;
+    faceMatchingScore: number;
+};
+
+async function commitEkycToBackend(body: EkycCommitBody): Promise<EkycVerifyDto> {
+    const res = await apiClient.post<unknown, ApiResponse<EkycVerifyDto>>(
+        '/api/v1/accounts/me/ekyc/commit',
+        body,
+        { timeout: 60000 },
+    );
+    return unwrapData<EkycVerifyDto>(res);
+}
+
 /**
- * Gọi trực tiếp FastAPI eduspace-ai (cần CORS + X-API-Key). Chỉ dùng dev / lab;
- * production nên gọi qua account-service (bỏ trống VITE_KYC_AI_BASE_URL).
+ * Gọi trực tiếp FastAPI eduspace-ai (CORS + X-API-Key), sau đó lưu kết quả qua account-service `/ekyc/commit`.
  */
 async function submitViaKycAiService(input: {
     front: File;
@@ -104,27 +127,31 @@ async function submitViaKycAiService(input: {
     const faceJson = (await faceRes.json()) as FaceApiResponse;
     const verified = Boolean(faceJson.verified);
     const distance = Number(faceJson.distance ?? 1);
-    const faceMatchingScore = verified
-        ? Math.max(0, Math.min(100, 100 * (1 - Math.min(1, distance))))
-        : 0;
+    const score01 = Math.max(0, Math.min(1, 1 - Math.min(1, distance)));
 
     const hasOcrSignal = Boolean(ocrData.idNumber || ocrData.name);
-    const status: EkycVerifyDto['status'] = verified && hasOcrSignal ? 'success' : 'failed';
+    const localStatus: EkycVerifyDto['status'] = verified && hasOcrSignal ? 'success' : 'failed';
 
-    return {
-        status,
-        ocrData,
-        faceMatchingScore,
-        message:
-            status === 'success'
-                ? null
-                : faceJson.error ?? (!verified ? 'Face verification failed' : 'Could not read ID fields'),
+    const commitBody: EkycCommitBody = {
+        status: localStatus,
+        ocrData: {
+            name: ocrData.name,
+            idNumber: ocrData.idNumber,
+            dob: ocrData.dob,
+            address: ocrData.address,
+            expiryDate: ocrData.expiryDate,
+        },
+        faceDistance: distance,
+        faceVerified: verified,
+        faceMatchingScore: score01,
     };
+
+    return commitEkycToBackend(commitBody);
 }
 
 /**
- * eKYC: nếu có `VITE_KYC_AI_BASE_URL` → gọi trực tiếp Python (multipart + CORS).
- * Ngược lại → POST qua gateway tới account-service (không lộ API key ra browser).
+ * eKYC: nếu có `VITE_KYC_AI_BASE_URL` → Python trực tiếp rồi commit JSON lên BE.
+ * Ngược lại → POST multipart một lần tới account-service.
  */
 export async function submitEkycVerification(input: {
     front: File;

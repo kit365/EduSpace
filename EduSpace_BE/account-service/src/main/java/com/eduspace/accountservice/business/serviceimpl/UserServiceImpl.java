@@ -7,6 +7,7 @@ import com.eduspace.accountservice.model.dto.response.PageResponse;
 import com.eduspace.accountservice.model.dto.response.user.UserResponse;
 import com.eduspace.accountservice.model.entity.UserEntity;
 import com.eduspace.accountservice.model.mapper.UserMapper;
+import com.eduspace.accountservice.common.enums.VerificationStatus;
 import com.eduspace.accountservice.business.service.KeycloakUserService;
 import com.eduspace.accountservice.business.service.SupportStaffPresenceService;
 import com.eduspace.accountservice.business.service.UserService;
@@ -68,6 +69,10 @@ public class UserServiceImpl implements UserService {
                     .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
             // Ensure we use the right ID
             keycloakId = user.getKeycloakId();
+        }
+
+        if (isHostUpdate(request) && user.getVerificationStatus() != VerificationStatus.VERIFIED) {
+            throw new AppException(ErrorCode.EKYC_REQUIRED);
         }
 
         userMapper.updateUserEntityFromRequest(request, user);
@@ -361,7 +366,7 @@ public class UserServiceImpl implements UserService {
     public void approveUserKyc(String userId) {
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        user.setVerificationStatus("VERIFIED");
+        user.setVerificationStatus(VerificationStatus.VERIFIED);
         userRepository.save(user);
     }
 
@@ -370,7 +375,7 @@ public class UserServiceImpl implements UserService {
     public void rejectUserKyc(String userId, String reason) {
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        user.setVerificationStatus("REJECTED");
+        user.setVerificationStatus(VerificationStatus.REJECTED);
         userRepository.save(user);
     }
 
@@ -393,5 +398,11 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
         user.setIsActive(active);
         userRepository.save(user);
+    }
+
+    private boolean isHostUpdate(UpdateProfileRequest request) {
+        return request.getTaxId() != null || 
+               request.getHostType() != null || 
+               request.getOrganizationName() != null;
     }
 }

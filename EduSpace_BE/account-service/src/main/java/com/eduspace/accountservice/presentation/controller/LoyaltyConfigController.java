@@ -1,8 +1,8 @@
 package com.eduspace.accountservice.presentation.controller;
 
 import com.eduspace.accountservice.business.service.LoyaltyConfigService;
-import com.eduspace.accountservice.model.dto.loyalty.LoyaltyConfigRequest;
-import com.eduspace.accountservice.model.dto.loyalty.LoyaltyConfigResponse;
+import com.eduspace.accountservice.model.dto.request.loyalty.LoyaltyConfigRequest;
+import com.eduspace.accountservice.model.dto.response.loyalty.LoyaltyConfigResponse;
 import com.eduspace.accountservice.model.dto.response.ApiResponse;
 import com.eduspace.accountservice.presentation.constants.PointPaths;
 import com.eduspace.accountservice.presentation.constants.PreAuthorizeConstants;

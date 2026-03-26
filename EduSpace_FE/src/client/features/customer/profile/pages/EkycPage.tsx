@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CustomerLayout } from '../../../../layouts/CustomerLayout';
 import { Camera, Upload, CheckCircle2, XCircle, Loader2, ShieldCheck, ScanFace, CreditCard, ArrowRight, AlertTriangle } from 'lucide-react';
@@ -8,6 +9,7 @@ type EkycStep = 'intro' | 'front' | 'back' | 'selfie' | 'processing' | 'result';
 
 export function EkycPage() {
     const { t } = useTranslation();
+    const navigate = useNavigate();
     const [step, setStep] = useState<EkycStep>('intro');
     const [frontFile, setFrontFile] = useState<File | null>(null);
     const [backFile, setBackFile] = useState<File | null>(null);
@@ -300,6 +302,17 @@ export function EkycPage() {
                                         ))}
                                     </div>
                                 </div>
+                            )}
+
+                            {verifyResult === 'success' && (
+                                <button
+                                    type="button"
+                                    onClick={() => navigate('/rental/register')}
+                                    className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black shadow-xl shadow-blue-100 hover:shadow-2xl transition-all active:scale-95 inline-flex items-center justify-center gap-3"
+                                >
+                                    Tiếp tục đăng ký làm Host
+                                    <ArrowRight className="w-5 h-5" />
+                                </button>
                             )}
 
                             {verifyResult === 'failed' && (

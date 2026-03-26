@@ -84,6 +84,7 @@ app:
     topics:
       assign-staff-request: ${KAFKA_TOPIC_ASSIGN_STAFF_REQUEST:eduspace.assign-staff.request}
       assign-staff-result: ${KAFKA_TOPIC_ASSIGN_STAFF_RESULT:eduspace.assign-staff.result}
+      ekyc-result: ${KAFKA_TOPIC_EKYC_RESULT:eduspace.ekyc.result}
   support-presence:
     window-ms: ${SUPPORT_PRESENCE_WINDOW_MS:90000}
   kyc-ai:

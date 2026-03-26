@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
-import { CheckCircle2, ChevronLeft, ArrowRight, Loader2 } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ArrowRight, Loader2, ShieldCheck, ScanFace, CreditCard } from 'lucide-react';
 import { CustomerLayout } from '../../../layouts/CustomerLayout';
-import { Step1BasicInfo, Step2KycDocs, Step3Confirmation } from '../components/registration';
+import { Step1BasicInfo, Step3Confirmation } from '../components/registration';
 import { hostPartnerApplicationService } from '../services/hostPartnerApplicationService';
 import { profileService } from '@/client/features/customer/profile/services/profileService';
 import { useAuthStore } from '@/stores/authStore';
@@ -16,6 +16,8 @@ export function HostRegistrationPage() {
     const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
     const [step, setStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+    const [kycStatus, setKycStatus] = useState<string | null>(null);
     const [isSuccess, setIsSuccess] = useState(false);
 
     const [formData, setFormData] = useState({
@@ -26,49 +28,42 @@ export function HostRegistrationPage() {
         address: '',
         kycFrontUrl: '',
         kycBackUrl: '',
+        kycSelfieUrl: '', 
         kycLicenseUrl: '',
-        documents: [
-            {
-                id: 'cccd_front',
-                label: t('host.register.docCccdFront'),
-                description: t('host.register.docCccdFrontDesc'),
-                status: 'not_uploaded',
-            },
-            {
-                id: 'cccd_back',
-                label: t('host.register.docCccdBack'),
-                description: t('host.register.docCccdBackDesc'),
-                status: 'not_uploaded',
-            },
-            {
-                id: 'business_license',
-                label: t('host.register.docBusinessLicense'),
-                description: t('host.register.docBusinessLicenseDesc'),
-                status: 'not_uploaded',
-            },
-        ],
+        documents: [], 
         agreedTerms: false,
     });
 
     useEffect(() => {
-        if (!isAuthenticated) return;
+        if (!isAuthenticated) {
+            setIsLoadingProfile(false);
+            return;
+        }
         let cancelled = false;
         (async () => {
             try {
+                setIsLoadingProfile(true);
                 const p = await profileService.getProfile();
                 if (cancelled) return;
+                
+                setKycStatus(p.kycStatus);
+                
                 const addrParts = [p.streetAddress, p.ward, p.district, p.cityState].filter(Boolean);
                 const addressFromProfile =
                     addrParts.length > 0 ? addrParts.join(', ') : (p.location || '').trim();
+                    
                 setFormData((prev) => ({
                     ...prev,
-                    name: prev.name.trim() ? prev.name : (p.name || '').trim() || prev.name,
-                    phone: prev.phone.trim() ? prev.phone : (p.phone || '').trim() || prev.phone,
-                    email: prev.email.trim() ? prev.email : (p.email || '').trim() || prev.email,
-                    address: prev.address.trim() ? prev.address : addressFromProfile || prev.address,
+                    name: (p.name || '').trim() || prev.name,
+                    phone: (p.phone || '').trim() || prev.phone,
+                    email: (p.email || '').trim() || prev.email,
+                    address: addressFromProfile || prev.address,
+                    kycFrontUrl: p.verified ? 'verified' : '', // Mock indicator
                 }));
             } catch {
-                /* profile lỗi — form để trống */
+                /* profile lỗi */
+            } finally {
+                setIsLoadingProfile(false);
             }
         })();
         return () => {
@@ -78,7 +73,7 @@ export function HostRegistrationPage() {
 
     const nextStep = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
-        setStep((s) => Math.min(s + 1, 3));
+        setStep((s) => Math.min(s + 1, 2));
     };
     const prevStep = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -93,14 +88,13 @@ export function HostRegistrationPage() {
         }
         setIsSubmitting(true);
         try {
-            const docSummary = formData.documents.map((d) => `${d.id}:${d.status}`).join(';');
             await hostPartnerApplicationService.submit({
                 applicantType: formData.type === 'individual' ? 'INDIVIDUAL' : 'BUSINESS',
                 fullName: formData.name.trim(),
                 phone: formData.phone.trim(),
                 email: formData.email.trim(),
                 address: formData.address.trim(),
-                message: `Giấy tờ (mock): ${docSummary}`,
+                message: `Đăng ký Đối tác (eKYC Verified)`,
                 documentFrontUrl: formData.kycFrontUrl.trim() || undefined,
                 documentBackUrl: formData.kycBackUrl.trim() || undefined,
                 businessLicenseUrl:
@@ -113,6 +107,60 @@ export function HostRegistrationPage() {
             setIsSubmitting(false);
         }
     };
+
+    if (isLoadingProfile) {
+        return (
+            <CustomerLayout>
+                <div className="flex min-h-[60vh] items-center justify-center">
+                    <Loader2 className="h-12 w-12 animate-spin text-gray-300" />
+                </div>
+            </CustomerLayout>
+        );
+    }
+
+    if (isAuthenticated && kycStatus !== 'VERIFIED') {
+        return (
+            <CustomerLayout>
+                <div className="min-h-[80vh] flex flex-col items-center justify-center px-4 py-12 bg-white">
+                    <div className="max-w-md w-full text-center">
+                        <div className="w-24 h-24 bg-amber-50 rounded-[32px] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-amber-50">
+                            <ShieldCheck className="w-12 h-12 text-amber-500" />
+                        </div>
+                        <h1 className="text-3xl font-black text-gray-900 mb-4 tracking-tight">Xác thực danh tính</h1>
+                        <p className="text-gray-500 font-medium mb-10 leading-relaxed">
+                            Để bảo vệ cộng đồng EduSpace, bạn cần hoàn tất xác thực eKYC trước khi đăng ký làm Đối tác (Host).
+                        </p>
+                        
+                        <div className="space-y-4 mb-10 text-left">
+                            <div className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 border border-gray-100">
+                                <ScanFace className="w-6 h-6 text-blue-600" />
+                                <div>
+                                    <div className="text-sm font-bold text-gray-900">Xác thực khuôn mặt AI</div>
+                                    <div className="text-xs text-gray-400">Đối soát khuôn mặt với CCCD</div>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 border border-gray-100">
+                                <CreditCard className="w-6 h-6 text-blue-600" />
+                                <div>
+                                    <div className="text-sm font-bold text-gray-900">Xác thực CCCD</div>
+                                    <div className="text-xs text-gray-400">Tự động nhận diện thông tin</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={() => navigate('/eKYC')}
+                            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-5 rounded-2xl font-black shadow-xl shadow-blue-100 hover:shadow-2xl transition-all active:scale-95 inline-flex items-center justify-center gap-3"
+                        >
+                            Bắt đầu xác thực ngay
+                            <ArrowRight className="w-5 h-5" />
+                        </button>
+                    </div>
+                </div>
+            </CustomerLayout>
+        );
+    }
 
     if (isSuccess) {
         return (
@@ -128,9 +176,6 @@ export function HostRegistrationPage() {
                         <p className="mb-10 font-bold leading-relaxed text-gray-500">
                             {t('host.register.successMessage')}
                             <span className="mt-2 block text-red-500">{t('host.register.pendingNotice')}</span>
-                        </p>
-                        <p className="mb-6 text-sm text-gray-500">
-                            Admin sẽ duyệt tại <strong>Trang quản trị → Xác minh &amp; duyệt → Đơn đối tác</strong>.
                         </p>
                         <button
                             type="button"
@@ -154,32 +199,15 @@ export function HostRegistrationPage() {
                             {t('host.register.pageTitle')}
                         </h1>
                         <p className="font-bold tracking-tight text-gray-500">{t('host.register.pageSubtitle')}</p>
-                        {!isAuthenticated ? (
-                            <p className="mt-4 text-sm font-medium text-amber-800">
-                                Cần{' '}
-                                <Link to="/auth" className="font-black text-red-600 underline underline-offset-2">
-                                    đăng nhập
-                                </Link>{' '}
-                                để gửi đơn. Chưa có tài khoản thì{' '}
-                                <Link to="/auth" className="font-black text-red-600 underline underline-offset-2">
-                                    đăng ký
-                                </Link>{' '}
-                                trước.
-                            </p>
-                        ) : (
-                            <p className="mt-4 text-sm font-medium text-emerald-800">
-                                Bước &quot;Thông tin&quot; đã điền sẵn từ hồ sơ tài khoản — bạn có thể chỉnh lại trước khi gửi.
-                            </p>
-                        )}
                     </div>
 
-                    <div className="relative mb-16 flex justify-between px-4">
+                    <div className="relative mb-16 flex justify-between px-20">
                         <div className="absolute left-0 top-1/2 -z-0 h-1 w-full -translate-y-1/2 rounded-full bg-gray-100" />
                         <div
                             className="absolute left-0 top-1/2 -z-0 h-1 -translate-y-1/2 rounded-full bg-red-500 transition-all duration-500"
-                            style={{ width: `${((step - 1) / 2) * 100}%` }}
+                            style={{ width: `${((step - 1)) * 100}%` }}
                         />
-                        {[1, 2, 3].map((i) => (
+                        {[1, 2].map((i) => (
                             <div
                                 key={i}
                                 className={`relative z-10 flex h-12 w-12 items-center justify-center rounded-2xl border-4 font-black transition-all duration-500 ${
@@ -193,7 +221,7 @@ export function HostRegistrationPage() {
                                     <span
                                         className={`text-[10px] font-black uppercase tracking-widest ${step >= i ? 'text-red-500' : 'text-gray-300'}`}
                                     >
-                                        {t(`host.register.step${i}Label`)}
+                                        {i === 1 ? t('host.register.step2Label') : t('host.register.step3Label')}
                                     </span>
                                 </div>
                             </div>
@@ -202,8 +230,7 @@ export function HostRegistrationPage() {
 
                     <div className="bg-white">
                         {step === 1 && <Step1BasicInfo formData={formData} setFormData={setFormData} />}
-                        {step === 2 && <Step2KycDocs formData={formData} setFormData={setFormData} />}
-                        {step === 3 && <Step3Confirmation formData={formData} setFormData={setFormData} />}
+                        {step === 2 && <Step3Confirmation formData={formData} setFormData={setFormData} />}
 
                         <div className="mt-16 flex gap-4 border-t border-gray-100 pt-10">
                             {step > 1 && (
@@ -219,17 +246,17 @@ export function HostRegistrationPage() {
 
                             <button
                                 type="button"
-                                onClick={step === 3 ? handleSubmit : nextStep}
-                                disabled={isSubmitting || (step === 3 && !formData.agreedTerms)}
+                                onClick={step === 2 ? handleSubmit : nextStep}
+                                disabled={isSubmitting || (step === 2 && !formData.agreedTerms)}
                                 className={`flex flex-1 items-center justify-center gap-3 rounded-2xl px-8 py-5 text-xs font-black uppercase tracking-widest shadow-xl transition-all active:scale-95 ${
-                                    isSubmitting || (step === 3 && !formData.agreedTerms)
+                                    isSubmitting || (step === 2 && !formData.agreedTerms)
                                         ? 'cursor-not-allowed bg-gray-100 text-gray-400 shadow-none'
                                         : 'bg-gray-900 text-white shadow-gray-200 hover:bg-red-500 hover:shadow-red-100'
                                 }`}
                             >
                                 {isSubmitting ? (
                                     <Loader2 className="h-5 w-5 animate-spin" />
-                                ) : step === 3 ? (
+                                ) : step === 2 ? (
                                     t('host.register.submitApplication')
                                 ) : (
                                     <>

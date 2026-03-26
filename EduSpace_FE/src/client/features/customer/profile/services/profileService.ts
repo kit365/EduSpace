@@ -40,7 +40,7 @@ class ProfileService {
             organizationName: data.organizationName || '',
             role: role as any,
             verified: data.isEmailVerified,
-            kycStatus: 'not_submitted', // Fallback, mock for now
+            kycStatus: data.verificationStatus || 'not_submitted',
             totalBookings: 0,
             totalReviews: 0,
             rating: 5.0,

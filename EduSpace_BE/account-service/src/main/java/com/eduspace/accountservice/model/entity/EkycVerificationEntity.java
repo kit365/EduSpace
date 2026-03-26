@@ -1,9 +1,7 @@
 package com.eduspace.accountservice.model.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import com.eduspace.accountservice.common.enums.VerificationStatus;
+import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -26,12 +24,29 @@ public class EkycVerificationEntity extends BaseEntity {
     @Column(name = "id")
     String id;
 
-    @Column(name = "user_id", nullable = false)
-    String userId;
+    @JoinColumn(name = "user_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    UserEntity user;
 
     /** VERIFIED or FAILED */
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 32)
-    String status;
+    VerificationStatus status;
+
+    @Column(name = "id_card_number", length = 50)
+    String idCardNumber;
+
+    @Column(name = "legal_name")
+    String legalName;
+
+    @Column(name = "dob")
+    java.time.LocalDate dob;
+
+    @Column(name = "address", length = 500)
+    String address;
+
+    @Column(name = "id_card_front_url")
+    String idCardFrontUrl;
 
     @Column(name = "id_number_hash", length = 64)
     String idNumberHash;

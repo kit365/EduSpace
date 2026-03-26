@@ -25,6 +25,7 @@ export interface UserResponse {
   postalCode?: string;
   taxId?: string;
   organizationName?: string;
+  verificationStatus?: KycStatus;
 }
 
 export interface TwoFactorSetup {

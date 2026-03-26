@@ -10,11 +10,20 @@ export function Step2KycDocs({ formData, setFormData }: Step2Props) {
     const { t } = useTranslation();
 
     const handleUpload = (docId: string) => {
-        // Simulate upload
+        // In a real app, this would use an upload service to get a URL
+        // For now, we'll simulate setting the URL in formData directly
+        const mockUrl = `https://storage.eduspace.vn/temp/${docId}_${Date.now()}.jpg`;
+        
         const updatedDocs = formData.documents.map((d: any) =>
-            d.id === docId ? { ...d, status: 'uploaded', fileName: `${docId}_mock_verified.jpg` } : d
+            d.id === docId ? { ...d, status: 'uploaded', fileName: `${docId}_verified.jpg` } : d
         );
-        setFormData({ ...formData, documents: updatedDocs });
+
+        const newFormData = { ...formData, documents: updatedDocs };
+        if (docId === 'cccd_front') newFormData.kycFrontUrl = mockUrl;
+        if (docId === 'cccd_back') newFormData.kycBackUrl = mockUrl;
+        if (docId === 'selfie') newFormData.kycSelfieUrl = mockUrl; // New field
+        
+        setFormData(newFormData);
     };
 
     const getStatusBadge = (status: string) => {
@@ -88,7 +97,14 @@ export function Step2KycDocs({ formData, setFormData }: Step2Props) {
                         placeholder="URL CCCD mặt sau"
                         value={formData.kycBackUrl || ''}
                         onChange={(e) => setFormData({ ...formData, kycBackUrl: e.target.value })}
-                        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"
+                        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:ring-2 focus:ring-red-500 outline-none"
+                    />
+                    <input
+                        type="url"
+                        placeholder="URL ảnh chân dung (Selfie) — BẮT BUỘC"
+                        value={formData.kycSelfieUrl || ''}
+                        onChange={(e) => setFormData({ ...formData, kycSelfieUrl: e.target.value })}
+                        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm border-amber-300 focus:ring-2 focus:ring-red-500 outline-none"
                     />
                     {formData.type === 'business' && (
                         <input

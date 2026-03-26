@@ -1,13 +1,17 @@
 package com.eduspace.accountservice.model.mapper;
 
+import com.eduspace.accountservice.common.enums.VerificationStatus;
 import com.eduspace.accountservice.model.dto.request.user.UpdateProfileRequest;
 import com.eduspace.accountservice.model.dto.response.PublicUserProfileResponse;
 import com.eduspace.accountservice.model.dto.response.user.UserResponse;
+import com.eduspace.accountservice.model.entity.EkycVerificationEntity;
 import com.eduspace.accountservice.model.entity.RoleEntity;
 import com.eduspace.accountservice.model.entity.UserEntity;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -52,6 +56,9 @@ public class UserMapper {
         if (request.getTaxId() != null) {
             entity.setTaxId(request.getTaxId());
         }
+        if (request.getHostType() != null) {
+            entity.setHostType(request.getHostType());
+        }
         if (request.getOrganizationName() != null) {
             entity.setOrganizationName(request.getOrganizationName());
         }
@@ -62,7 +69,7 @@ public class UserMapper {
             return null;
         }
 
-        return UserResponse.builder()
+        UserResponse response = UserResponse.builder()
                 .id(entity.getId())
                 .keycloakId(entity.getKeycloakId())
                 .email(entity.getEmail())
@@ -72,7 +79,6 @@ public class UserMapper {
                 .location(entity.getLocation())
                 .hostType(entity.getHostType())
                 .organizationName(entity.getOrganizationName())
-                .verificationDocument(entity.getVerificationDocument())
                 .verificationStatus(entity.getVerificationStatus())
                 .shortBio(entity.getShortBio())
                 .cityState(entity.getCityState())
@@ -89,6 +95,26 @@ public class UserMapper {
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
+
+        // Populate verified fields from eKYC if available
+        findLatestVerified(entity).ifPresent(ekyc -> {
+            response.setLegalName(ekyc.getLegalName());
+            response.setIdCardNumber(ekyc.getIdCardNumber());
+            response.setDob(ekyc.getDob());
+            response.setVerifiedAddress(ekyc.getAddress());
+            response.setIdCardFrontUrl(ekyc.getIdCardFrontUrl());
+        });
+
+        return response;
+    }
+
+    private Optional<EkycVerificationEntity> findLatestVerified(UserEntity entity) {
+        if (entity.getEkycVerifications() == null) {
+            return Optional.empty();
+        }
+        return entity.getEkycVerifications().stream()
+                .filter(v -> v.getStatus() == VerificationStatus.VERIFIED)
+                .max(Comparator.comparing(EkycVerificationEntity::getCreatedAt));
     }
 
     public PublicUserProfileResponse toPublicUserProfile(UserEntity entity) {

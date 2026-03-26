@@ -1,11 +1,13 @@
 package com.eduspace.accountservice.model.entity;
 
+import com.eduspace.accountservice.common.enums.VerificationStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.SuperBuilder;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @Entity
@@ -68,11 +70,9 @@ public class UserEntity extends BaseEntity {
     @Column(name = "organization_name")
     String organizationName;
 
-    @Column(name = "verification_document")
-    String verificationDocument;
-
+    @Enumerated(EnumType.STRING)
     @Column(name = "verification_status")
-    String verificationStatus;
+    VerificationStatus verificationStatus;
 
     @Builder.Default
     @Column(name = "is_active")
@@ -96,4 +96,7 @@ public class UserEntity extends BaseEntity {
 
     @Column(name = "point_balance")
     Integer pointBalance;
+
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+    List<EkycVerificationEntity> ekycVerifications;
 }
