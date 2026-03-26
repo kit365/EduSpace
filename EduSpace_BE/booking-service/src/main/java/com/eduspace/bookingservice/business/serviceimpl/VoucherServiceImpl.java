@@ -73,6 +73,46 @@ public class VoucherServiceImpl implements VoucherService {
     }
 
     @Override
+    public VoucherResponse update(Long id, CreateVoucherRequest request) {
+        VoucherEntity entity = findOrThrow(id);
+        
+        String code = request.getCode() != null ? request.getCode().trim().toUpperCase() : entity.getCode();
+        
+        if (!entity.getCode().equals(code) && voucherRepository.existsByCodeAndIsDeletedFalse(code)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Mã voucher đã tồn tại: " + code);
+        }
+        if (!request.getValidUntil().isAfter(request.getValidFrom())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "validUntil phải sau validFrom");
+        }
+        if (request.getDiscountType() == DiscountType.PERCENTAGE
+                && request.getDiscountValue().compareTo(BigDecimal.valueOf(100)) > 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "discountValue không được vượt quá 100% khi loại là PERCENTAGE");
+        }
+
+        entity.setCampaignId(request.getCampaignId());
+        entity.setCode(code);
+        entity.setDiscountType(request.getDiscountType());
+        entity.setDiscountValue(request.getDiscountValue());
+        entity.setMinOrderValue(request.getMinOrderValue() != null
+                ? request.getMinOrderValue() : BigDecimal.ZERO);
+        entity.setMaxDiscountAmount(request.getMaxDiscountAmount());
+        entity.setMaxUses(request.getMaxUses());
+        entity.setMaxUsesPerUser(request.getMaxUsesPerUser() != null
+                ? request.getMaxUsesPerUser() : 1);
+        entity.setValidFrom(request.getValidFrom());
+        entity.setValidUntil(request.getValidUntil());
+        entity.setIsPublic(request.getIsPublic() != null ? request.getIsPublic() : true);
+        entity.setIsActive(request.getIsActive() != null ? request.getIsActive() : true);
+
+        VoucherEntity saved = voucherRepository.save(entity);
+        log.info("Updated voucher id={} code={}", saved.getId(), saved.getCode());
+        return toResponse(saved);
+    }
+
+    @Override
     public VoucherResponse getById(Long id) {
         return toResponse(findOrThrow(id));
     }

@@ -1,9 +1,10 @@
-import { X, Layers, Calendar, Clock, Power, PowerOff, Trash2, Edit2, CheckCircle2, AlertCircle, Timer } from 'lucide-react';
+import { X, Layers, Calendar, Clock, Power, PowerOff, Trash2, CheckCircle2, AlertCircle, Timer, Edit2 } from 'lucide-react';
 import type { VoucherCampaign } from '../services/types';
 
 interface CampaignDetailDrawerProps {
     campaign: VoucherCampaign | null;
     onClose: () => void;
+    onEdit: (campaign: VoucherCampaign) => void;
     onToggleActive: (id: number) => void;
     onDelete: (id: number) => void;
 }
@@ -48,7 +49,7 @@ function getPhase(campaign: VoucherCampaign): {
     return { label: 'Đang chạy', color: 'bg-green-50 text-green-600', dotCls: 'bg-green-500 animate-pulse', icon: <CheckCircle2 className="w-4 h-4" />, progressPct: pct };
 }
 
-export function CampaignDetailDrawer({ campaign, onClose, onToggleActive, onDelete }: CampaignDetailDrawerProps) {
+export function CampaignDetailDrawer({ campaign, onClose, onEdit, onToggleActive, onDelete }: CampaignDetailDrawerProps) {
     if (!campaign) return null;
 
     const phase = getPhase(campaign);
@@ -180,6 +181,13 @@ export function CampaignDetailDrawer({ campaign, onClose, onToggleActive, onDele
 
                 {/* Action buttons */}
                 <div className="px-6 py-5 border-t border-gray-100 shrink-0 flex gap-3">
+                    <button
+                        onClick={() => onEdit(campaign)}
+                        className="flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-sm bg-cyan-50 text-cyan-600 hover:bg-cyan-100 border border-cyan-200 transition-all active:scale-95"
+                    >
+                        <Edit2 className="w-4 h-4" />
+                        Chỉnh sửa
+                    </button>
                     <button
                         onClick={() => onToggleActive(campaign.id)}
                         className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-sm transition-all active:scale-95 ${

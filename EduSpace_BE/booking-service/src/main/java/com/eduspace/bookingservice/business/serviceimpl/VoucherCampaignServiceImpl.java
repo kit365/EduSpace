@@ -38,6 +38,23 @@ public class VoucherCampaignServiceImpl implements VoucherCampaignService {
     }
 
     @Override
+    public VoucherCampaignResponse update(Long id, CreateVoucherCampaignRequest request) {
+        if (!request.getEndDate().isAfter(request.getStartDate())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "endDate phải sau startDate");
+        }
+        VoucherCampaignEntity entity = findOrThrow(id);
+        entity.setName(request.getName().trim());
+        entity.setDescription(request.getDescription());
+        entity.setStartDate(request.getStartDate());
+        entity.setEndDate(request.getEndDate());
+        entity.setIsActive(request.getIsActive() != null ? request.getIsActive() : true);
+        VoucherCampaignEntity saved = campaignRepository.save(entity);
+        log.info("Updated voucher campaign id={} name={}", saved.getId(), saved.getName());
+        return toResponse(saved);
+    }
+
+    @Override
     public VoucherCampaignResponse getById(Long id) {
         return toResponse(findOrThrow(id));
     }

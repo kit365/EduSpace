@@ -29,6 +29,11 @@ export const voucherCampaignService = {
         return unwrap<VoucherCampaign>(res);
     },
 
+    update: async (id: number, payload: Partial<VoucherCampaign>): Promise<VoucherCampaign> => {
+        const res = await apiClient.put(`${BOOKING_API.VOUCHER_CAMPAIGNS}/${id}`, payload);
+        return unwrap<VoucherCampaign>(res);
+    },
+
     toggleActive: async (id: number): Promise<VoucherCampaign> => {
         const res = await apiClient.patch(`${BOOKING_API.VOUCHER_CAMPAIGNS}/${id}/toggle-active`);
         return unwrap<VoucherCampaign>(res);
@@ -54,6 +59,11 @@ export const voucherService = {
 
     create: async (payload: Partial<Voucher>): Promise<Voucher> => {
         const res = await apiClient.post(BOOKING_API.VOUCHERS, payload);
+        return unwrap<Voucher>(res);
+    },
+
+    update: async (id: number, payload: Partial<Voucher>): Promise<Voucher> => {
+        const res = await apiClient.put(`${BOOKING_API.VOUCHERS}/${id}`, payload);
         return unwrap<Voucher>(res);
     },
 

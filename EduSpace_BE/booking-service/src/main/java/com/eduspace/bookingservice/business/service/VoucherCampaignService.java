@@ -9,6 +9,8 @@ public interface VoucherCampaignService {
 
     VoucherCampaignResponse create(CreateVoucherCampaignRequest request);
 
+    VoucherCampaignResponse update(Long id, CreateVoucherCampaignRequest request);
+
     VoucherCampaignResponse getById(Long id);
 
     List<VoucherCampaignResponse> getAll();

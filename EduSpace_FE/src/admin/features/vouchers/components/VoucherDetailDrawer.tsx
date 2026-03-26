@@ -1,4 +1,4 @@
-import { X, Ticket, Tag, Calendar, Users, BarChart2, Globe, Lock, Power, PowerOff, Trash2, Copy, CheckCircle2 } from 'lucide-react';
+import { X, Ticket, Tag, Calendar, Users, BarChart2, Globe, Lock, Power, PowerOff, Trash2, Copy, CheckCircle2, Edit2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import type { Voucher, VoucherCampaign } from '../services/types';
@@ -7,6 +7,7 @@ interface VoucherDetailDrawerProps {
     voucher: Voucher | null;
     campaign?: VoucherCampaign;
     onClose: () => void;
+    onEdit: (voucher: Voucher) => void;
     onToggleActive: (id: number) => void;
     onDelete: (id: number) => void;
 }
@@ -30,7 +31,7 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
     );
 }
 
-export function VoucherDetailDrawer({ voucher, campaign, onClose, onToggleActive, onDelete }: VoucherDetailDrawerProps) {
+export function VoucherDetailDrawer({ voucher, campaign, onClose, onEdit, onToggleActive, onDelete }: VoucherDetailDrawerProps) {
     const [copied, setCopied] = useState(false);
 
     if (!voucher) return null;
@@ -240,6 +241,13 @@ export function VoucherDetailDrawer({ voucher, campaign, onClose, onToggleActive
 
                 {/* Action buttons */}
                 <div className="px-6 py-5 border-t border-gray-100 shrink-0 flex gap-3">
+                    <button
+                        onClick={() => onEdit(voucher)}
+                        className="flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-sm bg-orange-50 text-orange-600 hover:bg-orange-100 border border-orange-200 transition-all active:scale-95"
+                    >
+                        <Edit2 className="w-4 h-4" />
+                        Chỉnh sửa
+                    </button>
                     <button
                         onClick={() => onToggleActive(voucher.id)}
                         className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-sm transition-all active:scale-95 ${

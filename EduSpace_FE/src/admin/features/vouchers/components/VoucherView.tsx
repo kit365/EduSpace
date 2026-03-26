@@ -10,9 +10,10 @@ export function VoucherView() {
     const [selectedCampaignId, setSelectedCampaignId] = useState<number | undefined>(undefined);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [detailVoucher, setDetailVoucher] = useState<Voucher | null>(null);
+    const [editVoucher, setEditVoucher] = useState<Voucher | null>(null);
 
     const { campaigns } = useVoucherCampaigns();
-    const { vouchers, loading, toggleActive, deleteVoucher } = useVouchers(selectedCampaignId);
+    const { vouchers, loading, toggleActive, deleteVoucher, refresh } = useVouchers(selectedCampaignId);
 
     const detailCampaign = detailVoucher?.campaignId
         ? campaigns.find((c) => c.id === detailVoucher.campaignId)
@@ -139,8 +140,10 @@ export function VoucherView() {
 
             <VoucherModal
                 isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
+                onClose={() => { setIsModalOpen(false); setEditVoucher(null); }}
+                onSuccess={refresh}
                 campaignIdDefault={selectedCampaignId}
+                editVoucher={editVoucher}
             />
         </div>
 
@@ -148,8 +151,9 @@ export function VoucherView() {
             voucher={detailVoucher}
             campaign={detailCampaign}
             onClose={() => setDetailVoucher(null)}
-            onToggleActive={(id) => { toggleActive(id); setDetailVoucher(null); }}
-            onDelete={(id) => { deleteVoucher(id); setDetailVoucher(null); }}
+            onEdit={(v: Voucher) => { setEditVoucher(v); setIsModalOpen(true); setDetailVoucher(null); }}
+            onToggleActive={(id: number) => { toggleActive(id); setDetailVoucher(null); }}
+            onDelete={(id: number) => { deleteVoucher(id); setDetailVoucher(null); }}
         />
         </>
     );

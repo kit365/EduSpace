@@ -8,7 +8,8 @@ import { CampaignDetailDrawer } from './CampaignDetailDrawer';
 export function VoucherCampaignView() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [detailCampaign, setDetailCampaign] = useState<VoucherCampaign | null>(null);
-    const { campaigns, loading, toggleActive, deleteCampaign } = useVoucherCampaigns();
+    const [editCampaign, setEditCampaign] = useState<VoucherCampaign | null>(null);
+    const { campaigns, loading, toggleActive, deleteCampaign, refresh } = useVoucherCampaigns();
 
     return (
         <>
@@ -103,14 +104,20 @@ export function VoucherCampaignView() {
                 </table>
             </div>
 
-            <CampaignModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+            <CampaignModal
+                isOpen={isModalOpen}
+                onClose={() => { setIsModalOpen(false); setEditCampaign(null); }}
+                onSuccess={refresh}
+                editCampaign={editCampaign}
+            />
         </div>
 
         <CampaignDetailDrawer
             campaign={detailCampaign}
             onClose={() => setDetailCampaign(null)}
-            onToggleActive={(id) => { toggleActive(id); setDetailCampaign(null); }}
-            onDelete={(id) => { deleteCampaign(id); setDetailCampaign(null); }}
+            onEdit={(c: VoucherCampaign) => { setEditCampaign(c); setIsModalOpen(true); setDetailCampaign(null); }}
+            onToggleActive={(id: number) => { toggleActive(id); setDetailCampaign(null); }}
+            onDelete={(id: number) => { deleteCampaign(id); setDetailCampaign(null); }}
         />
         </>
     );
