@@ -8,7 +8,7 @@ import {
 import { messageService } from '../../../../client/features/customer/messages/services/messageService';
 import { useConversations } from '../../../../client/features/customer/messages/hooks/useMessages';
 import { useChatWebSocket } from '../../../../client/features/customer/messages/hooks/useChatWebSocket';
-import type { ChatMessage, Conversation } from '../../../../client/features/customer/messages/types';
+import type { AssignmentOfferEvent, ChatMessage, Conversation } from '../../../../client/features/customer/messages/types';
 import { SUPPORT_PLACEHOLDER_USER_ID } from '../../../../config/chat';
 import { useResolvedChatUserId } from '../../../../hooks/useResolvedChatUserId';
 import {
@@ -23,6 +23,16 @@ import {
 } from '../../../../client/features/customer/messages/utils/chatSyncUtils';
 import { useVideoCall } from '../../../../contexts/VideoCallContext';
 
+const parseOfferExpiryMs = (expiresAt: string): number => {
+    if (!expiresAt) return 0;
+    // Java LocalDateTime is sent without timezone. Treat it as UTC to avoid
+    // instant-expired UI when browser timezone differs from backend timezone.
+    const hasTimezone = /[zZ]|[+-]\d{2}:\d{2}$/.test(expiresAt);
+    const normalized = hasTimezone ? expiresAt : `${expiresAt}Z`;
+    const parsed = Date.parse(normalized);
+    return Number.isNaN(parsed) ? Date.parse(expiresAt) : parsed;
+};
+
 export function AdminMessagesPage() {
     const { conversations, loading, setConversations } = useConversations('admin');
     const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
@@ -33,6 +43,7 @@ export function AdminMessagesPage() {
     const [selectedImages, setSelectedImages] = useState<File[]>([]);
     const [showImagePreview, setShowImagePreview] = useState(false);
     const [isSendingImages, setIsSendingImages] = useState(false);
+    const [pendingOffers, setPendingOffers] = useState<Record<string, AssignmentOfferEvent>>({});
     const scrollRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -116,6 +127,11 @@ export function AdminMessagesPage() {
     // Real-time conversation list updates
     useEffect(() => {
         if (!lastConversationEvent) return;
+        if (lastConversationEvent.type === 'ASSIGNMENT_OFFER') {
+            const offer = lastConversationEvent as AssignmentOfferEvent;
+            setPendingOffers((prev) => ({ ...prev, [offer.conversationId]: offer }));
+            return;
+        }
 
         setConversations((prev) => {
             const next = applyConversationActivity(prev, lastConversationEvent, {
@@ -127,6 +143,33 @@ export function AdminMessagesPage() {
             return prev;
         });
     }, [lastConversationEvent, currentUserId, setConversations]);
+
+    const handleAcceptOffer = async (offer: AssignmentOfferEvent) => {
+        try {
+            const updated = await messageService.acceptAssignmentOffer(offer.conversationId, offer.offerId);
+            setConversations((prev) =>
+                prev.map((c) => (c.conversationId === updated.conversationId ? updated : c)),
+            );
+            if (selectedConversation?.conversationId === updated.conversationId) {
+                setSelectedConversation(updated);
+            }
+            setPendingOffers((prev) => {
+                const next = { ...prev };
+                delete next[offer.conversationId];
+                return next;
+            });
+        } catch (err) {
+            console.error('Failed to accept assignment offer', err);
+        }
+    };
+
+    const handleDeclineOffer = (offer: AssignmentOfferEvent) => {
+        setPendingOffers((prev) => {
+            const next = { ...prev };
+            delete next[offer.conversationId];
+            return next;
+        });
+    };
 
     useEffect(() => {
         if (!lastEdited) return;
@@ -341,6 +384,35 @@ export function AdminMessagesPage() {
                                         </div>
                                     </div>
                                 </div>
+                                {(() => {
+                                    const offer = pendingOffers[selectedConversation.conversationId];
+                                    if (!offer) return null;
+                                    const expired = parseOfferExpiryMs(offer.expiresAt) <= Date.now();
+                                    return (
+                                        <div className="ml-4 px-3 py-2 rounded-xl border border-amber-200 bg-amber-50">
+                                            <p className="text-xs font-semibold text-amber-800">
+                                                Support offer pending
+                                            </p>
+                                            <button
+                                                type="button"
+                                                disabled={expired}
+                                                onClick={() => void handleAcceptOffer(offer)}
+                                                className="mt-1 px-2 py-1 text-xs rounded-md bg-amber-600 text-white disabled:opacity-50"
+                                            >
+                                                {expired ? 'Offer expired' : 'Accept'}
+                                            </button>
+                                            {!expired && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDeclineOffer(offer)}
+                                                    className="mt-1 ml-2 px-2 py-1 text-xs rounded-md border border-amber-400 text-amber-800"
+                                                >
+                                                    Decline
+                                                </button>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
                                 <div className="flex items-center gap-2">
                                     <button
                                         type="button"

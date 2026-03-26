@@ -11,6 +11,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
+import java.util.UUID;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -19,6 +21,7 @@ public class StaffAssignmentConsumer {
     private final UserService userService;
     private final StaffAssignmentProducer staffAssignmentProducer;
     private final ObjectMapper objectMapper;
+    private static final long OFFER_TTL_SECONDS = 30L;
 
     @KafkaListener(
             topics = "${app.kafka.topics.assign-staff-request}",
@@ -60,9 +63,9 @@ public class StaffAssignmentConsumer {
             String staffId = userService.assignStaff(customerId);
 
             if (staffId != null) {
-                // Success payload: "staffId"
-                staffAssignmentProducer.sendAssignmentSuccess(event.getSagaId(), staffId);
-                log.info("Successfully assigned staff: {} for Saga: {}", staffId, event.getSagaId());
+                String offerId = UUID.randomUUID().toString();
+                staffAssignmentProducer.sendAssignmentOffered(event.getSagaId(), staffId, offerId, OFFER_TTL_SECONDS);
+                log.info("Offered assignment to staff: {} for Saga: {} with offerId {}", staffId, event.getSagaId(), offerId);
             } else {
                 staffAssignmentProducer.sendAssignmentFailed(event.getSagaId(), "No staff available");
             }

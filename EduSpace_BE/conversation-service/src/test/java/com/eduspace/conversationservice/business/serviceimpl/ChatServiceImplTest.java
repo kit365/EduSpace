@@ -14,10 +14,12 @@ import com.eduspace.conversationservice.model.dto.response.ConversationResponse;
 import com.eduspace.conversationservice.model.entity.ChatMessageEntity;
 import com.eduspace.conversationservice.model.entity.ConversationEntity;
 import com.eduspace.conversationservice.model.entity.SagaInstanceEntity;
+import com.eduspace.conversationservice.model.entity.StaffAssignmentOfferEntity;
 import com.eduspace.conversationservice.model.enums.MessageType;
 import com.eduspace.conversationservice.model.event.DomainEventConstants;
 import com.eduspace.conversationservice.persistence.repository.ChatMessageRepository;
 import com.eduspace.conversationservice.persistence.repository.ConversationRepository;
+import com.eduspace.conversationservice.persistence.repository.StaffAssignmentOfferRepository;
 import com.eduspace.conversationservice.persistence.repository.VideoCallRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -36,6 +38,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -55,6 +58,7 @@ class ChatServiceImplTest {
     @Mock ChatEventProducer chatEventProducer;
     @Mock ConversationMapper conversationMapper;
     @Mock ChatMessageMapper chatMessageMapper;
+    @Mock StaffAssignmentOfferRepository offerRepository;
 
     ChatServiceImpl chatService;
 
@@ -78,7 +82,8 @@ class ChatServiceImplTest {
                 sagaService,
                 chatEventProducer,
                 conversationMapper,
-                chatMessageMapper
+                chatMessageMapper,
+                offerRepository
         );
         ReflectionTestUtils.setField(chatService, "supportAdminKeycloakId", "admin-keycloak-id-0000");
 
@@ -548,6 +553,65 @@ class ChatServiceImplTest {
             assertThat(history.get(0).getMessageId()).isEqualTo("msg-hist-1");
             assertThat(history.get(0).getSender()).isNotNull();
             assertThat(history.get(0).getSender().getUserId()).isEqualTo(USER_A);
+        }
+    }
+
+    @Nested
+    @DisplayName("acceptAssignmentOffer")
+    class AcceptAssignmentOffer {
+        @Test
+        @DisplayName("Accepts pending offer and assigns admin to conversation")
+        void acceptsPendingOffer() {
+            conversation.setUser2Id("admin-keycloak-id-0000");
+            conversation.setIsAdminConversation(true);
+            StaffAssignmentOfferEntity offer = StaffAssignmentOfferEntity.builder()
+                    .id("offer-1")
+                    .conversationId("conv-1")
+                    .sagaId("saga-1")
+                    .staffId(USER_B)
+                    .status(StaffAssignmentOfferEntity.Status.PENDING)
+                    .expiresAt(LocalDateTime.now().plusMinutes(1))
+                    .build();
+            when(conversationRepository.findById("conv-1")).thenReturn(Optional.of(conversation));
+            when(offerRepository.findByIdAndConversationId("offer-1", "conv-1")).thenReturn(Optional.of(offer));
+            when(conversationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+            when(offerRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+            when(offerRepository.findByConversationIdAndStatus("conv-1", StaffAssignmentOfferEntity.Status.PENDING))
+                    .thenReturn(List.of(offer));
+            when(accountClient.getPublicProfileByIdentifier(USER_A)).thenReturn(ApiResponse.success(profileA));
+            when(chatMessageRepository.countByConversationAndIsDeletedFalseAndIsReadFalseAndSenderIdNot(any(), eq(USER_B)))
+                    .thenReturn(0);
+            when(chatMessageRepository.findByConversationAndIsDeletedFalseOrderBySentAtDesc(any(), any(PageRequest.class)))
+                    .thenReturn(new PageImpl<>(List.of()));
+            when(conversationMapper.toResponse(any(), eq(USER_B), any(), eq(0), anyString()))
+                    .thenReturn(ConversationResponse.builder().conversationId("conv-1").build());
+
+            ConversationResponse response = chatService.acceptAssignmentOffer("conv-1", "offer-1", USER_B);
+
+            assertThat(response.getConversationId()).isEqualTo("conv-1");
+            assertThat(conversation.getUser2Id()).isEqualTo(USER_B);
+            assertThat(offer.getStatus()).isEqualTo(StaffAssignmentOfferEntity.Status.ACCEPTED);
+            verify(sagaService).completeSaga("saga-1");
+        }
+
+        @Test
+        @DisplayName("Rejects accept when another admin tries to accept")
+        void rejectsWrongAdmin() {
+            StaffAssignmentOfferEntity offer = StaffAssignmentOfferEntity.builder()
+                    .id("offer-2")
+                    .conversationId("conv-1")
+                    .sagaId("saga-1")
+                    .staffId(USER_B)
+                    .status(StaffAssignmentOfferEntity.Status.PENDING)
+                    .expiresAt(LocalDateTime.now().plusMinutes(1))
+                    .build();
+            when(conversationRepository.findById("conv-1")).thenReturn(Optional.of(conversation));
+            when(offerRepository.findByIdAndConversationId("offer-2", "conv-1")).thenReturn(Optional.of(offer));
+
+            assertThatThrownBy(() -> chatService.acceptAssignmentOffer("conv-1", "offer-2", "other-admin"))
+                    .isInstanceOf(AppException.class)
+                    .extracting(ex -> ((AppException) ex).getErrorCode())
+                    .isEqualTo(ErrorCode.ACCESS_DENIED);
         }
     }
 }

@@ -39,6 +39,7 @@ D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\ja
 D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\infrastructure\messaging\producer\OutboxPublisher.java
 D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\infrastructure\persistence\converter\JsonMapConverter.java
 D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\infrastructure\scheduler\EmptyAdminConversationCleanupJob.java
+D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\infrastructure\scheduler\StaffAssignmentOfferExpiryJob.java
 D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\model\dto\request\AddReactionRequest.java
 D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\model\dto\request\BaseEventRequest.java
 D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\model\dto\request\CreateConversationRequest.java
@@ -52,6 +53,7 @@ D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\ja
 D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\model\entity\ConversationEntity.java
 D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\model\entity\OutboxEventEntity.java
 D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\model\entity\SagaInstanceEntity.java
+D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\model\entity\StaffAssignmentOfferEntity.java
 D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\model\entity\VideoCallEntity.java
 D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\model\enums\MessageType.java
 D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\model\enums\SagaStep.java
@@ -63,6 +65,7 @@ D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\ja
 D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\persistence\repository\ConversationRepository.java
 D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\persistence\repository\OutboxEventRepository.java
 D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\persistence\repository\SagaInstanceRepository.java
+D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\persistence\repository\StaffAssignmentOfferRepository.java
 D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\persistence\repository\VideoCallRepository.java
 D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\presentation\constants\BaseApiPaths.java
 D:\text\ver2\group3\group2\EduSpace\EduSpace_BE\conversation-service\src\main\java\com\eduspace\conversationservice\presentation\constants\ConversationPaths.java

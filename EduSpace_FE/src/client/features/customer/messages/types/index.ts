@@ -57,6 +57,20 @@ export interface ConversationActivityEvent {
     messageType: MessageType;
 }
 
+export interface AssignmentOfferEvent {
+    type: 'ASSIGNMENT_OFFER';
+    conversationId: string;
+    offerId: string;
+    expiresAt: string;
+    targetAdminId: string;
+    lastMessage: string;
+    lastActivity: string;
+    senderId: string;
+    messageType: MessageType;
+}
+
+export type ConversationInboxEvent = ConversationActivityEvent | AssignmentOfferEvent;
+
 export interface WebSocketMessagePayload {
     messageId: string;
     senderId: string;

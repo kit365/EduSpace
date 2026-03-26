@@ -299,47 +299,67 @@ public class UserServiceImpl implements UserService {
         return userRepository.countDistinctActiveUsersWithSupportRoles();
     }
 
+    /**
+     * Resolves a support agent for the assign-staff saga. Eligible users are those with role ADMIN
+     * (or SUPER_ADMIN if none), but only if their Keycloak id appears in Redis
+     * {@link com.eduspace.accountservice.business.serviceimpl.SupportStaffPresenceServiceImpl#ZSET_KEY}
+     * — populated when an admin uses the portal ({@code POST .../me/support-presence} heartbeat).
+     * Requires Redis up and at least one such user “online”; otherwise returns {@code null} and the
+     * conversation-service emits ASSIGN_STAFF_FAILED.
+     */
     @Override
     public String assignStaff(String customerId) {
         log.info("Assigning staff for customerId: {}", customerId);
         
-        // Try to find a user with role ADMIN (or STAFF if you prefer)
-        List<UserEntity> admins = userRepository.findByRoleName("ADMIN");
-        
-        if (admins.isEmpty()) {
-            // Fallback to SUPER_ADMIN if no ADMIN found
-            admins = userRepository.findByRoleName("SUPER_ADMIN");
+        Set<String> online = supportStaffPresenceService.getOnlineMemberIds();
+
+        // Prefer online ADMIN first.
+        List<UserEntity> adminUsers = userRepository.findByRoleName("ADMIN");
+        Optional<UserEntity> onlineAdmin = adminUsers.stream()
+                .filter(a -> a.getKeycloakId() != null && online.contains(a.getKeycloakId()))
+                .findFirst();
+        if (onlineAdmin.isPresent()) {
+            UserEntity assigned = onlineAdmin.get();
+            log.info("Assigned online ADMIN {} to customer {}", assigned.getEmail(), customerId);
+            return assigned.getKeycloakId();
         }
 
-        if (admins.isEmpty()) {
+        // If no ADMIN is online, allow online SUPER_ADMIN (even if ADMIN users exist in DB).
+        List<UserEntity> superAdminUsers = userRepository.findByRoleName("SUPER_ADMIN");
+        Optional<UserEntity> onlineSuperAdmin = superAdminUsers.stream()
+                .filter(a -> a.getKeycloakId() != null && online.contains(a.getKeycloakId()))
+                .findFirst();
+        if (onlineSuperAdmin.isPresent()) {
+            UserEntity assigned = onlineSuperAdmin.get();
+            log.info("Assigned online SUPER_ADMIN {} to customer {}", assigned.getEmail(), customerId);
+            return assigned.getKeycloakId();
+        }
+
+        // Developer fallback: if there are no eligible ADMIN/SUPER_ADMIN roles in DB at all,
+        // pick a candidate (but still require it to be present in Redis).
+        if (adminUsers.isEmpty() && superAdminUsers.isEmpty()) {
             log.warn("No users with ADMIN or SUPER_ADMIN role found. Attempting developer fallback...");
-            admins = userRepository.findAll().stream()
-                    .filter(u -> u.getEmail() != null && 
-                                (u.getEmail().contains("admin") || u.getEmail().contains("kietops")))
+            List<UserEntity> candidates = userRepository.findAll().stream()
+                    .filter(u -> u.getEmail() != null &&
+                            (u.getEmail().contains("admin") || u.getEmail().contains("kietops")))
                     .toList();
-            
-            if (admins.isEmpty()) {
-                // Absolute last resort: just pick the first user available except the customer
-                admins = userRepository.findAll().stream()
-                        .filter(u -> !u.getKeycloakId().equals(customerId))
+
+            if (candidates.isEmpty()) {
+                candidates = userRepository.findAll().stream()
+                        .filter(u -> u.getKeycloakId() != null && !u.getKeycloakId().equals(customerId))
                         .toList();
             }
 
-            if (admins.isEmpty()) {
-                log.error("Absolutely no staff available to assign for customer: {}", customerId);
-                return null;
+            Optional<UserEntity> onlineCandidate = candidates.stream()
+                    .filter(u -> u.getKeycloakId() != null && online.contains(u.getKeycloakId()))
+                    .findFirst();
+            if (onlineCandidate.isPresent()) {
+                UserEntity assigned = onlineCandidate.get();
+                log.info("Assigned developer-fallback online staff {} to customer {}", assigned.getEmail(), customerId);
+                return assigned.getKeycloakId();
             }
         }
 
-        Set<String> online = supportStaffPresenceService.getOnlineMemberIds();
-        Optional<UserEntity> onlineFirst = admins.stream()
-                .filter(a -> a.getKeycloakId() != null && online.contains(a.getKeycloakId()))
-                .findFirst();
-        if (onlineFirst.isPresent()) {
-            UserEntity assigned = onlineFirst.get();
-            log.info("Assigned online admin {} to customer {}", assigned.getEmail(), customerId);
-            return assigned.getKeycloakId();
-        }
         // For support-chat saga we only assign currently online staff.
         // Returning null triggers ASSIGN_STAFF_FAILED and compensation in conversation-service.
         log.warn("No online support staff available for customer {}", customerId);

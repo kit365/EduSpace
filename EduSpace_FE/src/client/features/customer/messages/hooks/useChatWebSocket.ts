@@ -3,7 +3,7 @@ import { useAuthStore } from '../../../../../stores/authStore';
 import { getKeycloakSubFromAccessToken } from '../../../../../config/chat';
 import { getOrCreateGuestId } from '../../../../../utils/guest';
 import type {
-    ConversationActivityEvent,
+    ConversationInboxEvent,
     WebSocketDeletedPayload,
     WebSocketEditedPayload,
     WebSocketMessagePayload,
@@ -42,7 +42,7 @@ export function useChatWebSocket(params: {
 
     const [isConnected, setIsConnected] = useState(false);
     const [lastMessage, setLastMessage] = useState<WebSocketMessagePayload | null>(null);
-    const [lastConversationEvent, setLastConversationEvent] = useState<ConversationActivityEvent | null>(null);
+    const [lastConversationEvent, setLastConversationEvent] = useState<ConversationInboxEvent | null>(null);
     const [lastReadReceipt, setLastReadReceipt] = useState<WebSocketReadReceiptPayload | null>(null);
     const [lastEdited, setLastEdited] = useState<WebSocketEditedPayload | null>(null);
     const [lastDeleted, setLastDeleted] = useState<WebSocketDeletedPayload | null>(null);
@@ -99,8 +99,8 @@ export function useChatWebSocket(params: {
                     const inboxHandler = (msg: { body: string }) => {
                         try {
                             const data = JSON.parse(msg.body);
-                            if (data?.type === 'CONVERSATION_ACTIVITY') {
-                                devWsLog('CONVERSATION_ACTIVITY', data?.conversationId);
+                            if (data?.type === 'CONVERSATION_ACTIVITY' || data?.type === 'ASSIGNMENT_OFFER') {
+                                devWsLog(data?.type, data?.conversationId);
                                 setLastConversationEvent(data);
                             }
                         } catch (err) {

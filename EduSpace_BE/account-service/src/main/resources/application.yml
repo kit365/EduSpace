@@ -81,6 +81,8 @@ app:
   verification:
     token-expiry-hours: 24
   kafka:
+    # Assign-staff saga: must match conversation-service topic names. Staff assignment uses Redis
+    # support:admin:presence (see SupportStaffPresenceService) and ADMIN/SUPER_ADMIN users in DB.
     topics:
       assign-staff-request: ${KAFKA_TOPIC_ASSIGN_STAFF_REQUEST:eduspace.assign-staff.request}
       assign-staff-result: ${KAFKA_TOPIC_ASSIGN_STAFF_RESULT:eduspace.assign-staff.result}

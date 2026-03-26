@@ -77,6 +77,8 @@ app:
   outbox:
     publisher-delay-ms: ${OUTBOX_PUBLISHER_DELAY_MS:2000}
   kafka:
+    # Assign-staff saga: conversation-service publishes ASSIGN_STAFF_REQUEST after DB commit; account-service
+    # assigns an online ADMIN/SUPER_ADMIN (Redis presence + eligible roles) and publishes ASSIGN_STAFF_* here.
     topics:
       conversation-events: ${KAFKA_TOPIC_CONVERSATION_EVENTS:eduspace.conversation.events}
       assign-staff-request: ${KAFKA_TOPIC_ASSIGN_STAFF_REQUEST:eduspace.assign-staff.request}

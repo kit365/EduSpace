@@ -138,6 +138,17 @@ public class ChatController {
                 "Conversation details retrieved");
     }
 
+    @PostMapping(ConversationPaths.ACCEPT_ASSIGNMENT_OFFER)
+    public ApiResponse<ConversationResponse> acceptAssignmentOffer(@PathVariable String conversationId,
+            @PathVariable String offerId) {
+        String userId = currentUserId(SecurityContextHolder.getContext().getAuthentication());
+        if (userId == null) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+        ConversationResponse conversation = chatService.acceptAssignmentOffer(conversationId, offerId, userId);
+        return ApiResponse.success(conversation, SuccessCode.CONVERSATION_GET_SUCCESS, "Assignment accepted");
+    }
+
     @PostMapping(ConversationPaths.MESSAGES)
     public ApiResponse<ChatMessageResponse> sendMessage(@PathVariable String conversationId,
             @Valid @RequestBody SendMessageRequest request) {

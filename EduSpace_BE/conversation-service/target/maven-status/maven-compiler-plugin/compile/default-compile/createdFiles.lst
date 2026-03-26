@@ -1,3 +1,4 @@
+com\eduspace\conversationservice\business\saga\handler\StaffAssignmentSagaHandler$OfferedPayload.class
 com\eduspace\conversationservice\infrastructure\config\security\SecurityConfig.class
 com\eduspace\conversationservice\infrastructure\messaging\consumer\StaffAssignmentResultConsumer$1.class
 com\eduspace\conversationservice\exception\ErrorCode.class
@@ -5,6 +6,8 @@ com\eduspace\conversationservice\model\dto\request\SendMessageRequest$SendMessag
 com\eduspace\conversationservice\business\service\MediaStorageService.class
 com\eduspace\conversationservice\business\serviceimpl\ChatServiceImpl$UserProfiles.class
 com\eduspace\conversationservice\model\dto\response\ConversationResponse$OtherUser.class
+com\eduspace\conversationservice\business\serviceimpl\ChatServiceImpl$1.class
+com\eduspace\conversationservice\persistence\repository\StaffAssignmentOfferRepository.class
 com\eduspace\conversationservice\model\enums\MessageType.class
 com\eduspace\conversationservice\business\service\ChatService.class
 com\eduspace\conversationservice\business\service\VideoCallService.class
@@ -48,6 +51,7 @@ com\eduspace\conversationservice\presentation\constants\ConversationPaths$Messag
 com\eduspace\conversationservice\persistence\repository\ChatMessageRepository.class
 com\eduspace\conversationservice\infrastructure\messaging\consumer\StaffAssignmentResultConsumer.class
 com\eduspace\conversationservice\model\dto\response\ChatMessageResponse.class
+com\eduspace\conversationservice\model\entity\StaffAssignmentOfferEntity$Status.class
 com\eduspace\conversationservice\business\serviceimpl\AzureCommunicationServiceImpl.class
 com\eduspace\conversationservice\ConversationServiceApplication.class
 com\eduspace\conversationservice\infrastructure\config\websocket\WebSocketConfig.class
@@ -78,10 +82,12 @@ com\eduspace\conversationservice\infrastructure\config\websocket\StompAuthChanne
 com\eduspace\conversationservice\model\dto\response\ChatMessageResponse$Sender.class
 com\eduspace\conversationservice\model\dto\request\BaseEventRequest$BaseEventRequestBuilder.class
 com\eduspace\conversationservice\model\entity\ChatMessageEntity$ChatMessageEntityBuilder.class
+com\eduspace\conversationservice\infrastructure\scheduler\StaffAssignmentOfferExpiryJob.class
 com\eduspace\conversationservice\model\dto\request\AddReactionRequest.class
 com\eduspace\conversationservice\infrastructure\config\openapi\OpenApiConfig.class
 com\eduspace\conversationservice\model\entity\VideoCallEntity$CallStatus.class
 com\eduspace\conversationservice\model\event\DomainEventConstants.class
+com\eduspace\conversationservice\model\entity\StaffAssignmentOfferEntity$StaffAssignmentOfferEntityBuilder.class
 com\eduspace\conversationservice\business\service\VideoCallNotificationService.class
 com\eduspace\conversationservice\model\dto\response\ChatMessageResponse$Sender$SenderBuilder.class
 com\eduspace\conversationservice\infrastructure\constants\WebSocketTopics.class
@@ -94,6 +100,7 @@ com\eduspace\conversationservice\model\entity\ChatMessageEntity.class
 com\eduspace\conversationservice\model\enums\SagaStep.class
 com\eduspace\conversationservice\model\entity\SagaInstanceEntity$SagaInstanceEntityBuilder.class
 com\eduspace\conversationservice\infrastructure\client\AccountClient$BatchRequest.class
+com\eduspace\conversationservice\model\entity\StaffAssignmentOfferEntity.class
 com\eduspace\conversationservice\infrastructure\client\AccountClient.class
 com\eduspace\conversationservice\business\serviceimpl\LocalMediaStorageServiceImpl.class
 com\eduspace\conversationservice\business\saga\handler\StaffAssignmentSagaHandler.class

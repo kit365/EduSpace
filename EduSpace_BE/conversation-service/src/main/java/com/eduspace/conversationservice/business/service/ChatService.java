@@ -11,6 +11,8 @@ public interface ChatService {
 
     ConversationResponse getConversationById(String conversationId, String currentUserId);
 
+    ConversationResponse acceptAssignmentOffer(String conversationId, String offerId, String adminUserId);
+
     List<ConversationResponse> getUserConversations(String currentUserId);
 
     List<ConversationResponse> getAdminConversations(String currentUserId);

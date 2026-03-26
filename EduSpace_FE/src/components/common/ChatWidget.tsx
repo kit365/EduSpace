@@ -23,8 +23,26 @@ import {
 } from '../../client/features/customer/messages/supportConversationStorage';
 import { AnimatePresence, motion } from 'framer-motion';
 
-const STAFF_ASSIGN_FAILED_HINT = 'không có nhân viên';
+const STAFF_ASSIGN_FAILED_HINTS = [
+    'không có nhân viên',
+    'no staff available',
+    'no admin accepted',
+] as const;
+const STAFF_ASSIGN_SUCCESS_HINTS = ['staff assigned', 'support assigned', 'đã tìm được', 'đã kết nối'] as const;
 const LIST_FETCH_MIN_MS = 2000;
+const MATCHING_TIMEOUT_MS = 40000;
+
+function isAssignmentFailureText(text: string | null | undefined): boolean {
+    if (!text) return false;
+    const normalized = text.toLowerCase();
+    return STAFF_ASSIGN_FAILED_HINTS.some((hint) => normalized.includes(hint));
+}
+
+function isAssignmentSuccessText(text: string | null | undefined): boolean {
+    if (!text) return false;
+    const normalized = text.toLowerCase();
+    return STAFF_ASSIGN_SUCCESS_HINTS.some((hint) => normalized.includes(hint));
+}
 
 function pickSupportConversation(convs: Conversation[]) {
     return (
@@ -60,6 +78,10 @@ export function ChatWidget() {
     const lastListFetchAtRef = useRef(0);
     /** Always current — `loadSupportThread` must not read stale `conversation` from closure. */
     const conversationIdRef = useRef<string | null>(null);
+    /** Prevent spamming backend rematch when the same placeholder thread is reloaded. */
+    const lastSupportRematchAtRef = useRef<Record<string, number>>({});
+    const matchingTimeoutShownRef = useRef<Record<string, true>>({});
+    const matchingDismissedRef = useRef<Record<string, true>>({});
 
     useEffect(() => {
         conversationIdRef.current = conversation?.conversationId ?? null;
@@ -113,6 +135,31 @@ export function ChatWidget() {
                     if (match && !isSupportPlaceholderUserId(match.otherUser?.userId)) {
                         setConversation(match);
                         setIsMatching(false);
+                    } else if (match && isAssignmentSuccessText(match.lastMessage)) {
+                        setConversation(match);
+                        setIsMatching(false);
+                    } else if (match && isAssignmentFailureText(match.lastMessage)) {
+                        setConversation(match);
+                        setIsMatching(false);
+                    } else if (isAssignmentSuccessText(lastConversationEvent.lastMessage)) {
+                        setIsMatching(false);
+                        setMessages((prev) => {
+                            if (prev.some((m) => isAssignmentSuccessText(m.content))) return prev;
+                            return [
+                                ...prev,
+                                {
+                                    messageId: `local-assigned-${conversation?.conversationId ?? 'support'}`,
+                                    conversationId: conversation?.conversationId ?? 'support',
+                                    content: 'Da ket noi voi nhan vien ho tro. Ban co the nhan tin ngay bay gio.',
+                                    messageType: 'SYSTEM',
+                                    sentAt: new Date().toISOString(),
+                                    isRead: true,
+                                    isDeleted: false,
+                                },
+                            ];
+                        });
+                    } else if (isAssignmentFailureText(lastConversationEvent.lastMessage)) {
+                        setIsMatching(false);
                     }
                     // Conversation-level events can arrive before chat-topic subscription is ready.
                     // Refetching history guarantees system messages (e.g. no staff available) are visible.
@@ -152,6 +199,38 @@ export function ChatWidget() {
         };
     }, [isOpen]);
 
+    // Defensive fallback: if backend never emits assignment result, stop infinite "Finding a specialist..."
+    useEffect(() => {
+        const activeConversationId = conversation?.conversationId;
+        if (!isMatching || !activeConversationId) return;
+        if (!isSupportPlaceholderUserId(conversation?.otherUser?.userId)) return;
+
+        const timer = window.setTimeout(() => {
+            setIsMatching(false);
+            matchingDismissedRef.current[activeConversationId] = true;
+            if (matchingTimeoutShownRef.current[activeConversationId]) return;
+            matchingTimeoutShownRef.current[activeConversationId] = true;
+
+            setMessages((prev) => {
+                if (prev.some((m) => isAssignmentFailureText(m.content))) return prev;
+                return [
+                    ...prev,
+                    {
+                        messageId: `local-timeout-${activeConversationId}`,
+                        conversationId: activeConversationId,
+                        content: 'No support staff accepted yet. Please leave a message and we will respond soon.',
+                        messageType: 'SYSTEM',
+                        sentAt: new Date().toISOString(),
+                        isRead: true,
+                        isDeleted: false,
+                    },
+                ];
+            });
+        }, MATCHING_TIMEOUT_MS);
+
+        return () => window.clearTimeout(timer);
+    }, [isMatching, conversation?.conversationId, conversation?.otherUser?.userId]);
+
     /** Load support thread from API (same data as /messages). Chỉ gọi khi auth đã rehydrate + identity sẵn sàng — tránh GET sớm sau F5. */
     const loadSupportThread = useCallback(async () => {
         if (!authHydrated || !identityReady) return;
@@ -174,8 +253,48 @@ export function ChatWidget() {
                 setStoredSupportConversationId(currentUserId, conv.conversationId);
                 setConversation(conv);
                 const history = await messageService.getMessages(conv.conversationId, 0, 50);
-                setMessages(history.slice().reverse());
-                setIsMatching(isSupportPlaceholderUserId(conv.otherUser?.userId));
+                const orderedHistory = history.slice().reverse();
+                setMessages(orderedHistory);
+                const placeholderConversation = isSupportPlaceholderUserId(conv.otherUser?.userId);
+                const hasStaffReply = orderedHistory.some((m) => {
+                    const senderId = m.sender?.userId;
+                    return (
+                        !!senderId &&
+                        senderId !== currentUserId &&
+                        !isSupportPlaceholderUserId(senderId) &&
+                        m.messageType !== 'SYSTEM'
+                    );
+                });
+                setIsMatching(
+                    placeholderConversation &&
+                        !isAssignmentFailureText(conv.lastMessage) &&
+                        !isAssignmentSuccessText(conv.lastMessage) &&
+                        !hasStaffReply &&
+                        !matchingDismissedRef.current[conv.conversationId],
+                );
+
+                // If we loaded an existing placeholder support thread, force a rematch on the BE side.
+                // This fixes the case where BE rematch only happens in POST /conversations, but FE would otherwise only GET.
+                if (
+                    placeholderConversation &&
+                    !isAssignmentFailureText(conv.lastMessage) &&
+                    !isAssignmentSuccessText(conv.lastMessage) &&
+                    !hasStaffReply &&
+                    !matchingDismissedRef.current[conv.conversationId]
+                ) {
+                    const convId = conv.conversationId;
+                    const now = Date.now();
+                    const cooldownMs = 20000;
+                    const lastAt = lastSupportRematchAtRef.current[convId] ?? 0;
+                    if (now - lastAt > cooldownMs) {
+                        lastSupportRematchAtRef.current[convId] = now;
+                        void messageService
+                            .createConversation(SUPPORT_PLACEHOLDER_USER_ID, true)
+                            .catch(() => {
+                                /* ignore: rematch will still be handled via WS */
+                            });
+                    }
+                }
             };
 
             if (supportConv) {
@@ -261,8 +380,9 @@ export function ChatWidget() {
 
             if (lastMessage.messageType === 'SYSTEM') {
                 const c = (lastMessage.content || '').toLowerCase();
-                if (c.includes(STAFF_ASSIGN_FAILED_HINT)) {
+                if (isAssignmentFailureText(c)) {
                     setIsMatching(false);
+                    matchingDismissedRef.current[conversation.conversationId] = true;
                 }
             }
 
@@ -272,6 +392,7 @@ export function ChatWidget() {
                 lastMessage.senderId !== currentUserId
             ) {
                 setIsMatching(false);
+                matchingDismissedRef.current[conversation.conversationId] = true;
             }
         }
     }, [lastMessage, conversation, currentUserId]);
@@ -299,6 +420,7 @@ export function ChatWidget() {
 
         try {
             let activeConv = conversation;
+            const hadExistingConversation = !!activeConv;
 
             if (!activeConv) {
                 setIsCreatingChat(true);
@@ -315,6 +437,10 @@ export function ChatWidget() {
 
             const newMsg = await messageService.sendText(activeConv!.conversationId, text);
             setStoredSupportConversationId(currentUserId, activeConv!.conversationId);
+            if (hadExistingConversation && isMatching) {
+                setIsMatching(false);
+                matchingDismissedRef.current[activeConv!.conversationId] = true;
+            }
             setMessages((prev) => {
                 if (prev.some((m) => m.messageId === newMsg.messageId)) return prev;
                 return [...prev, newMsg];

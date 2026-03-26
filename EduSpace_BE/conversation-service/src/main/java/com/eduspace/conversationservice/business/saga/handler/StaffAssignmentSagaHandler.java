@@ -1,20 +1,33 @@
 package com.eduspace.conversationservice.business.saga.handler;
 import com.eduspace.conversationservice.business.service.ChatService;
 import com.eduspace.conversationservice.business.service.SagaService;
+import com.eduspace.conversationservice.model.entity.ConversationEntity;
+import com.eduspace.conversationservice.model.entity.StaffAssignmentOfferEntity;
 import com.eduspace.conversationservice.model.event.BaseEvent;
 import com.eduspace.conversationservice.model.event.SagaEventConstants;
 import com.eduspace.conversationservice.persistence.repository.ConversationRepository;
+import com.eduspace.conversationservice.persistence.repository.StaffAssignmentOfferRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class StaffAssignmentSagaHandler {
 
+    /** Short waits before re-querying if the result arrived before commit (defense in depth). */
+    private static final int[] RETRY_DELAYS_MS = { 50, 100, 150, 200 };
+
     private final ConversationRepository conversationRepository;
+    private final StaffAssignmentOfferRepository offerRepository;
     private final ChatService chatService;
     private final SagaService sagaService;
     private final com.eduspace.conversationservice.business.service.OutboxService outboxService;
@@ -24,42 +37,142 @@ public class StaffAssignmentSagaHandler {
     public void handleAssignmentResult(BaseEvent<String> event) {
         String sagaId = event.getSagaId();
         String result = event.getPayload();
-        
-        conversationRepository.findBySagaId(sagaId).ifPresent(conversation -> {
-            if (SagaEventConstants.ASSIGN_STAFF_SUCCESS.equals(event.getEventType())) {
-                log.info("Staff assignment succeeded for conversation: {}. Assigned Staff: {}", conversation.getId(), result);
-                conversation.setIsActive(true);
-                conversation.setUser2Id(result); // result is the staffId from the event payload
+        String eventType = event.getEventType();
 
+        if (!SagaEventConstants.ASSIGN_STAFF_OFFERED.equals(eventType)
+                && !SagaEventConstants.ASSIGN_STAFF_SUCCESS.equals(eventType)
+                && !SagaEventConstants.ASSIGN_STAFF_FAILED.equals(eventType)) {
+            log.warn("Unknown event type: {}", eventType);
+            return;
+        }
+
+        Optional<ConversationEntity> conversationOpt = findConversationBySagaIdWithRetry(sagaId);
+        if (conversationOpt.isEmpty()) {
+            // Stale/out-of-order result: the saga/conversation may already be replaced by rematch.
+            // Do not throw here, otherwise Kafka keeps retrying the same poison record and can
+            // create unnecessary load that impacts API responsiveness.
+            log.warn(
+                    "assign-staff result dropped: no conversation for sagaId {} after {} lookup attempts (eventType={}).",
+                    sagaId,
+                    1 + RETRY_DELAYS_MS.length,
+                    eventType);
+            return;
+        }
+
+        ConversationEntity conversation = conversationOpt.get();
+
+        if (SagaEventConstants.ASSIGN_STAFF_OFFERED.equals(eventType)) {
+            handleOffered(conversation, sagaId, result);
+            return;
+        }
+
+        if (SagaEventConstants.ASSIGN_STAFF_SUCCESS.equals(eventType)) {
+            log.info("Staff assignment succeeded for conversation: {}. Assigned Staff: {}", conversation.getId(), result);
+            conversation.setIsActive(true);
+            conversation.setUser2Id(result);
+
+            conversationRepository.save(conversation);
+
+            emitAssignmentEvents(conversation);
+
+            sagaService.completeSaga(sagaId);
+
+        } else {
+            log.error("Staff assignment failed for conversation: {}. Notifying user.", conversation.getId());
+            try {
+                conversation.setIsActive(false);
                 conversationRepository.save(conversation);
-                
-                // Notify BOTH participants (Customer and newly assigned Admin)
-                emitAssignmentEvents(conversation);
-                
-                sagaService.completeSaga(sagaId);
-
-            } else if (SagaEventConstants.ASSIGN_STAFF_FAILED.equals(event.getEventType())) {
-                log.error("Staff assignment failed for conversation: {}. Notifying user.", conversation.getId());
-                try {
-                    // Compensation: keep support thread but mark it inactive/unassigned.
-                    conversation.setIsActive(false);
-                    conversationRepository.save(conversation);
-                    chatService.notifyStaffAssignmentFailed(conversation.getId(), result);
-                    emitAssignmentFailedEvents(conversation, result);
-                    sagaService.failSaga(sagaId, "Staff assignment failed");
-                } catch (Exception e) {
-                    log.error("Failed to handle saga failure", e);
-                }
+                chatService.notifyStaffAssignmentFailed(conversation.getId(), result);
+                emitAssignmentFailedEvents(conversation, result);
+                sagaService.failSaga(sagaId, "Staff assignment failed");
+            } catch (Exception e) {
+                log.error("Failed to handle saga failure", e);
             }
-        });
-
-        if (!SagaEventConstants.ASSIGN_STAFF_SUCCESS.equals(event.getEventType()) && 
-            !SagaEventConstants.ASSIGN_STAFF_FAILED.equals(event.getEventType())) {
-            log.warn("Unknown event type: {}", event.getEventType());
         }
     }
 
-    private void emitAssignmentEvents(com.eduspace.conversationservice.model.entity.ConversationEntity conversation) {
+    private void handleOffered(ConversationEntity conversation, String sagaId, String payload) {
+        OfferedPayload offered = parseOfferedPayload(payload);
+        if (offered == null) {
+            sagaService.failSaga(sagaId, "Invalid ASSIGN_STAFF_OFFERED payload");
+            return;
+        }
+        LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(offered.ttlSeconds());
+        StaffAssignmentOfferEntity offer = StaffAssignmentOfferEntity.builder()
+                .id(offered.offerId())
+                .conversationId(conversation.getId())
+                .sagaId(sagaId)
+                .staffId(offered.staffId())
+                .status(StaffAssignmentOfferEntity.Status.PENDING)
+                .expiresAt(expiresAt)
+                .build();
+        offerRepository.save(offer);
+
+        Map<String, Object> eventPayload = new HashMap<>();
+        eventPayload.put("type", "ASSIGNMENT_OFFER");
+        eventPayload.put("conversationId", conversation.getId());
+        eventPayload.put("offerId", offer.getId());
+        eventPayload.put("expiresAt", expiresAt.toString());
+        eventPayload.put("targetAdminId", offered.staffId());
+        eventPayload.put("messageType", "SYSTEM");
+        eventPayload.put("lastMessage", "Support request waiting for admin acceptance");
+        eventPayload.put("lastActivity", LocalDateTime.now().toString());
+        eventPayload.put("senderId", conversation.getUser1Id());
+        eventPayload.put("isAdminConversation", true);
+
+        String subPath = com.eduspace.conversationservice.infrastructure.constants.WebSocketTopics.CONVERSATIONS;
+        String topicAdmin = com.eduspace.conversationservice.infrastructure.constants.WebSocketTopics.USER + offered.staffId() + subPath;
+        messagingTemplate.convertAndSend(topicAdmin, eventPayload);
+        log.info("Broadcasted assignment offer {} to admin {} for conversation {}", offer.getId(), offered.staffId(), conversation.getId());
+    }
+
+    private OfferedPayload parseOfferedPayload(String payload) {
+        // Payload format: staffId|offerId|ttlSeconds
+        if (payload == null || payload.isBlank()) {
+            return null;
+        }
+        String[] parts = payload.split("\\|");
+        if (parts.length < 1) {
+            return null;
+        }
+        String staffId = parts[0];
+        String offerId = parts.length > 1 && !parts[1].isBlank() ? parts[1] : UUID.randomUUID().toString();
+        long ttlSeconds = 30L;
+        if (parts.length > 2) {
+            try {
+                ttlSeconds = Math.max(5L, Long.parseLong(parts[2]));
+            } catch (NumberFormatException ignored) {
+                ttlSeconds = 30L;
+            }
+        }
+        return new OfferedPayload(staffId, offerId, ttlSeconds);
+    }
+
+    private record OfferedPayload(String staffId, String offerId, long ttlSeconds) {}
+
+    private Optional<ConversationEntity> findConversationBySagaIdWithRetry(String sagaId) {
+        Optional<ConversationEntity> found = conversationRepository.findBySagaId(sagaId);
+        if (found.isPresent()) {
+            return found;
+        }
+        for (int i = 0; i < RETRY_DELAYS_MS.length; i++) {
+            try {
+                Thread.sleep(RETRY_DELAYS_MS[i]);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.warn("Interrupted while waiting for conversation with saga {}", sagaId);
+                return Optional.empty();
+            }
+            found = conversationRepository.findBySagaId(sagaId);
+            if (found.isPresent()) {
+                log.info("findBySagaId succeeded after {} ms wait for saga {}", RETRY_DELAYS_MS[i], sagaId);
+                return found;
+            }
+        }
+        return Optional.empty();
+    }
+
+    private void emitAssignmentEvents(ConversationEntity conversation) {
         String subPath = com.eduspace.conversationservice.infrastructure.constants.WebSocketTopics.CONVERSATIONS;
         String topicUser1 = com.eduspace.conversationservice.infrastructure.constants.WebSocketTopics.USER + conversation.getUser1Id() + subPath;
         String topicUser2 = com.eduspace.conversationservice.infrastructure.constants.WebSocketTopics.USER + conversation.getUser2Id() + subPath;
@@ -102,7 +215,7 @@ public class StaffAssignmentSagaHandler {
         );
     }
 
-    private void emitAssignmentFailedEvents(com.eduspace.conversationservice.model.entity.ConversationEntity conversation, String reason) {
+    private void emitAssignmentFailedEvents(ConversationEntity conversation, String reason) {
         String subPath = com.eduspace.conversationservice.infrastructure.constants.WebSocketTopics.CONVERSATIONS;
         String topicUser1 = com.eduspace.conversationservice.infrastructure.constants.WebSocketTopics.USER + conversation.getUser1Id() + subPath;
 
