@@ -3,9 +3,10 @@ server:
 
 spring:
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:${POSTGRES_BOOKING_HOST_PORT:5433}/eduspace_booking}
-    username: ${SPRING_DATASOURCE_USERNAME:eduspace}
-    password: ${SPRING_DATASOURCE_PASSWORD:eduspace_dev_123}
+    # Cổng mặc định khớp EduSpace_BE/.env + docker-compose (POSTGRES_BOOKING_HOST_PORT).
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:${POSTGRES_BOOKING_HOST_PORT:15433}/eduspace_booking}
+    username: ${SPRING_DATASOURCE_USERNAME:${POSTGRES_USER:eduspace}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${POSTGRES_PASSWORD:eduspace_dev_123}}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -16,3 +17,14 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
     baseline-version: 0
+
+# Đồng bộ INTERNAL_ACCOUNT_API_KEY với account-service (gửi mail xác nhận đặt phòng).
+# integration.account-service.internal-api-key: ${INTERNAL_ACCOUNT_API_KEY} — khai báo trong .env gốc EduSpace_BE
+
+# Eureka: mặc định tắt khi không chạy discovery-server (tránh Connection refused / spam log).
+# Bật đăng ký service discovery: chạy Eureka trên 8761 hoặc set EUREKA_CLIENT_ENABLED=true.
+eureka:
+  client:
+    enabled: ${EUREKA_CLIENT_ENABLED:false}
+    register-with-eureka: ${EUREKA_CLIENT_ENABLED:false}
+    fetch-registry: ${EUREKA_CLIENT_ENABLED:false}
