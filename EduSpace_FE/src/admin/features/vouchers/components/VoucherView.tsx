@@ -2,22 +2,29 @@ import { useState } from 'react';
 import { useVouchers } from '../hooks/useVouchers';
 import { useVoucherCampaigns } from '../hooks/useVoucherCampaigns';
 import type { Voucher } from '../services/types';
-import { Ticket, Plus, Trash2, PowerOff, Power } from 'lucide-react';
+import { Ticket, Plus, Trash2, PowerOff, Power, Eye } from 'lucide-react';
 import { VoucherModal } from './VoucherModal';
+import { VoucherDetailDrawer } from './VoucherDetailDrawer';
 
 export function VoucherView() {
     const [selectedCampaignId, setSelectedCampaignId] = useState<number | undefined>(undefined);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [detailVoucher, setDetailVoucher] = useState<Voucher | null>(null);
 
     const { campaigns } = useVoucherCampaigns();
     const { vouchers, loading, toggleActive, deleteVoucher } = useVouchers(selectedCampaignId);
 
+    const detailCampaign = detailVoucher?.campaignId
+        ? campaigns.find((c) => c.id === detailVoucher.campaignId)
+        : undefined;
+
     return (
+        <>
         <div className="bg-white text-black rounded-3xl border border-gray-100 shadow-sm p-8">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
                 <div>
                     <h2 className="text-2xl font-black text-gray-900 tracking-tight">Chi tiết Mã giảm giá (Vouchers)</h2>
-                    <p className="text-xs text-gray-400 font-bold mt-1 uppercase tracking-wider">Tạo mã riêng lẻ hoặc gắn vào chiến dịch</p>
+                    <p className="text-xs text-gray-400 font-bold mt-1 uppercase tracking-wider">Tạo mã riêng lẻ hoặc gắn vào chiến dịch · Click dòng để xem chi tiết</p>
                 </div>
 
                 <div className="flex gap-4 w-full md:w-auto">
@@ -58,7 +65,11 @@ export function VoucherView() {
                             <tr><td colSpan={6} className="p-12 text-center text-gray-400 font-medium">Chưa có mã giảm giá nào.</td></tr>
                         ) : (
                             vouchers.map((v: Voucher) => (
-                                <tr key={v.id} className="hover:bg-gray-50/50 transition-colors">
+                                <tr
+                                    key={v.id}
+                                    onClick={() => setDetailVoucher(v)}
+                                    className="hover:bg-orange-50/40 transition-colors cursor-pointer group"
+                                >
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center">
@@ -97,7 +108,14 @@ export function VoucherView() {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        <div className="flex justify-end gap-2">
+                                        <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                                            <button
+                                                onClick={() => setDetailVoucher(v)}
+                                                className="p-2 rounded-xl bg-orange-50 text-orange-500 hover:bg-orange-100 transition-colors opacity-0 group-hover:opacity-100"
+                                                title="Chi tiết"
+                                            >
+                                                <Eye className="w-4 h-4" />
+                                            </button>
                                             <button
                                                 onClick={() => toggleActive(v.id)}
                                                 className={`p-2 rounded-xl transition-colors ${v.isActive ? 'bg-yellow-50 text-yellow-600 hover:bg-yellow-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}
@@ -125,5 +143,14 @@ export function VoucherView() {
                 campaignIdDefault={selectedCampaignId}
             />
         </div>
+
+        <VoucherDetailDrawer
+            voucher={detailVoucher}
+            campaign={detailCampaign}
+            onClose={() => setDetailVoucher(null)}
+            onToggleActive={(id) => { toggleActive(id); setDetailVoucher(null); }}
+            onDelete={(id) => { deleteVoucher(id); setDetailVoucher(null); }}
+        />
+        </>
     );
 }
