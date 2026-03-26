@@ -47,10 +47,11 @@ function SpaceCard({ space, viewMode, onClick }: SpaceCardProps) {
     >
       <div className={`relative ${viewMode === 'list' ? 'w-80 flex-shrink-0' : ''}`}>
         <img
-          src={space.image}
+          src={space.image || '/placeholder-space.jpg'}
           alt={space.name}
           className={`object-cover group-hover:scale-105 transition duration-300 ${viewMode === 'list' ? 'w-full h-full' : 'w-full h-64'
             }`}
+          onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/600x400/e2e8f0/64748b?text=EduSpace'; }}
         />
         {space.instantBook && (
           <div className="absolute top-3 left-3 bg-red-500 text-white px-3 py-1 rounded text-xs">

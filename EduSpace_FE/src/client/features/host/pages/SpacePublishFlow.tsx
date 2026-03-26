@@ -409,6 +409,10 @@ function parseDescriptionForForm(desc: string | null): { title: string; amenitie
 
 function mapRoomToForm(room: RoomDto, property: PropertyDto): SpaceFormData {
     const meta = parseDescriptionForForm(room.description);
+    const roomAmenityNames =
+        Array.isArray(room.amenities) && room.amenities.length > 0
+            ? room.amenities.map((a) => a.amenityName).filter(Boolean)
+            : [];
     const floorNum = room.floorNumber != null ? parseInt(String(room.floorNumber), 10) : 1;
     const imgs = (room.images ?? '')
         .split(',')
@@ -451,7 +455,8 @@ function mapRoomToForm(room: RoomDto, property: PropertyDto): SpaceFormData {
                           : undefined,
               }))
             : [],
-        amenities: meta.amenities,
+        // New flow stores amenities in room_amenities; fallback to legacy parsing from description.
+        amenities: roomAmenityNames.length ? roomAmenityNames : meta.amenities,
         images: imgs.length ? imgs : [],
         mainImageUrl: room.mainImageUrl?.trim() || (imgs[0] ?? null),
     };
@@ -697,7 +702,8 @@ export function SpacePublishFlow({ isEdit, editId, onCancel, onSuccess }: SpaceP
             const errs = validateSpaceStep(step, formData, branches, branchSchedules, t);
             if (Object.keys(errs).length > 0) {
                 setFieldErrors(errs);
-                showToast.error(t('host.listSpace.validation.fixCurrentStep'));
+                const firstErr = Object.values(errs)[0];
+                showToast.error(firstErr || t('host.listSpace.validation.fixCurrentStep'));
                 return;
             }
             setFieldErrors({});
@@ -1015,18 +1021,26 @@ export function SpacePublishFlow({ isEdit, editId, onCancel, onSuccess }: SpaceP
     const handleSubmit = async () => {
         setIsSubmitting(true);
         try {
+            const selectedAmenityIds = Array.from(
+                new Set(
+                    amenities
+                        .filter((a) => formData.amenities.includes(a.name))
+                        .map((a) => a.id)
+                        .filter((id) => id != null),
+                ),
+            );
             if (isEdit && editId) {
                 if (!roomSnapshot) {
                     showToast.error('Thiếu dữ liệu phòng. Tải lại trang.');
                     return;
                 }
                 if (editSubmitMode === 'direct') {
-                    await hostService.updateRoomBeforeApproval(Number(editId), formData);
+                    await hostService.updateRoomBeforeApproval(Number(editId), formData, selectedAmenityIds);
                 } else {
-                    await hostService.submitRoomEdit(Number(editId), formData);
+                    await hostService.submitRoomEdit(Number(editId), formData, selectedAmenityIds);
                 }
             } else {
-                await hostService.publishSpace(formData);
+                await hostService.publishSpace(formData, selectedAmenityIds);
             }
             setIsSubmitted(true);
         } catch (error) {
@@ -1450,8 +1464,11 @@ export function SpacePublishFlow({ isEdit, editId, onCancel, onSuccess }: SpaceP
                                                                         type="number"
                                                                         value={Number.isFinite(formData.minDuration) ? formData.minDuration : ''}
                                                                         onChange={(e) => handleUpdate('minDuration', parseInt(e.target.value || '0', 10))}
-                                                                        className="w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-white font-bold text-gray-900 focus:border-red-500 transition-all"
+                                                                        className={`w-full px-3 py-2.5 rounded-xl border bg-white font-bold text-gray-900 focus:border-red-500 transition-all ${fieldErrors.minDuration ? 'border-red-500 ring-2 ring-red-100' : 'border-gray-200'}`}
                                                                     />
+                                                                    {fieldErrors.minDuration && (
+                                                                        <p className="text-[10px] font-bold text-red-600 ml-1">{fieldErrors.minDuration}</p>
+                                                                    )}
                                                                 </div>
                                                                 <div className="space-y-2">
                                                                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Bước nhảy (phút)</label>
@@ -1459,8 +1476,11 @@ export function SpacePublishFlow({ isEdit, editId, onCancel, onSuccess }: SpaceP
                                                                         type="number"
                                                                         value={Number.isFinite(formData.stepUnit) ? formData.stepUnit : ''}
                                                                         onChange={(e) => handleUpdate('stepUnit', parseInt(e.target.value || '0', 10))}
-                                                                        className="w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-white font-bold text-gray-900 focus:border-red-500 transition-all"
+                                                                        className={`w-full px-3 py-2.5 rounded-xl border bg-white font-bold text-gray-900 focus:border-red-500 transition-all ${fieldErrors.stepUnit ? 'border-red-500 ring-2 ring-red-100' : 'border-gray-200'}`}
                                                                     />
+                                                                    {fieldErrors.stepUnit && (
+                                                                        <p className="text-[10px] font-bold text-red-600 ml-1">{fieldErrors.stepUnit}</p>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                             
@@ -1613,7 +1633,6 @@ export function SpacePublishFlow({ isEdit, editId, onCancel, onSuccess }: SpaceP
                                                                         <tr className="bg-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-widest">
                                                                             <th className="px-4 py-3 text-left">Khung giờ (h)</th>
                                                                             <th className="px-4 py-3 text-left">Đơn giá / Loại</th>
-                                                                            <th className="px-4 py-3 text-left">Giá sàn</th>
                                                                             <th className="px-4 py-3 text-right">Hành động</th>
                                                                         </tr>
                                                                     </thead>
@@ -1624,40 +1643,26 @@ export function SpacePublishFlow({ isEdit, editId, onCancel, onSuccess }: SpaceP
                                                                                     <td className="px-4 py-4">
                                                                                         <div className="flex items-center gap-2">
                                                                                             <span className="font-black text-gray-900">{rule.minHours}h</span>
-                                                                                            <ArrowRight className="w-3 h-3 text-gray-300" />
-                                                                                            <span className="font-black text-gray-900">{rule.maxHours || '∞'}h</span>
+                                                                                            {rule.maxHours && (
+                                                                                                <>
+                                                                                                    <ArrowRight className="w-3 h-3 text-gray-300" />
+                                                                                                    <span className="font-black text-gray-900">{rule.maxHours}h</span>
+                                                                                                </>
+                                                                                            )}
                                                                                         </div>
                                                                                         {rule.label && <p className="text-[10px] text-gray-400 font-bold mt-0.5">{rule.label}</p>}
                                                                                     </td>
                                                                                     <td className="px-4 py-4">
                                                                                         <div className="space-y-0.5">
-                                                                                            <p className="font-black text-red-600 text-sm">
+                                                                                            <p className={`font-black text-sm ${rule.flatPrice != null && Number(rule.flatPrice) > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                                                                                                 {rule.flatPrice != null && Number(rule.flatPrice) > 0
                                                                                                     ? `${Number(rule.flatPrice).toLocaleString()} VNĐ`
                                                                                                     : `${Number(rule.pricePerHour).toLocaleString()} VNĐ`}
                                                                                             </p>
-                                                                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-tight">
+                                                                                            <p className={`text-[9px] font-black uppercase tracking-tight ${rule.flatPrice != null && Number(rule.flatPrice) > 0 ? 'text-emerald-500' : 'text-gray-400'}`}>
                                                                                                 {rule.flatPrice != null && Number(rule.flatPrice) > 0 ? "Trọn gói" : "Mỗi giờ"}
                                                                                             </p>
                                                                                         </div>
-                                                                                    </td>
-                                                                                    <td className="px-4 py-4">
-                                                                                        {rule.maxHours == null ? (
-                                                                                            <>
-                                                                                                <span className="font-black text-emerald-600 text-sm">
-                                                                                                    {rule.flatPrice != null && Number(rule.flatPrice) > 0
-                                                                                                        ? `${Number(rule.flatPrice).toLocaleString()} VNĐ`
-                                                                                                        : `${(Number(rule.minHours) * Number(rule.pricePerHour ?? 0)).toLocaleString()} VNĐ`}
-                                                                                                </span>
-                                                                                                <p className="text-[9px] font-bold text-gray-400 mt-0.5">
-                                                                                                    {rule.flatPrice != null && Number(rule.flatPrice) > 0
-                                                                                                        ? 'Cố định'
-                                                                                                        : `${rule.minHours}h × ${Number(rule.pricePerHour ?? 0).toLocaleString()}`}
-                                                                                                </p>
-                                                                                            </>
-                                                                                        ) : (
-                                                                                            <span className="text-gray-300 font-bold">—</span>
-                                                                                        )}
                                                                                     </td>
                                                                                     <td className="px-4 py-4 text-right">
                                                                                         <button
@@ -1670,7 +1675,7 @@ export function SpacePublishFlow({ isEdit, editId, onCancel, onSuccess }: SpaceP
                                                                                     </td>
                                                                                 </tr>
                                                                                 <tr className="bg-slate-50/80 border-t border-gray-100">
-                                                                                    <td colSpan={4} className="px-4 py-3">
+                                                                                    <td colSpan={3} className="px-4 py-3">
                                                                                         <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">
                                                                                             Áp dụng các thứ (theo lịch cơ sở)
                                                                                         </p>
@@ -1738,7 +1743,19 @@ export function SpacePublishFlow({ isEdit, editId, onCancel, onSuccess }: SpaceP
                                                             type="button"
                                                             role="switch"
                                                             aria-checked={formData.weekendSurchargeEnabled}
-                                                            onClick={() => handleUpdate('weekendSurchargeEnabled', !formData.weekendSurchargeEnabled)}
+                                                            onClick={() => {
+                                                                const nextEnabled = !formData.weekendSurchargeEnabled;
+                                                                setFormData((prev) => ({
+                                                                    ...prev,
+                                                                    weekendSurchargeEnabled: nextEnabled,
+                                                                    weekendSurchargePercent: nextEnabled
+                                                                        ? Math.max(0, Math.round(Number(prev.weekendSurchargePercent) || 10))
+                                                                        : 0,
+                                                                    weekendApplySaturday: nextEnabled ? prev.weekendApplySaturday : false,
+                                                                    weekendApplySunday: nextEnabled ? prev.weekendApplySunday : false,
+                                                                }));
+                                                                clearFieldError('weekendSurchargePercent');
+                                                            }}
                                                             className={`relative w-12 h-7 rounded-full transition-all duration-300 ${formData.weekendSurchargeEnabled ? 'bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.4)]' : 'bg-gray-200'}`}
                                                         >
                                                             <span

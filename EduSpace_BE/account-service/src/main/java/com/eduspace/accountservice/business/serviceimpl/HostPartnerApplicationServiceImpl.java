@@ -297,6 +297,15 @@ public class HostPartnerApplicationServiceImpl implements HostPartnerApplication
         if (!branchApplication) {
             try {
                 keycloakUserService.assignRole(user.getKeycloakId(), Role.HOST.getName());
+            } catch (jakarta.ws.rs.NotFoundException ex) {
+                log.warn("Keycloak id stale when approving host app. userId={}, email={}", user.getId(), user.getEmail());
+                String resolvedKeycloakId = keycloakUserService.findUserIdByEmail(user.getEmail())
+                        .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+                if (!resolvedKeycloakId.equals(user.getKeycloakId())) {
+                    user.setKeycloakId(resolvedKeycloakId);
+                    userRepository.save(user);
+                }
+                keycloakUserService.assignRole(resolvedKeycloakId, Role.HOST.getName());
             } catch (Exception e) {
                 log.error("Keycloak assign HOST failed for user {}: {}", user.getKeycloakId(), e.getMessage());
             }

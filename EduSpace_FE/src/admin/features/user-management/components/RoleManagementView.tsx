@@ -6,6 +6,7 @@ import { Shield, Key, ChevronDown, ChevronUp, Users, X, Lock } from 'lucide-reac
 import { Role } from '@/types';
 import { partnerPortalPermissionKeysAll } from '../utils/hostConsolePermissionKeys';
 import { useTranslation } from 'react-i18next';
+import { getPermissionDisplayName } from '../utils/permissionDisplayI18n';
 
 interface RoleManagementViewProps {
     onViewDetail: (role: Role) => void;
@@ -20,6 +21,10 @@ export function RoleManagementView({ onViewDetail }: RoleManagementViewProps) {
 
     const isAdminRole = (role: Role) => (role.name ?? '').toUpperCase() === 'ADMIN';
     const isManagerRole = (role: Role) => (role.name ?? '').toUpperCase() === 'MANAGER';
+    const isAdminOrStaffRole = (role: Role) => {
+        const key = (role.name ?? '').toUpperCase();
+        return key === 'ADMIN' || key === 'STAFF';
+    };
 
     const toggleExpand = (role: Role) => {
         if (isAdminRole(role)) return; // ADMIN là quyền tối cao: không chỉnh sửa được
@@ -41,6 +46,7 @@ export function RoleManagementView({ onViewDetail }: RoleManagementViewProps) {
                 ) : (
                     (roles ?? [])
                         .filter((role: Role) => !isManagerRole(role)) // MANAGER là tenant-level: Platform Admin không quản lý
+                        .filter((role: Role) => !isAdminOrStaffRole(role)) // Ẩn card ADMIN và STAFF khỏi tab Vai trò
                         .map((role: Role) => (
                         <div key={role.id} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg transition-all flex flex-col">
                             <div className="flex items-center justify-between mb-2">
@@ -64,7 +70,7 @@ export function RoleManagementView({ onViewDetail }: RoleManagementViewProps) {
                                         .map((perm) => (
                                         <div key={perm.id} className="flex items-center gap-2 text-xs font-medium text-gray-500 bg-gray-50 px-3 py-2 rounded-lg">
                                             <Key className="w-3 h-3 text-gray-400 shrink-0" />
-                                            {perm.name}
+                                            {getPermissionDisplayName(perm.name, i18n.language)}
                                         </div>
                                     ))}
                                 </div>

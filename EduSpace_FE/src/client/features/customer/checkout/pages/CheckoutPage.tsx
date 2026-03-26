@@ -10,21 +10,51 @@ import { Calendar, Clock, CreditCard, ChevronRight, CheckCircle2, ShieldCheck, L
 import { toast } from 'sonner';
 import { bookingDepositService } from '../services/bookingDepositService';
 import { formatCurrency } from '../../../../../utils';
+import { VoucherInput } from '../components/VoucherInput';
+import type { AppliedVoucher } from '../components/VoucherInput';
 
 export function CheckoutPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
+  
+  const formatTimeVi = (hhmm?: string) => {
+    if (!hhmm) return '--:--';
+    const [h, m] = hhmm.split(':').map(Number);
+    if (!Number.isFinite(h) || !Number.isFinite(m)) return hhmm;
+    const suffix = h >= 12 ? 'CH' : 'SA';
+    const hour12 = h % 12 || 12;
+    return `${hour12.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')} ${suffix}`;
+  };
+
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const bookingDetails = (location.state as any)?.bookingDetails;
 
   // Form State aligned with CreateBookingReq
-  const [bookingData, setBookingData] = useState<Partial<CreateBookingReq>>({
-    roomId: bookingDetails?.roomId,
-    bookingDate: bookingDetails?.bookingDate,
-    slotId: bookingDetails?.slotId,
-    durationValue: bookingDetails?.durationValue,
-    durationUnit: bookingDetails?.durationUnit ?? 'HOUR',
+  const startTimeStr: string | undefined = bookingDetails?.startTime;
+  const endTimeStr: string | undefined = bookingDetails?.endTime;
+
+  const computeDurationMinutes = (startHm?: string, endHm?: string) => {
+    if (!startHm || !endHm) return 0;
+    const [sh, sm] = startHm.split(':').map((v: string) => Number(v));
+    const [eh, em] = endHm.split(':').map((v: string) => Number(v));
+    if (!Number.isFinite(sh) || !Number.isFinite(sm) || !Number.isFinite(eh) || !Number.isFinite(em)) return 0;
+    const start = sh * 60 + sm;
+    const end = eh * 60 + em;
+    return Math.max(0, end - start);
+  };
+
+  const [bookingData, setBookingData] = useState<Partial<CreateBookingReq>>(() => {
+    const bookingDate = bookingDetails?.bookingDate;
+    const durationMinutes = computeDurationMinutes(startTimeStr, endTimeStr);
+    return {
+      roomId: bookingDetails?.roomId,
+      bookingDate,
+      durationValue: durationMinutes,
+      durationUnit: durationMinutes > 0 ? 'MINUTE' : 'HOUR',
+      startDateTime: bookingDate && startTimeStr ? `${bookingDate}T${startTimeStr}:00` : undefined,
+      endDateTime: bookingDate && endTimeStr ? `${bookingDate}T${endTimeStr}:00` : undefined,
+    };
   });
 
   // Mock Pricing Result from BE
@@ -32,13 +62,18 @@ export function CheckoutPage() {
     dailyBreakdown: [
       { date: 'Th 7, 20/1', hours: 3, basePrice: 500000, appliedPrice: 650000, isWeekend: true }
     ],
-    totalRoomPrice: 1950000,
-    cleaningFee: 50000,
-    serviceFee: 100000,
+    totalRoomPrice: bookingDetails?.roomCost ?? 1950000,
+    cleaningFee: bookingDetails?.cleaningFee ?? 50000,
+    serviceFee: bookingDetails?.serviceFee ?? 100000,
     extraCharges: [],
-    grandTotal: 2100000,
+    grandTotal: (bookingDetails?.total ?? 2100000),
     currency: 'VNĐ'
   });
+
+  const equipmentAddOnTotal = bookingDetails?.equipmentAddOnTotal ?? 0;
+  const selectedEquipmentAmenities = bookingDetails?.selectedEquipmentAmenities ?? [];
+
+  const [appliedVoucher, setAppliedVoucher] = useState<AppliedVoucher | null>(null);
 
   const [holdTimer, setHoldTimer] = useState(600); // 10 mins
   const [paymentTimer, setPaymentTimer] = useState(900); // 15 mins
@@ -56,6 +91,20 @@ export function CheckoutPage() {
     return () => clearInterval(interval);
   }, [step, holdTimer, paymentTimer]);
 
+  // Keep start/end datetime in sync when user changes booking date on step 1.
+  useEffect(() => {
+    if (!bookingData.bookingDate || !startTimeStr || !endTimeStr) return;
+    const durationMinutes = computeDurationMinutes(startTimeStr, endTimeStr);
+    setBookingData((prev) => ({
+      ...prev,
+      startDateTime: `${bookingData.bookingDate}T${startTimeStr}:00`,
+      endDateTime: `${bookingData.bookingDate}T${endTimeStr}:00`,
+      durationValue: durationMinutes,
+      durationUnit: durationMinutes > 0 ? 'MINUTE' : 'HOUR',
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookingData.bookingDate, startTimeStr, endTimeStr]);
+
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
@@ -64,55 +113,84 @@ export function CheckoutPage() {
 
   const nextStep = async () => {
     if (step === 3) {
-      if (!bookingData.roomId || !bookingData.slotId || !bookingData.bookingDate || !bookingData.durationValue || !bookingData.durationUnit) {
+      if (
+        !bookingData.roomId ||
+        !bookingData.bookingDate ||
+        !bookingData.startDateTime ||
+        !bookingData.endDateTime ||
+        !bookingData.durationValue ||
+        !bookingData.durationUnit
+      ) {
         return;
       }
       const profile = await profileService.getProfile();
+      const email = (payerEmail || (profile as { email?: string }).email || '').trim();
+      if (!email) {
+        toast.error(t('checkout.emailRequired', 'Vui lòng nhập email để nhận xác nhận đặt phòng.'));
+        return;
+      }
       await checkoutBookingApiService.createBooking({
         roomId: bookingData.roomId,
         userId: profile.id,
-        bookingDate: bookingData.bookingDate,
-        slotId: bookingData.slotId,
-        durationValue: bookingData.durationValue,
-        durationUnit: bookingData.durationUnit,
+        guestEmail: email,
+        bookingDate: bookingData.bookingDate!,
+        startDateTime: bookingData.startDateTime!,
+        endDateTime: bookingData.endDateTime!,
+        durationValue: bookingData.durationValue!,
+        durationUnit: bookingData.durationUnit!,
       });
     }
     setStep((prev) => (prev < 4 ? prev + 1 : prev) as any);
   };
-  const prevStep = () => setStep(prev => (prev > 1 ? prev - 1 : prev) as any);
+  const prevStep = () => {
+    if (step === 1) {
+      navigate(-1);
+    } else {
+      setStep(prev => (prev > 1 ? prev - 1 : prev) as any);
+    }
+  };
 
   useEffect(() => {
-    if (!bookingData.roomId || !bookingData.slotId || !bookingData.bookingDate || !bookingData.durationValue || !bookingData.durationUnit) {
+    if (
+      !bookingData.roomId ||
+      !bookingData.bookingDate ||
+      !bookingData.startDateTime ||
+      !bookingData.endDateTime
+    ) {
       return;
     }
     roomApiService
-      .quoteTimeslotPricing(bookingData.roomId, {
-        slotId: bookingData.slotId,
-        bookingDate: bookingData.bookingDate,
-        durationValue: bookingData.durationValue,
-        durationUnit: bookingData.durationUnit,
+      .quotePrice(bookingData.roomId, {
+        startDateTime: bookingData.startDateTime,
+        endDateTime: bookingData.endDateTime,
       })
       .then((quote) => {
+        const hours = quote.durationMinutes / 60;
+        const appliedPerHour = hours > 0 ? quote.subtotal / hours : quote.unitPrice ?? 0;
+
         setPricing({
           dailyBreakdown: [
             {
               date: bookingData.bookingDate ?? '',
-              hours: quote.durationMinutes / 60,
-              basePrice: quote.unitPrice,
-              appliedPrice: quote.unitPrice,
-              isWeekend: false,
+              hours,
+              basePrice: appliedPerHour,
+              appliedPrice: appliedPerHour,
+              isWeekend: quote.weekendSurchargeApplied,
             },
           ],
-          totalRoomPrice: quote.totalPrice,
-          cleaningFee: 50000,
-          serviceFee: 100000,
+          totalRoomPrice: quote.total,
+          cleaningFee: bookingDetails?.cleaningFee ?? 50000,
+          serviceFee: bookingDetails?.serviceFee ?? 100000,
           extraCharges: [],
-          grandTotal: quote.totalPrice + 150000,
-          currency: quote.currency,
+          grandTotal: quote.total + 150000 + equipmentAddOnTotal,
+          currency: 'VNĐ',
         });
       })
       .catch(() => undefined);
-  }, [bookingData.roomId, bookingData.slotId, bookingData.bookingDate, bookingData.durationValue, bookingData.durationUnit]);
+  }, [bookingData.roomId, bookingData.bookingDate, bookingData.startDateTime, bookingData.endDateTime]);
+
+  const discountAmount = appliedVoucher?.discountAmount ?? 0;
+  const finalTotal = Math.max(0, pricing.grandTotal - discountAmount);
 
   const handlePayDeposit = async () => {
     setPayingDeposit(true);
@@ -196,32 +274,24 @@ export function CheckoutPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t('customer.checkout.schedule.numDays')}</label>
-                      <select
-                        value={bookingData.durationValue}
-                        onChange={(e) => setBookingData({ ...bookingData, durationValue: parseInt(e.target.value), durationUnit: 'HOUR' })}
-                        className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-100 focus:border-red-400 transition-all appearance-none"
-                      >
-                        {[1, 2, 3, 4, 5, 6, 7].map(d => <option key={d} value={d}>{d} giờ</option>)}
-                      </select>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Thời lượng</label>
+                      <div className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-100 focus:border-red-400 transition-all">
+                        {bookingData.durationUnit === 'MINUTE'
+                          ? (bookingData.durationValue ?? 0) + ' phút'
+                          : (bookingData.durationValue ?? 0) + ' giờ'}
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t('customer.checkout.schedule.startTime')}</label>
-                      <input
-                        type="time"
-                        value={bookingDetails?.startTime || ''}
-                        readOnly
-                        className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-100 transition-all"
-                      />
+                      <div className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-black text-gray-900 shadow-sm">
+                        {formatTimeVi(bookingDetails?.startTime)}
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t('customer.checkout.schedule.endTime')}</label>
-                      <input
-                        type="time"
-                        value={bookingDetails?.endTime || ''}
-                        readOnly
-                        className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-100 transition-all"
-                      />
+                      <div className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-black text-gray-900 shadow-sm">
+                        {formatTimeVi(bookingDetails?.endTime)}
+                      </div>
                     </div>
                   </div>
 
@@ -283,10 +353,42 @@ export function CheckoutPage() {
                       <span className="font-bold text-gray-400">{t('customer.checkout.pricing.serviceFee')}</span>
                       <span className="font-black text-gray-900">{formatCurrency(pricing.serviceFee)}</span>
                     </div>
+                    {equipmentAddOnTotal > 0 && (
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="font-bold text-gray-400">Tiện ích thêm</span>
+                        <span className="font-black text-gray-900">{formatCurrency(equipmentAddOnTotal)}</span>
+                      </div>
+                    )}
+
+                    {/* Voucher Input */}
+                    <div className="pt-2">
+                      <VoucherInput
+                        orderTotal={pricing.grandTotal}
+                        onApply={setAppliedVoucher}
+                        appliedVoucher={appliedVoucher}
+                      />
+                    </div>
+
+                    {/* Discount row */}
+                    {discountAmount > 0 && (
+                      <div className="flex justify-between items-center text-sm animate-in fade-in duration-300">
+                        <span className="font-bold text-green-600 flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
+                          Giảm giá ({appliedVoucher?.code})
+                        </span>
+                        <span className="font-black text-green-600">-{formatCurrency(discountAmount)}</span>
+                      </div>
+                    )}
+
                     <div className="h-px bg-gray-100 my-4" />
                     <div className="flex justify-between items-center">
                       <span className="text-xl font-black text-gray-900">{t('customer.checkout.pricing.grandTotal')}</span>
-                      <span className="text-3xl font-black text-red-500 tracking-tight">{formatCurrency(pricing.grandTotal)}</span>
+                      <div className="text-right">
+                        {discountAmount > 0 && (
+                          <div className="text-sm font-black text-gray-300 line-through">{formatCurrency(pricing.grandTotal)}</div>
+                        )}
+                        <span className="text-3xl font-black text-red-500 tracking-tight">{formatCurrency(finalTotal)}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -403,10 +505,9 @@ export function CheckoutPage() {
                 <div className="flex items-center justify-between pt-6">
                   <button
                     onClick={prevStep}
-                    disabled={step === 1}
-                    className={`px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all ${step === 1 ? 'text-gray-200' : 'text-gray-400 hover:text-gray-900'}`}
+                    className="px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all text-gray-400 hover:text-gray-900 flex items-center gap-2 group"
                   >
-                    ← {t('common.goBack')}
+                    <span className="group-hover:-translate-x-1 transition-transform">←</span> {t('common.goBack')}
                   </button>
                   <button
                     onClick={() => {
@@ -469,10 +570,35 @@ export function CheckoutPage() {
                       <span className="text-gray-400">{t('customer.checkout.pricing.serviceFee')}</span>
                       <span className="text-gray-900">{formatCurrency(pricing.serviceFee)}</span>
                     </div>
+
+                    {selectedEquipmentAmenities.length > 0 && (
+                      <div className="pt-3 border-t border-gray-50 space-y-2">
+                        <div className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-2">Tiện ích thêm</div>
+                        {selectedEquipmentAmenities.map((amn: any, idx: number) => (
+                          <div key={idx} className="flex justify-between text-[11px] font-bold">
+                            <span className="text-gray-400">{amn.name}</span>
+                            <span className="text-gray-900">{amn.price > 0 ? formatCurrency(amn.price) : 'Miễn phí'}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {discountAmount > 0 && (
+                      <div className="flex justify-between text-[11px] font-bold text-green-600 animate-in fade-in duration-300">
+                        <span>Giảm giá ({appliedVoucher?.code})</span>
+                        <span>-{formatCurrency(discountAmount)}</span>
+                      </div>
+                    )}
+
                     <div className="h-px bg-gray-50 my-2" />
                     <div className="flex justify-between items-end">
                       <span className="text-sm font-black text-gray-900">Total</span>
-                      <span className="text-2xl font-black text-red-500 tracking-tight">{formatCurrency(pricing.grandTotal)}</span>
+                      <div className="text-right">
+                        {discountAmount > 0 && (
+                          <div className="text-[10px] font-black text-gray-300 line-through">{formatCurrency(pricing.grandTotal)}</div>
+                        )}
+                        <span className="text-2xl font-black text-red-500 tracking-tight">{formatCurrency(finalTotal)}</span>
+                      </div>
                     </div>
                   </div>
                 </div>

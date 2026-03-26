@@ -108,6 +108,7 @@ function schedulesFromApiRows(rows: RoomScheduleDto[]): DaySchedule[] {
 type ScheduleBlockRow = {
   id: number;
   propertyId: number;
+  roomId?: number | null;
   branchLabel: string;
   startDatetime: string;
   endDatetime: string;
@@ -151,13 +152,11 @@ function is247WeekPattern(rows: DaySchedule[]): boolean {
   );
 }
 
-/** Cờ 24/7: ưu tiên phòng đại diện trong cơ sở, không có phòng thì suy từ lịch tuần. */
-function derive247Mode(room: RoomDto | undefined, rows: DaySchedule[]): boolean {
-  if (room?.is24_7) return true;
+/** Cờ 24/7: suy ra từ lịch tuần của cơ sở (room_schedules). */
+function derive247Mode(rows: DaySchedule[]): boolean {
   return is247WeekPattern(rows);
 }
 
-/** Một phòng bất kỳ trong cơ sở để đồng bộ is24_7 (BE vẫn gắn theo phòng). */
 function firstRoomInProperty(rooms: RoomDto[], propertyId: number): RoomDto | undefined {
   const inProp = rooms.filter((r) => r.propertyId === propertyId && !r.deletedAt);
   if (inProp.length === 0) return undefined;
@@ -225,6 +224,7 @@ function apiBlockToRow(block: RoomBlockDto, branchNameByPropertyId: Map<number, 
     propertyId: block.propertyId,
     branchLabel:
       branchNameByPropertyId.get(block.propertyId) ?? `Chi nhánh #${block.propertyId}`,
+    roomId: block.roomId ?? null,
     startDatetime: block.startDatetime,
     endDatetime: block.endDatetime,
     reason: (block.reason && block.reason.trim()) || '—',
@@ -270,14 +270,30 @@ export function SchedulePage() {
     endTime: '',
     reason: '',
   });
+  const [blockScope, setBlockScope] = useState<'PROPERTY' | 'ROOM'>('PROPERTY');
+  const [selectedBlockRoomId, setSelectedBlockRoomId] = useState<number | null>(null);
   const [blockToDelete, setBlockToDelete] = useState<number | null>(null);
   const [blockSubmitting, setBlockSubmitting] = useState(false);
 
   const filteredProperties = useMemo(() => {
-    const mine = properties.filter((p) => p.ownerId === profile?.id?.trim());
-    if (selectedBranch == null) return mine;
-    return mine.filter((p) => p.id === selectedBranch.id);
-  }, [properties, selectedBranch, profile?.id]);
+    // properties state is already resolved for current host in loadRoomsAndBlocks()
+    // via room ownership fallback (see below), so avoid strict ownerId equality here.
+    if (selectedBranch == null) return properties;
+    return properties.filter((p) => p.id === selectedBranch.id);
+  }, [properties, selectedBranch]);
+
+  const propertyOptions = useMemo(() => {
+    if (filteredProperties.length > 0) {
+      return filteredProperties.map((p) => ({ id: p.id, name: p.name }));
+    }
+    // Fallback: BranchContext list (user-facing "danh sách chi nhánh của bạn") may be available
+    // while room/property owner identifiers are temporarily inconsistent.
+    const dedup = new Map<number, string>();
+    branches.forEach((b) => {
+      if (b?.id != null && !dedup.has(b.id)) dedup.set(b.id, b.name);
+    });
+    return Array.from(dedup.entries()).map(([id, name]) => ({ id, name }));
+  }, [filteredProperties, branches]);
 
   /** Lịch chặn theo cơ sở: chọn cơ sở → xem danh sách chặn của cơ sở đó. */
   const blocksForSelectedProperty = useMemo(() => {
@@ -285,9 +301,20 @@ export function SchedulePage() {
     return blocks.filter((b) => b.propertyId === selectedPropertyId);
   }, [blocks, selectedPropertyId]);
 
+  const roomsForSelectedProperty = useMemo(() => {
+    if (selectedPropertyId == null) return [];
+    return rooms.filter((r) => r.propertyId === selectedPropertyId);
+  }, [rooms, selectedPropertyId]);
+
   const loadRoomsAndBlocks = useCallback(async () => {
-    const ownerId = profile?.id?.trim();
-    if (!ownerId) {
+    const ownerIds = Array.from(
+      new Set(
+        [profile?.id, profile?.keycloakId]
+          .map((v) => (v ?? '').trim())
+          .filter((v) => v.length > 0),
+      ),
+    );
+    if (ownerIds.length === 0) {
       setProperties([]);
       setRooms([]);
       setBlocks([]);
@@ -296,17 +323,28 @@ export function SchedulePage() {
     setLoadingRooms(true);
     setRoomsError(null);
     try {
-      const [propList, roomList] = await Promise.all([
+      const [propList, ...roomListsByOwner] = await Promise.all([
         propertyApiService.getAll(),
-        roomApiService.getAll({ ownerId }),
+        ...ownerIds.map((oid) => roomApiService.getAll({ ownerId: oid })),
       ]);
-      const roomsNorm = Array.isArray(roomList) ? roomList : [];
+      const roomMap = new Map<number, RoomDto>();
+      roomListsByOwner.forEach((list) => {
+        (Array.isArray(list) ? list : []).forEach((r) => roomMap.set(r.id, r));
+      });
+      const roomsNorm = Array.from(roomMap.values());
       const propsNorm = Array.isArray(propList) ? propList : [];
-      setProperties(propsNorm.filter((p) => p.ownerId === ownerId));
+      // Owner identifiers can drift across environments (userId vs keycloakId in legacy rows).
+      // Build property candidates from actual owned rooms first, then fallback to ownerId match.
+      const propertyIdsFromRooms = new Set(roomsNorm.map((r) => r.propertyId));
+      const ownerIdSet = new Set(ownerIds);
+      const ownedProperties = propsNorm.filter(
+        (p) => propertyIdsFromRooms.has(p.id) || ownerIdSet.has((p.ownerId ?? '').trim()),
+      );
+      setProperties(ownedProperties);
       setRooms(roomsNorm);
       const propertyIds = new Set(roomsNorm.map((r) => r.propertyId));
       propsNorm
-        .filter((p) => p.ownerId === ownerId)
+        .filter((p) => ownerIdSet.has((p.ownerId ?? '').trim()))
         .forEach((p) => propertyIds.add(p.id));
       const branchNameByPropertyId = new Map(branches.map((br) => [br.id, br.name] as const));
       const allBlocks = await roomBlockService.listAll();
@@ -320,7 +358,7 @@ export function SchedulePage() {
     } finally {
       setLoadingRooms(false);
     }
-  }, [profile?.id, branches]);
+  }, [profile?.id, profile?.keycloakId, branches]);
 
   useEffect(() => {
     void loadRoomsAndBlocks();
@@ -335,6 +373,23 @@ export function SchedulePage() {
   useEffect(() => {
     if (selectedPropertyId == null) setShowBlockForm(false);
   }, [selectedPropertyId]);
+
+  useEffect(() => {
+    if (selectedPropertyId == null) {
+      setBlockScope('PROPERTY');
+      setSelectedBlockRoomId(null);
+      return;
+    }
+    if (blockScope === 'PROPERTY') {
+      setSelectedBlockRoomId(null);
+      return;
+    }
+    // blockScope === 'ROOM'
+    const first = roomsForSelectedProperty[0]?.id ?? null;
+    if (selectedBlockRoomId == null || !roomsForSelectedProperty.some((r) => r.id === selectedBlockRoomId)) {
+      setSelectedBlockRoomId(first);
+    }
+  }, [selectedPropertyId, roomsForSelectedProperty, blockScope, selectedBlockRoomId]);
 
   const uid = profile?.id?.trim();
   useEffect(() => {
@@ -353,8 +408,7 @@ export function SchedulePage() {
         const next = schedulesFromApiRows(bundle.schedules);
         setSchedules(next);
         setBufferMinutes(Number.isFinite(bundle.bufferMinutes) ? bundle.bufferMinutes : 0);
-        const rep = firstRoomInProperty(rooms, selectedPropertyId);
-        setIs247Mode(derive247Mode(rep, next));
+        setIs247Mode(derive247Mode(next));
         setHasExistingScheduleData(Array.isArray(bundle.schedules) && bundle.schedules.length > 0);
       } catch {
         if (!cancelled) {
@@ -372,8 +426,8 @@ export function SchedulePage() {
 
   const selectedProperty = useMemo(
     () =>
-      selectedPropertyId != null ? filteredProperties.find((p) => p.id === selectedPropertyId) : undefined,
-    [filteredProperties, selectedPropertyId],
+      selectedPropertyId != null ? propertyOptions.find((p) => p.id === selectedPropertyId) : undefined,
+    [propertyOptions, selectedPropertyId],
   );
 
   const [savedFlash, setSavedFlash] = useState(false);
@@ -474,40 +528,18 @@ export function SchedulePage() {
         isOverDay: false,
         schedules: items,
       });
-      const is247 = is247Mode;
-      const repRoom = firstRoomInProperty(rooms, propertyId);
-      let merged: RoomDto | null = null;
-      let synced247 = true;
-      if (repRoom) {
-        try {
-          merged = await roomApiService.update(repRoom.id, { is24_7: is247 });
-        } catch {
-          synced247 = false;
-        }
-      } else {
-        synced247 = false;
-      }
       setRooms((prev) =>
         prev.map((r) => {
           if (r.propertyId !== propertyId) return r;
-          const base = repRoom && r.id === repRoom.id && merged ? merged : r;
           return {
-            ...base,
+            ...r,
             schedules: scheduleRows.schedules,
             scheduleBufferMinutes: scheduleRows.bufferMinutes,
             scheduleIsOverDay: scheduleRows.isOverDay,
           };
         }),
       );
-      if (synced247) {
-        showToast.success('Đã lưu lịch & giờ hoạt động.');
-      } else {
-        showToast.success(
-          repRoom
-            ? 'Đã lưu lịch. Lưu ý: không cập nhật được cờ 24/7 cho phòng — thử bấm Lưu lại.'
-            : 'Đã lưu lịch & giờ hoạt động cho chi nhánh.',
-        );
-      }
+      showToast.success('Đã lưu lịch & giờ hoạt động.');
       setHasExistingScheduleData(true);
       setSavedFlash(true);
       setTimeout(() => setSavedFlash(false), 2500);
@@ -537,6 +569,10 @@ export function SchedulePage() {
       showToast.error('Chọn chi nhánh ở card “Chọn chi nhánh” phía trên để gắn lịch chặn.');
       return;
     }
+    if (blockScope === 'ROOM' && selectedBlockRoomId == null) {
+      showToast.error('Vui lòng chọn phòng (room id) để chặn.');
+      return;
+    }
     if (!uid) {
       showToast.error('Không xác định được tài khoản host.');
       return;
@@ -546,6 +582,7 @@ export function SchedulePage() {
       const pid = selectedPropertyId;
       await roomBlockService.create({
         propertyId: pid,
+        roomId: blockScope === 'ROOM' ? selectedBlockRoomId : null,
         startDatetime: toLocalDateTimeIso(startDt),
         endDatetime: toLocalDateTimeIso(endDt),
         reason: newBlock.reason.trim() || null,
@@ -581,7 +618,7 @@ export function SchedulePage() {
 
   const showScheduleForm = selectedPropertyId != null && selectedProperty != null;
   const noPropertiesInScope =
-    !profileLoading && !loadingRooms && Boolean(profile?.id) && filteredProperties.length === 0;
+    !profileLoading && !loadingRooms && Boolean(profile?.id) && propertyOptions.length === 0;
   const canSave = showScheduleForm && !savingSchedule;
   const saveActionLabel = hasExistingScheduleData ? 'Cập nhật lịch' : 'Tạo lịch';
 
@@ -633,7 +670,7 @@ export function SchedulePage() {
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl font-bold text-gray-900 focus:border-red-500 focus:ring-2 focus:ring-red-100 outline-none transition-all"
                 >
                   <option value="">— Chọn chi nhánh —</option>
-                  {filteredProperties.map((p) => (
+                  {propertyOptions.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name}
                     </option>
@@ -730,8 +767,8 @@ export function SchedulePage() {
                     </>
                   ) : (
                     <>
-                      Bật 24/7 rồi <span className="font-semibold text-gray-600">Lưu</span> — đồng bộ cờ phòng &amp; lịch
-                      cả tuần.
+                      Bật 24/7 rồi <span className="font-semibold text-gray-600">Lưu</span> — áp{' '}
+                      <span className="font-semibold text-gray-600">isOverDay=true</span> cho lịch cả tuần.
                     </>
                   )}
                 </p>
@@ -916,6 +953,66 @@ export function SchedulePage() {
                     <span className="font-bold">ít nhất 30 phút</span>.
                   </AlertDescription>
                 </Alert>
+                  <div className="mb-4">
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                      Phạm vi chặn lịch
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBlockScope('PROPERTY');
+                          setSelectedBlockRoomId(null);
+                        }}
+                        disabled={blockSubmitting}
+                        className={`px-4 py-3 rounded-xl border text-left font-bold transition-all ${
+                          blockScope === 'PROPERTY'
+                            ? 'bg-red-50 border-red-200 text-red-700'
+                            : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        Chặn theo cơ sở (tất cả phòng)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBlockScope('ROOM');
+                        }}
+                        disabled={blockSubmitting || roomsForSelectedProperty.length === 0}
+                        className={`px-4 py-3 rounded-xl border text-left font-bold transition-all ${
+                          blockScope === 'ROOM'
+                            ? 'bg-red-50 border-red-200 text-red-700'
+                            : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        Chặn theo phòng (của cơ sở này)
+                      </button>
+                    </div>
+
+                    {blockScope === 'ROOM' ? (
+                      <div className="mt-3 rounded-xl border border-gray-200 bg-white p-4">
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                          Chọn phòng (room id)
+                        </label>
+                        <select
+                          value={selectedBlockRoomId ?? ''}
+                          onChange={(e) => setSelectedBlockRoomId(Number(e.target.value))}
+                          disabled={blockSubmitting || roomsForSelectedProperty.length === 0}
+                          className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl font-bold text-sm text-gray-900 focus:border-red-500 focus:ring-2 focus:ring-red-100 outline-none disabled:opacity-50"
+                        >
+                          {roomsForSelectedProperty.length === 0 ? (
+                            <option value="">Chưa có phòng trong cơ sở này</option>
+                          ) : (
+                            roomsForSelectedProperty.map((r) => (
+                              <option key={r.id} value={r.id}>
+                                {r.id}
+                              </option>
+                            ))
+                          )}
+                        </select>
+                      </div>
+                    ) : null}
+                  </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <div className="rounded-xl border border-gray-200 bg-white p-4">
                     <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
@@ -1010,7 +1107,11 @@ export function SchedulePage() {
                 <button
                   type="button"
                   onClick={() => void submitBlock()}
-                  disabled={blockSubmitting || !selectedPropertyId}
+                  disabled={
+                    blockSubmitting ||
+                    !selectedPropertyId ||
+                    (blockScope === 'ROOM' && selectedBlockRoomId == null)
+                  }
                   className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-gray-900 text-white rounded-xl font-bold text-sm hover:bg-red-500 transition-all active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
                 >
                   {blockSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
@@ -1041,7 +1142,10 @@ export function SchedulePage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <span className="font-black text-xs px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg">{b.branchLabel}</span>
+                        <span className="font-black text-xs px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg">
+                          {b.branchLabel}
+                          {b.roomId != null ? ` • Phòng #${b.roomId}` : ''}
+                        </span>
                       </TableCell>
                       <TableCell>
                         <span className="text-gray-500 font-bold text-sm">{b.reason}</span>

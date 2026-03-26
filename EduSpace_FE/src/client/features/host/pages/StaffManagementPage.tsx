@@ -7,9 +7,11 @@ import { useAuthStore } from '@/stores/authStore';
 import { hasHostPermission } from '@/utils/keycloakTokenRoles';
 import { hostPermissions } from '../permissions/hostPermissions';
 import { StaffPermissionGrid } from '../components/StaffPermissionGrid';
+import { ManagerPermissionsEditorModal } from '../components/ManagerPermissionsEditorModal';
 import {
     fetchHostStaffList,
     inviteBranchManager,
+    type InviteBranchManagerResult,
     removeHostStaff,
     replaceStaffPermissions,
     type HostStaffMember,
@@ -18,6 +20,7 @@ import { profileService } from '@/client/features/customer/profile/services/prof
 import { branchService, type HostBranch } from '../services/branchService';
 import { showToast } from '@/utils/toast';
 import { getApiErrorMessage } from '@/utils/apiError';
+import { hostManagerRoleService } from '../services/hostManagerRoleService';
 
 function permSetsEqual(a: string[] | undefined, b: string[] | undefined): boolean {
     const sa = [...(a ?? [])].sort().join('|');
@@ -42,12 +45,20 @@ export function StaffManagementPage() {
     const canDeleteStaff = hasHostPermission(accessToken, hostPermissions.staff.delete, hostPermissionsFromAccount);
 
     const [showForm, setShowForm] = useState(false);
-    const [inviteForm, setInviteForm] = useState<{ email: string; branchPropertyId: number | '' }>({
+    const [inviteForm, setInviteForm] = useState<{
+        email: string;
+        branchPropertyId: number | '';
+        fullName: string;
+        temporaryPassword: string;
+    }>({
         email: '',
         branchPropertyId: '',
+        fullName: '',
+        temporaryPassword: '',
     });
 
     const [draftPermissions, setDraftPermissions] = useState<Record<string, string[]>>({});
+    const [editingManager, setEditingManager] = useState<HostStaffMember | null>(null);
 
     const { data: profile } = useQuery({
         queryKey: ['account-profile'],
@@ -55,6 +66,12 @@ export function StaffManagementPage() {
         enabled: canViewStaff,
     });
     const ownerId = profile?.id;
+
+    const { data: permissionCatalog = [], isLoading: permissionCatalogLoading } = useQuery({
+        queryKey: ['host-permission-catalog'],
+        queryFn: () => hostManagerRoleService.getPermissionCatalog(),
+        enabled: canViewStaff,
+    });
 
     const { data: branches = [], isLoading: branchesLoading } = useQuery({
         queryKey: ['host-branches-owner', ownerId],
@@ -100,13 +117,17 @@ export function StaffManagementPage() {
 
     const inviteMutation = useMutation({
         mutationFn: inviteBranchManager,
-        onSuccess: () => {
+        onSuccess: (result: InviteBranchManagerResult) => {
             queryClient.invalidateQueries({ queryKey: ['host-staff'] });
-            setInviteForm({ email: '', branchPropertyId: '' });
+            setInviteForm({ email: '', branchPropertyId: '', fullName: '', temporaryPassword: '' });
             setShowForm(false);
-            showToast.success(
-                isVi ? 'Đã thêm quản lý chi nhánh (Manager).' : 'Branch manager has been added.',
-            );
+            showToast.success(result.created
+                ? (isVi
+                    ? 'Đã tạo tài khoản và gửi email mời quản lý thành công.'
+                    : 'Manager account created and invitation email sent.')
+                : (isVi
+                    ? 'Đã cấp quyền quản lý chi nhánh thành công.'
+                    : 'Branch manager access granted successfully.'));
         },
         onError: (e: unknown) => {
             showToast.error(getApiErrorMessage(e, isVi ? 'Không thêm được quản lý.' : 'Could not add manager.'));
@@ -121,6 +142,21 @@ export function StaffManagementPage() {
         },
         onError: (e: unknown) => {
             showToast.error(getApiErrorMessage(e, isVi ? 'Không gỡ được.' : 'Could not remove.'));
+        },
+    });
+
+    const updateManagerPermissionsMutation = useMutation({
+        mutationFn: ({ staffUserId, permissionIds }: { staffUserId: string; permissionIds: number[] }) =>
+            hostManagerRoleService.updateManagerPermissions(staffUserId, permissionIds),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['host-staff'] });
+            setEditingManager(null);
+            showToast.success(isVi ? 'Đã cập nhật quyền Manager.' : 'Manager permissions updated.');
+        },
+        onError: (e: unknown) => {
+            showToast.error(
+                getApiErrorMessage(e, isVi ? 'Không cập nhật được quyền Manager.' : 'Could not update manager permissions.'),
+            );
         },
     });
 
@@ -143,13 +179,24 @@ export function StaffManagementPage() {
 
     const handleInvite = () => {
         if (!canCreateStaff) return;
-        if (!inviteForm.email.trim() || inviteForm.branchPropertyId === '') {
-            showToast.error(isVi ? 'Nhập email và chọn chi nhánh.' : 'Enter email and select a branch.');
+        if (
+            !inviteForm.email.trim() ||
+            !inviteForm.fullName.trim() ||
+            !inviteForm.temporaryPassword.trim() ||
+            inviteForm.branchPropertyId === ''
+        ) {
+            showToast.error(
+                isVi
+                    ? 'Nhập email, họ tên, mật khẩu và chọn chi nhánh.'
+                    : 'Enter email, full name, password, and select a branch.',
+            );
             return;
         }
         inviteMutation.mutate({
             email: inviteForm.email.trim(),
             branchPropertyId: Number(inviteForm.branchPropertyId),
+            fullName: inviteForm.fullName.trim(),
+            temporaryPassword: inviteForm.temporaryPassword.trim(),
         });
     };
 
@@ -221,13 +268,13 @@ export function StaffManagementPage() {
                     <div className="bg-white rounded-3xl border border-gray-100 p-8 shadow-lg mb-8 animate-in slide-in-from-top duration-500">
                         <h3 className="text-lg font-black text-gray-900 mb-2">Thêm quản lý chi nhánh (Manager)</h3>
                         <p className="text-sm text-gray-500 mb-6">
-                            Nhập email tài khoản đã đăng ký (Guest) và chọn chi nhánh. Hệ thống gán role Manager — không
-                            chọn quyền từng mục tại đây.
+                            Nhập thông tin tài khoản (email, họ tên, mật khẩu tạm) và chọn chi nhánh. Hệ thống cấp quyền
+                            Manager cho tài khoản đó.
                         </p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                             <div>
                                 <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">
-                                    Email tài khoản Guest *
+                                    Email *
                                 </label>
                                 <input
                                     type="email"
@@ -238,6 +285,32 @@ export function StaffManagementPage() {
                                 />
                             </div>
                             <div>
+                                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">
+                                    Họ và tên *
+                                </label>
+                                <input
+                                    type="text"
+                                    value={inviteForm.fullName}
+                                    onChange={(e) => setInviteForm((p) => ({ ...p, fullName: e.target.value }))}
+                                    placeholder="Nguyễn Văn A"
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-900 focus:border-red-500 focus:ring-2 focus:ring-red-100 outline-none transition-all"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">
+                                    Mật khẩu tạm *
+                                </label>
+                                <input
+                                    type="password"
+                                    value={inviteForm.temporaryPassword}
+                                    onChange={(e) =>
+                                        setInviteForm((p) => ({ ...p, temporaryPassword: e.target.value }))
+                                    }
+                                    placeholder="••••••••••"
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-900 focus:border-red-500 focus:ring-2 focus:ring-red-100 outline-none transition-all"
+                                />
+                            </div>
+                            <div className="md:col-span-3">
                                 <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">
                                     Chi nhánh *
                                 </label>
@@ -379,11 +452,17 @@ export function StaffManagementPage() {
                                             </div>
 
                                             {isManager ? (
-                                                <p className="mt-3 text-xs text-gray-500 leading-relaxed">
-                                                    {isVi
-                                                        ? 'Không chỉnh quyền chi tiết tại đây. Quản lý dùng bộ quyền Manager do hệ thống gán.'
-                                                        : 'Permissions are not edited here; Manager uses the default role bundle.'}
-                                                </p>
+                                                <>
+                                                    <div className="mt-3">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setEditingManager(staff)}
+                                                            className="px-4 py-2 rounded-xl text-sm font-bold border border-gray-200 text-gray-700 hover:bg-gray-50 transition-all"
+                                                        >
+                                                            {isVi ? 'Chi tiết quyền' : 'Permission details'}
+                                                        </button>
+                                                    </div>
+                                                </>
                                             ) : (
                                                 <>
                                                     <StaffPermissionGrid
@@ -451,6 +530,19 @@ export function StaffManagementPage() {
                     </div>
                 )}
             </div>
+            <ManagerPermissionsEditorModal
+                isVi={isVi}
+                open={!!editingManager}
+                managerName={editingManager?.fullName ?? ''}
+                permissionCatalog={permissionCatalog}
+                initialPermissionNames={editingManager?.permissionNames ?? []}
+                saving={updateManagerPermissionsMutation.isPending || permissionCatalogLoading}
+                onClose={() => setEditingManager(null)}
+                onSave={(permissionIds) => {
+                    if (!editingManager) return;
+                    updateManagerPermissionsMutation.mutate({ staffUserId: editingManager.id, permissionIds });
+                }}
+            />
         </RentalLayout>
     );
 }

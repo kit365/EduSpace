@@ -9,6 +9,7 @@ import {
     canAccessAdminPortal,
     canAccessHostConsole,
     getRealmRolesFromAccessToken,
+    normalizeRoleName,
 } from '../../utils/keycloakTokenRoles';
 
 function RentalLayoutInner({ children, title }: { children: ReactNode; title?: string }) {
@@ -24,6 +25,11 @@ function RentalLayoutInner({ children, title }: { children: ReactNode; title?: s
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     const realmRoles = useMemo(() => getRealmRolesFromAccessToken(accessToken), [accessToken]);
+    const normalizedRoles = useMemo(() => realmRoles.map(normalizeRoleName), [realmRoles]);
+    const managerOnlyMode = useMemo(
+        () => normalizedRoles.includes('MANAGER') && !normalizedRoles.includes('HOST'),
+        [normalizedRoles],
+    );
     const allowedModes = useMemo((): UserRole[] => {
         const modes: UserRole[] = ['user'];
         if (isAuthenticated && canAccessHostConsole(realmRoles)) {
@@ -98,16 +104,17 @@ function RentalLayoutInner({ children, title }: { children: ReactNode; title?: s
                         {isDropdownOpen && (
                             <div className="absolute top-full mt-2 right-0 w-64 bg-white border border-gray-100 rounded-xl shadow-lg z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                                 <div className="p-1">
-                                    {/* Global Option */}
-                                    <button
-                                        onClick={() => { setSelectedBranch(null); setIsDropdownOpen(false); }}
-                                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-left ${!selectedBranch ? 'bg-red-50 text-red-600' : 'hover:bg-gray-50 text-gray-900'}`}
-                                    >
-                                        <Globe className="w-4 h-4 shrink-0" />
-                                        <span className="text-sm font-semibold">Tất cả chi nhánh</span>
-                                    </button>
+                                    {!managerOnlyMode && (
+                                        <button
+                                            onClick={() => { setSelectedBranch(null); setIsDropdownOpen(false); }}
+                                            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-left ${!selectedBranch ? 'bg-red-50 text-red-600' : 'hover:bg-gray-50 text-gray-900'}`}
+                                        >
+                                            <Globe className="w-4 h-4 shrink-0" />
+                                            <span className="text-sm font-semibold">Tất cả chi nhánh</span>
+                                        </button>
+                                    )}
 
-                                    {branches.length > 0 && <div className="h-px bg-gray-100 my-1" />}
+                                    {!managerOnlyMode && branches.length > 0 && <div className="h-px bg-gray-100 my-1" />}
 
                                     {/* Branch Options */}
                                     {branches.map(branch => {

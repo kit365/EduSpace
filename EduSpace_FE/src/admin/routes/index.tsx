@@ -12,10 +12,10 @@ import { RoomManagementPage } from '../features/room-management';
 import { AdminRoomCategoryPage } from '../features/room-categories/pages/AdminRoomCategoryPage';
 import { BookingManagementPage } from '../features/bookings';
 import { ReviewManagementPage } from '../features/reviews';
-import { AdsManagementPage } from '../features/ads';
 import { FacilityManagementPage } from '../features/facilities';
 import { PointManagementPage } from '../features/points';
 import { AdminMessagesPage } from '../features/messages';
+import { VoucherManagementPage } from '../features/vouchers/pages/VoucherManagementPage';
 
 export const adminRoutes: RouteObject[] = [
     {
@@ -47,7 +47,7 @@ export const adminRoutes: RouteObject[] = [
 
             // ─── Platform ─────────────────────────────────────
             { path: 'facilities', element: <FacilityManagementPage /> },
-            { path: 'ads', element: <AdsManagementPage /> },
+            { path: 'vouchers', element: <VoucherManagementPage /> },
             { path: 'points', element: <PointManagementPage /> },
 
             // ─── System ───────────────────────────────────────

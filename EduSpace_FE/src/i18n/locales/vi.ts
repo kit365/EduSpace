@@ -278,6 +278,8 @@ export const vi = {
             date: "Ngày",
             checkIn: "Giờ vào",
             checkOut: "Giờ ra",
+            duration: "Thời lượng thuê",
+            durationHours: "{{count}} giờ",
             guests: "Số khách",
             notChargedYet: "Bạn chưa bị tính phí.",
             freeCancellation: "Hủy miễn phí trong 24 giờ.",
@@ -301,7 +303,20 @@ export const vi = {
             contactHostTitle: "Liên hệ Host",
             contactHostDesc: "Bạn cần thêm thông tin về tiện nghi, thời gian hoặc hỗ trợ đặt chỗ? Hãy nhắn trực tiếp cho host.",
             contactHostBtn: "Nhắn host ngay",
-            verifiedHost: "Chủ phòng đã xác thực"
+            verifiedHost: "Chủ phòng đã xác thực",
+            pricing: {
+                open24Hours: "Mở cửa 24/7",
+                perHour: "/ giờ",
+                total: "Tổng cộng",
+                pricingRules: "Quy tắc định giá"
+            },
+            status: {
+                open: "Đang mở cửa",
+                closed: "Đã đóng cửa",
+                opensAt: "Mở lúc {{time}}",
+                closesAt: "Đóng lúc {{time}}",
+                open24_7: "Hoạt động 24/7"
+            }
         },
         search: {
             title: "Tìm kiếm không gian",

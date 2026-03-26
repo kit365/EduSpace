@@ -1,7 +1,7 @@
 import {
   BookingRequest, DashboardStats, CalendarEvent, HostFinanceSummary,
   StaffMember, PricingConfig, OperatingHour, BlockedSlot,
-  RoomStatusInfo, AdsPackage, AdsSubscription, RoomType
+  RoomStatusInfo, RoomType, UtilityPrice
 } from '../types';
 
 // ─── DASHBOARD ────────────────────────────────────────────────
@@ -227,42 +227,6 @@ export const MOCK_HOST_SPACES = [
   { id: 8, name: 'Conference Room VIP', type: 'Meeting Room', capacity: 25, price: '850.000đ/giờ', status: 'active', branchId: 2, image: 'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=400' },
 ];
 
-// ─── FR-05: ADS PACKAGES ──────────────────────────────────────
-export const ADS_PACKAGES: AdsPackage[] = [
-  {
-    id: 'ADS-SILVER', name: 'Gói Bạc (Silver)', tier: 'silver',
-    price: 500_000, duration: 30,
-    features: [
-      'Gắn nhãn "Đề xuất" trên tin đăng',
-      'Ưu tiên hiển thị trong kết quả tìm kiếm',
-      'Hiển thị trên trang chủ (vị trí thấp)',
-      'Báo cáo lượt xem cơ bản',
-    ],
-    badge: '⭐ Silver', priorityBoost: 20
-  },
-  {
-    id: 'ADS-GOLD', name: 'Gói Vàng (Gold)', tier: 'gold',
-    price: 1_200_000, duration: 30,
-    features: [
-      'Gắn nhãn "Nổi bật" trên tin đăng',
-      'Vị trí hàng đầu trong kết quả tìm kiếm',
-      'Hiển thị trên trang chủ (banner nổi bật)',
-      'Báo cáo phân tích chi tiết (views, clicks, bookings)',
-      'Hỗ trợ chụp ảnh chuyên nghiệp (1 lần)',
-      'Badge Gold trên hồ sơ Host',
-    ],
-    badge: '👑 Gold', priorityBoost: 50
-  }
-];
-
-export const HOST_ADS_SUBSCRIPTIONS: AdsSubscription[] = [
-  {
-    id: 'SUB-001', packageId: 'ADS-SILVER', packageName: 'Gói Bạc', tier: 'silver',
-    spaceId: 1, spaceName: 'Studio A-12',
-    startDate: '2024-12-01', endDate: '2024-12-31', status: 'active'
-  }
-];
-
 // ─── ROOM TYPES ────────────────────────────────────────────────
 export const MOCK_ROOM_TYPES: RoomType[] = [
   { id: 'RT-001', name: 'Meeting Room', description: 'Phòng họp cho nhóm nhỏ 4-15 người', icon: 'Users', status: 'active', basePrice: 300_000 },
@@ -270,4 +234,12 @@ export const MOCK_ROOM_TYPES: RoomType[] = [
   { id: 'RT-003', name: 'Event Space', description: 'Không gian lớn cho hội thảo và sự kiện', icon: 'Mic', status: 'active', basePrice: 1_000_000 },
   { id: 'RT-004', name: 'Studio', description: 'Phòng quay/chụp ảnh/podcast có cách âm cơ bản', icon: 'Palette', status: 'active', basePrice: 450_000 },
   { id: 'RT-005', name: 'Coworking', description: 'Chỗ ngồi làm việc chung hoặc private office', icon: 'Monitor', status: 'active', basePrice: 220_000 },
+];
+
+// ─── UTILITY PRICES ────────────────────────────────────────────
+export const MOCK_UTILITY_PRICES: UtilityPrice[] = [
+  { id: 'UTL-001', name: 'Tiền điện', price: 4000, unit: 'kWh', description: 'Tính theo chỉ số công tơ điện thực tế tiêu thụ.', status: 'active' },
+  { id: 'UTL-002', name: 'Tiền nước', price: 15000, unit: 'm3', description: 'Tính theo khối lượng nước sử dụng.', status: 'active' },
+  { id: 'UTL-003', name: 'Phí vệ sinh', price: 50000, unit: 'lần', description: 'Chi phí dọn dẹp và khử khuẩn sau mỗi lượt khách.', status: 'active' },
+  { id: 'UTL-004', name: 'Nước suối ban đầu', price: 10000, unit: 'chai', description: 'Phí bổ sung nếu khách sử dụng thêm nước suối.', status: 'active' },
 ];

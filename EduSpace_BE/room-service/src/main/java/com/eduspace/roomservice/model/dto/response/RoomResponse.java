@@ -34,7 +34,6 @@ public class RoomResponse {
     BigDecimal area;
     String roomNumber;
     String floorNumber;
-    Boolean is24_7;
     /** Từ property: phút nghỉ giữa các slot (turnover). */
     Integer scheduleBufferMinutes;
     /** Từ property: cho phép sinh slot trên toàn ngày. */

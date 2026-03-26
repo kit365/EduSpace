@@ -74,6 +74,9 @@ eureka:
     prefer-ip-address: true
 
 app:
+  internal:
+    # Khóa gọi nội bộ (booking-service → mail xác nhận). Đặt qua INTERNAL_ACCOUNT_API_KEY trong .env
+    api-key: ${INTERNAL_ACCOUNT_API_KEY:dev-internal-key-change-me}
   mail:
     from: ${SPRING_MAIL_FROM:noreply@eduspace.id.vn}
     display-name: ${SPRING_MAIL_DISPLAY_NAME:EduSpace Support}
@@ -91,6 +94,11 @@ app:
     api-key: ${APP_KYC_AI_API_KEY:}
     face-distance-threshold: ${APP_KYC_AI_FACE_THRESHOLD:0.55}
     liveness-min-score: ${APP_KYC_AI_LIVENESS_MIN:0.08}
+
+integration:
+  booking-service:
+    # Server-to-server lookup (by booking code). Dev: direct to booking-service port; prod: internal URL.
+    base-url: ${BOOKING_SERVICE_BASE_URL:http://localhost:8082}
 
 springdoc:
   swagger-ui:

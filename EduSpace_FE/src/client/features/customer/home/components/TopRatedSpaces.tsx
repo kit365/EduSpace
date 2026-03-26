@@ -67,7 +67,7 @@ function SpaceCard({ space, onClick }: SpaceCardProps) {
     return badgeMap[badge] || badge;
   };
 
-  const badgeLabel = space.instantBook ? 'INSTANT BOOK' : getBadgeText(space.badge);
+  const badgeLabel = space.instantBook ? 'INSTANT BOOK' : getBadgeText(space.badge ?? null);
 
   return (
     <div
@@ -76,9 +76,10 @@ function SpaceCard({ space, onClick }: SpaceCardProps) {
     >
       <div className="relative">
         <img
-          src={space.image}
+          src={space.image || '/placeholder-space.jpg'}
           alt={space.name}
           className="w-full h-64 object-cover group-hover:scale-105 transition duration-300"
+          onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/600x400/e2e8f0/64748b?text=EduSpace'; }}
         />
         {badgeLabel && (
           <div className="absolute top-3 left-3 bg-red-500 text-white px-3 py-1 rounded text-xs">

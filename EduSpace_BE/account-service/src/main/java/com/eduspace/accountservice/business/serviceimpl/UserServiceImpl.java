@@ -5,6 +5,7 @@ import com.eduspace.accountservice.model.dto.response.PublicUserProfileResponse;
 import com.eduspace.accountservice.model.dto.response.user.TwoFactorResponse;
 import com.eduspace.accountservice.model.dto.response.PageResponse;
 import com.eduspace.accountservice.model.dto.response.user.UserResponse;
+import com.eduspace.accountservice.model.entity.HostStaffLinkEntity;
 import com.eduspace.accountservice.model.entity.UserEntity;
 import com.eduspace.accountservice.model.mapper.UserMapper;
 import com.eduspace.accountservice.business.service.KeycloakUserService;
@@ -13,13 +14,16 @@ import com.eduspace.accountservice.business.service.UserService;
 import com.eduspace.accountservice.exception.AppException;
 import com.eduspace.accountservice.exception.ErrorCode;
 import com.eduspace.accountservice.persistence.repository.UserPermissionRepository;
+import com.eduspace.accountservice.persistence.repository.HostStaffLinkRepository;
 import com.eduspace.accountservice.persistence.repository.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import java.util.List;
 import java.util.Optional;
+import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.Arrays;
 import java.util.stream.Collectors;
 import dev.samstevens.totp.code.CodeVerifier;
 import dev.samstevens.totp.code.DefaultCodeGenerator;
@@ -43,9 +47,42 @@ public class UserServiceImpl implements UserService {
     private final KeycloakUserService keycloakUserService;
     private final SupportStaffPresenceService supportStaffPresenceService;
     private final UserPermissionRepository userPermissionRepository;
+    private final HostStaffLinkRepository hostStaffLinkRepository;
+
+    private static final Set<String> MANAGER_DEFAULT_PERMISSION_NAMES = Set.of(
+            "view_dashboard",
+            "branch.branch.view",
+            "branch.booking.view",
+            "branch.booking.manage",
+            "branch.room.view",
+            "branch.room.edit",
+            "branch.checkin.manage",
+            "branch.checkout.manage",
+            "branch.room_status.manage",
+            "branch.profile.view",
+            "view_messages",
+            "manage_messages");
 
     private UserResponse toUserResponseWithMergedPermissions(UserEntity user) {
-        return userMapper.toUserResponse(user, userPermissionRepository.findPermissionNamesByUserId(user.getId()));
+        UserResponse response = userMapper.toUserResponse(user, userPermissionRepository.findPermissionNamesByUserId(user.getId()));
+        boolean isManager = user.getRoles() != null
+                && user.getRoles().stream().anyMatch(r -> "MANAGER".equalsIgnoreCase(r.getName()));
+        if (!isManager) return response;
+        HostStaffLinkEntity link = hostStaffLinkRepository.findByStaffUserId(user.getId()).orElse(null);
+        Set<String> linkPermissions = parsePermissionCsv(link != null ? link.getManagerPermissionNames() : null);
+        if (linkPermissions.isEmpty()) {
+            linkPermissions = new LinkedHashSet<>(MANAGER_DEFAULT_PERMISSION_NAMES);
+        }
+        response.setPermissions(linkPermissions);
+        return response;
+    }
+
+    private static Set<String> parsePermissionCsv(String csv) {
+        if (csv == null || csv.trim().isEmpty()) return new LinkedHashSet<>();
+        return Arrays.stream(csv.split(","))
+                .map(s -> s == null ? "" : s.trim().toLowerCase())
+                .filter(s -> !s.isBlank())
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     @Override

@@ -106,7 +106,6 @@ const defaultHostPermissionsByRole: Record<string, string[]> = {
         'branch.cleaning.manage',
         'branch.booking.view',
         'branch.booking.manage',
-        'branch.ads.manage',
         'branch.profile.view',
         'branch.profile.manage',
         'branch.staff.view',
@@ -130,7 +129,6 @@ const defaultHostPermissionsByRole: Record<string, string[]> = {
         'branch.cleaning.manage',
         'branch.booking.view',
         'branch.booking.manage',
-        'branch.ads.manage',
         'branch.profile.view',
         'branch.staff.view',
         'rbac.permission.view',
@@ -162,9 +160,6 @@ export const legacyPermissionAliases: Record<string, string[]> = {
     manage_reports: [hp?.finance?.manage].filter((p): p is string => typeof p === 'string' && p.length > 0),
     manage_kyc: ['branch.profile.manage'],
     'manage-kyc': ['branch.profile.manage'],
-
-    // Marketing / ads (Host)
-    manage_ads: ['branch.ads.manage'],
 };
 
 const roleFallbackEnabled =

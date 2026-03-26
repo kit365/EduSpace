@@ -4,9 +4,9 @@ import lombok.Getter;
 
 @Getter
 public enum Role {
-    GUEST("GUEST"),
+    STUDENT("STUDENT"),
+    TUTOR("TUTOR"),
     HOST("HOST"),
-    MANAGER("MANAGER"),
     ADMIN("ADMIN"),
     SUPER_ADMIN("SUPER_ADMIN");
 

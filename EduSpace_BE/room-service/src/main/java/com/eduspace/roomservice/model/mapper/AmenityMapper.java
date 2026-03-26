@@ -17,6 +17,7 @@ public interface AmenityMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "type", expression = "java(toTypeString(request.getType()))")
+    @Mapping(target = "price", expression = "java(request.getPrice() != null ? request.getPrice() : 0L)")
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "createdBy", ignore = true)

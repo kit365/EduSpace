@@ -141,7 +141,6 @@ class RoomServiceImplQuotePriceTest {
                 .minHours(1)
                 .maxHours(4)
                 .pricePerHour(BigDecimal.valueOf(100_000))
-                .applicableDayOfWeeks(Set.of(2))
                 .build();
 
         when(roomRepository.findByIdAndDeletedAtIsNull(102)).thenReturn(Optional.of(room));
@@ -155,7 +154,7 @@ class RoomServiceImplQuotePriceTest {
 
         RoomPriceQuoteResponse response = roomService.quotePrice(102, request);
 
-        assertEquals("ROOM_DEFAULT_PER_UNIT", response.getPricingMode());
-        assertEquals(new BigDecimal("120000.00"), response.getSubtotal());
+        assertEquals("RULE_PRICE_PER_HOUR", response.getPricingMode());
+        assertEquals(new BigDecimal("200000.00"), response.getSubtotal());
     }
 }

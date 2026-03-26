@@ -20,4 +20,6 @@ public class AmenityRequest {
     String icon;
     AmenityType type;
     Integer position;
+
+    Long price;
 }

@@ -1,192 +1,224 @@
 package com.eduspace.bookingservice.business.serviceimpl;
 
+import com.eduspace.bookingservice.business.service.BookingPersistenceService;
 import com.eduspace.bookingservice.business.service.BookingService;
 import com.eduspace.bookingservice.business.service.RoomValidationService;
-import com.eduspace.bookingservice.common.enums.BookingStatus;
+import com.eduspace.bookingservice.business.service.SagaService;
+import com.eduspace.bookingservice.common.constants.BookingSagaConstants;
+import com.eduspace.bookingservice.infrastructure.client.AccountNotificationClient;
+import com.eduspace.bookingservice.model.dto.integration.AccountApiResponse;
+import com.eduspace.bookingservice.model.dto.integration.BookingConfirmationPayload;
+import com.eduspace.bookingservice.model.dto.integration.RoomResponsePayload;
 import com.eduspace.bookingservice.model.dto.request.CreateBookingRequest;
-import com.eduspace.bookingservice.model.dto.response.BookingAvailabilityResponse;
+import com.eduspace.bookingservice.model.dto.response.BookingByCodeResponse;
+import com.eduspace.bookingservice.common.enums.BookingStatus;
+import com.eduspace.bookingservice.model.dto.response.BookingExtraAmenityResponse;
 import com.eduspace.bookingservice.model.dto.response.BookingResponse;
-import com.eduspace.bookingservice.model.dto.response.TimeSlotSummaryResponse;
 import com.eduspace.bookingservice.model.entity.BookingEntity;
-import com.eduspace.bookingservice.model.entity.BookingTimeSlotEntity;
-import com.eduspace.bookingservice.model.entity.TimeSlotEntity;
+import com.eduspace.bookingservice.model.entity.ExtraBookingAmenityEntity;
 import com.eduspace.bookingservice.persistence.repository.BookingRepository;
-import com.eduspace.bookingservice.persistence.repository.BookingTimeSlotRepository;
-import com.eduspace.bookingservice.persistence.repository.TimeSlotRepository;
+import com.eduspace.bookingservice.persistence.repository.ExtraBookingAmenityRepository;
+import jakarta.transaction.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Comparator;
-import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class BookingServiceImpl implements BookingService {
 
     private final BookingRepository bookingRepository;
-    private final BookingTimeSlotRepository bookingTimeSlotRepository;
-    private final TimeSlotRepository timeSlotRepository;
+    private final ExtraBookingAmenityRepository extraBookingAmenityRepository;
     private final RoomValidationService roomValidationService;
+    private final BookingPersistenceService bookingPersistenceService;
+    private final AccountNotificationClient accountNotificationClient;
+    private final SagaService sagaService;
 
     @Override
-    @Transactional
     public BookingResponse createBooking(CreateBookingRequest request) {
-        List<Long> requestedSlotIds = request.getSlotIds();
-        if ((requestedSlotIds == null || requestedSlotIds.isEmpty()) && request.getSlotId() != null) {
-            requestedSlotIds = List.of(request.getSlotId());
+        if (request.getStartDateTime() == null || request.getEndDateTime() == null) {
+            throw new IllegalArgumentException("Missing start/end time");
         }
-        if (requestedSlotIds == null || requestedSlotIds.isEmpty()) {
-            throw new IllegalArgumentException("At least one slot is required");
+        if (!request.getEndDateTime().isAfter(request.getStartDateTime())) {
+            throw new IllegalArgumentException("Invalid time range");
         }
-
-        List<TimeSlotEntity> slots = timeSlotRepository.findByIdInAndIsActiveTrue(requestedSlotIds);
-        if (slots.size() != new HashSet<>(requestedSlotIds).size()) {
-            throw new IllegalArgumentException("Some selected slots do not exist or are inactive");
+        if (request.getBookingDate() == null) {
+            throw new IllegalArgumentException("Missing booking date");
         }
-
-        List<TimeSlotEntity> sortedSlots = sortByStart(slots);
-        validateConsecutiveSlots(sortedSlots);
-        roomValidationService.validateRoomBookable(request.getRoomId(), request.getBookingDate(), sortedSlots);
-
-        List<Long> conflictSlotIds = bookingTimeSlotRepository.findBookedSlotIds(
-                request.getRoomId(), request.getBookingDate(), requestedSlotIds);
-        if (!conflictSlotIds.isEmpty()) {
-            throw new IllegalArgumentException("One or more selected slots are already booked");
+        if (request.getGuestEmail() == null || request.getGuestEmail().isBlank()) {
+            throw new IllegalArgumentException("guestEmail is required");
         }
 
-        BookingEntity entity = new BookingEntity();
-        entity.setBookingCode(generateBookingCode());
-        entity.setRoomId(request.getRoomId());
-        entity.setUserId(request.getUserId());
-        entity.setCheckInDate(request.getBookingDate());
-        entity.setCheckOutDate(request.getBookingDate());
-        entity.setBookingDate(request.getBookingDate());
-        entity.setStatus(BookingStatus.PENDING);
-        BookingEntity saved = bookingRepository.save(entity);
+        LocalDate bookingDate = request.getBookingDate();
 
-        for (TimeSlotEntity slot : sortedSlots) {
-            BookingTimeSlotEntity bookingSlot = new BookingTimeSlotEntity();
-            bookingSlot.setBookingId(saved.getId());
-            bookingSlot.setRoomId(saved.getRoomId());
-            bookingSlot.setTimeSlotId(slot.getId());
-            bookingSlot.setBookingDate(request.getBookingDate());
-            bookingSlot.setStartTime(slot.getStartTime());
-            bookingSlot.setEndTime(slot.getEndTime());
-            bookingTimeSlotRepository.save(bookingSlot);
+        String sagaId = UUID.randomUUID().toString();
+        Map<String, Object> sagaPayload =
+                new HashMap<>(Map.of("roomId", request.getRoomId(), "guestEmail", request.getGuestEmail()));
+        sagaService.startSaga(
+                sagaId,
+                BookingSagaConstants.TYPE_CREATE_BOOKING,
+                BookingSagaConstants.STEP_VALIDATE_ROOM,
+                sagaPayload);
+
+        RoomResponsePayload room;
+        try {
+            room = roomValidationService.validateRoomBookableAndGetRoom(
+                    request.getRoomId(), bookingDate, request.getStartDateTime(), request.getEndDateTime());
+        } catch (RuntimeException e) {
+            sagaService.failSaga(sagaId, e.getMessage());
+            throw e;
         }
-        return toResponseFromEntities(saved, sortedSlots);
+
+        boolean existsOverlap = bookingRepository.existsOverlap(
+                request.getRoomId(),
+                bookingDate,
+                request.getStartDateTime(),
+                request.getEndDateTime(),
+                BookingStatus.CANCELLED);
+        if (existsOverlap) {
+            sagaService.failSaga(sagaId, "Room is already booked for the selected time range");
+            throw new IllegalArgumentException("Room is already booked for the selected time range");
+        }
+
+        BookingPersistenceService.PersistedBooking persisted;
+        try {
+            persisted = bookingPersistenceService.saveBookingAndExtras(request);
+        } catch (RuntimeException e) {
+            sagaService.failSaga(sagaId, e.getMessage());
+            throw e;
+        }
+
+        try {
+            BookingConfirmationPayload emailPayload = BookingConfirmationPayload.builder()
+                    .toEmail(request.getGuestEmail().trim())
+                    .recipientName(guestDisplayName(request.getGuestEmail()))
+                    .bookingCode(persisted.booking().getBookingCode())
+                    .roomTitle(room.getName() != null && !room.getName().isBlank()
+                            ? room.getName()
+                            : "Phòng #" + room.getId())
+                    .bookingDate(request.getBookingDate())
+                    .startDateTime(request.getStartDateTime())
+                    .endDateTime(request.getEndDateTime())
+                    .build();
+
+            AccountApiResponse resp = accountNotificationClient.sendBookingConfirmation(emailPayload);
+            if (resp == null || !resp.isSuccess()) {
+                throw new IllegalStateException("Account service rejected booking confirmation email");
+            }
+        } catch (Exception e) {
+            log.warn("Booking confirmation email failed for saga {}: {}", sagaId, e.getMessage());
+            try {
+                bookingPersistenceService.deleteBookingAndExtras(persisted.booking().getId());
+            } catch (Exception compensateEx) {
+                log.error(
+                        "Compensation failed after email error for booking {}: {}",
+                        persisted.booking().getId(),
+                        compensateEx.getMessage());
+            }
+            sagaService.failSaga(sagaId, "EMAIL_FAILED: " + e.getMessage());
+            throw new IllegalStateException("Booking confirmation email failed; booking was cancelled.", e);
+        }
+
+        sagaService.completeSaga(sagaId);
+        return toResponse(persisted.booking(), persisted.extras());
+    }
+
+    private static String guestDisplayName(String email) {
+        if (email == null) {
+            return "Khách";
+        }
+        int at = email.indexOf('@');
+        String local = at > 0 ? email.substring(0, at) : email;
+        return local.isBlank() ? "Khách" : local;
     }
 
     @Override
     public List<BookingResponse> getAllBookings() {
-        return bookingRepository.findAll().stream().map(this::toResponse).toList();
+        List<BookingEntity> bookings = bookingRepository.findAll();
+        if (bookings.isEmpty()) {
+            return List.of();
+        }
+        List<Long> ids = bookings.stream().map(BookingEntity::getId).toList();
+        List<ExtraBookingAmenityEntity> allExtras = extraBookingAmenityRepository.findByBookingIdIn(ids);
+        Map<Long, List<ExtraBookingAmenityEntity>> byBooking = new HashMap<>();
+        for (ExtraBookingAmenityEntity row : allExtras) {
+            byBooking.computeIfAbsent(row.getBookingId(), k -> new ArrayList<>()).add(row);
+        }
+        return bookings.stream()
+                .map(b -> toResponse(b, byBooking.getOrDefault(b.getId(), List.of())))
+                .toList();
     }
 
     @Override
     public BookingResponse getBookingById(Long id) {
-        BookingEntity entity = bookingRepository.findById(id)
+        BookingEntity entity = bookingRepository
+                .findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Booking not found: " + id));
-        return toResponse(entity);
+        return toResponse(entity, extraBookingAmenityRepository.findByBookingId(id));
+    }
+
+    @Override
+    public BookingByCodeResponse getByBookingCode(String bookingCode) {
+        if (bookingCode == null || bookingCode.isBlank()) {
+            throw new IllegalArgumentException("bookingCode is required");
+        }
+        return bookingRepository
+                .findByBookingCode(bookingCode.trim())
+                .map(e -> new BookingByCodeResponse(
+                        e.getId(), e.getBookingCode(), e.getUserId(), e.getGuestEmail()))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
     }
 
     @Override
     @Transactional
     public BookingResponse cancelBooking(Long id) {
-        BookingEntity entity = bookingRepository.findById(id)
+        BookingEntity entity = bookingRepository
+                .findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Booking not found: " + id));
         entity.setStatus(BookingStatus.CANCELLED);
         BookingEntity saved = bookingRepository.save(entity);
-        return toResponse(saved);
+        return toResponse(saved, extraBookingAmenityRepository.findByBookingId(entity.getId()));
     }
 
-    @Override
-    public BookingAvailabilityResponse getAvailability(Long roomId, LocalDate bookingDate) {
-        List<TimeSlotEntity> allSlots = timeSlotRepository.findByIsActiveTrueOrderByStartTimeAsc();
-        Set<Long> bookedSlotIds = new HashSet<>(bookingTimeSlotRepository.findAllBookedSlotIds(roomId, bookingDate));
-        List<TimeSlotSummaryResponse> slots = allSlots.stream()
-                .map(slot -> TimeSlotSummaryResponse.builder()
-                        .id(slot.getId())
-                        .slotCode(slot.getSlotCode())
-                        .startTime(slot.getStartTime())
-                        .endTime(slot.getEndTime())
-                        .available(!bookedSlotIds.contains(slot.getId()))
+    private BookingResponse toResponse(BookingEntity entity, List<ExtraBookingAmenityEntity> extras) {
+        List<BookingExtraAmenityResponse> extraLines = extras.stream()
+                .map(e -> BookingExtraAmenityResponse.builder()
+                        .id(e.getId())
+                        .amenityId(e.getAmenityId())
+                        .quantity(e.getQuantity())
                         .build())
                 .toList();
-
-        return BookingAvailabilityResponse.builder()
-                .roomId(roomId)
-                .bookingDate(bookingDate)
-                .slots(slots)
-                .build();
-    }
-
-    private String generateBookingCode() {
-        return "BK-" + LocalDateTime.now().getYear() + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-    }
-
-    private BookingResponse toResponse(BookingEntity entity) {
-        List<BookingTimeSlotEntity> bookingSlots = bookingTimeSlotRepository.findByBookingIdOrderByStartTimeAsc(entity.getId());
-        List<Long> slotIds = bookingSlots.stream().map(BookingTimeSlotEntity::getTimeSlotId).toList();
-        List<TimeSlotEntity> slots = slotIds.isEmpty() ? List.of() : timeSlotRepository.findByIdInAndIsActiveTrue(slotIds);
-        Map<Long, TimeSlotEntity> slotMap = slots.stream().collect(Collectors.toMap(TimeSlotEntity::getId, item -> item));
-        List<TimeSlotSummaryResponse> summaries = bookingSlots.stream()
-                .map(item -> {
-                    TimeSlotEntity slot = slotMap.get(item.getTimeSlotId());
-                    return TimeSlotSummaryResponse.builder()
-                            .id(item.getTimeSlotId())
-                            .slotCode(slot != null ? slot.getSlotCode() : null)
-                            .startTime(item.getStartTime())
-                            .endTime(item.getEndTime())
-                            .available(false)
-                            .build();
-                })
-                .toList();
-        return toResponse(entity, summaries);
-    }
-
-    private BookingResponse toResponseFromEntities(BookingEntity entity, List<TimeSlotEntity> slots) {
-        List<TimeSlotSummaryResponse> summaries = slots.stream()
-                .map(slot -> TimeSlotSummaryResponse.builder()
-                        .id(slot.getId())
-                        .slotCode(slot.getSlotCode())
-                        .startTime(slot.getStartTime())
-                        .endTime(slot.getEndTime())
-                        .available(false)
-                        .build())
-                .toList();
-        return toResponse(entity, summaries);
-    }
-
-    private BookingResponse toResponse(BookingEntity entity, List<TimeSlotSummaryResponse> summaries) {
         return BookingResponse.builder()
                 .id(entity.getId())
                 .bookingCode(entity.getBookingCode())
                 .roomId(entity.getRoomId())
                 .userId(entity.getUserId())
+                .guestEmail(entity.getGuestEmail())
+                .checkInDate(entity.getCheckInDate())
+                .checkOutDate(entity.getCheckOutDate())
                 .bookingDate(entity.getBookingDate())
-                .slots(summaries)
+                .durationValue(entity.getDurationValue())
+                .durationUnit(entity.getDurationUnit())
+                .startDateTime(entity.getStartDateTime())
+                .endDateTime(entity.getEndDateTime())
+                .totalPrice(entity.getTotalPrice())
+                .voucherCode(entity.getVoucherCode())
+                .discountAmount(entity.getDiscountAmount())
+                .finalPrice(entity.getFinalPrice())
                 .status(entity.getStatus())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
+                .extraAmenities(extraLines)
                 .build();
-    }
-
-    private List<TimeSlotEntity> sortByStart(List<TimeSlotEntity> slots) {
-        return slots.stream().sorted(Comparator.comparing(TimeSlotEntity::getStartTime)).toList();
-    }
-
-    private void validateConsecutiveSlots(List<TimeSlotEntity> slots) {
-        for (int i = 1; i < slots.size(); i++) {
-            if (!slots.get(i - 1).getEndTime().equals(slots.get(i).getStartTime())) {
-                throw new IllegalArgumentException("Slots must be consecutive");
-            }
-        }
     }
 }

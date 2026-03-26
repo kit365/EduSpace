@@ -18,6 +18,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.SuperBuilder;
+import com.eduspace.roomservice.model.entity.RoomEntity;
 
 @Entity
 @Table(name = "room_blocks")
@@ -49,4 +50,9 @@ public class RoomBlockEntity extends BaseEntity {
 
     @Column(name = "block_type")
     String blockType;
+
+    // Nếu block theo "phòng", room_id sẽ được set; nếu block theo "cơ sở" thì room_id để null.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "room_id", nullable = true)
+    RoomEntity room;
 }

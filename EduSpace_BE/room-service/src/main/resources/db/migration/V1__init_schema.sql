@@ -152,6 +152,7 @@ CREATE TABLE amenities (
     icon VARCHAR(255),
     type VARCHAR(255),
     position INTEGER DEFAULT 0,
+    price BIGINT NOT NULL DEFAULT 0,
     created_by VARCHAR(255),
     updated_by VARCHAR(255),
     created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),

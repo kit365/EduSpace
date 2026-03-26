@@ -96,7 +96,6 @@ INSERT INTO permissions (name, description, group_name) VALUES
 ('manage_disputes', 'Handle disputes and escalations.', 'Disputes'),
 ('view_reviews', 'View user reviews.', 'Reviews'),
 ('moderate_reviews', 'Moderate or remove reviews.', 'Reviews'),
-('manage_ads', 'Manage advertisements and promotions.', 'Marketing'),
 ('manage_facilities', 'Manage facility master data.', 'Facilities'),
 ('manage_points', 'Configure point earning rules.', 'Loyalty'),
 ('manage_rewards', 'Manage reward catalog.', 'Loyalty'),

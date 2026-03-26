@@ -52,7 +52,13 @@ public class FlywaySchemaRepairMigrationStrategy {
                     flyway.baseline();
                 }
             } catch (SQLException e) {
-                throw new IllegalStateException("Flyway dev repair: không đọc được metadata DB", e);
+                String msg =
+                        ("Flyway dev repair: không kết nối được PostgreSQL: %s. "
+                                        + "Bật room-db (docker compose up -d room-db), đợi container ready. "
+                                        + "Trên Windows nếu dùng localhost bị refused, thử 127.0.0.1 trong SPRING_DATASOURCE_URL. "
+                                        + "Kiểm tra POSTGRES_ROOM_HOST_PORT trong .env khớp cổng publish.")
+                                .formatted(e.getMessage());
+                throw new IllegalStateException(msg, e);
             }
             flyway.migrate();
         };

@@ -12,7 +12,6 @@ import {
     Phone,
     Loader2,
     Upload,
-    ImageIcon,
     CheckCircle,
     Clock,
     XCircle,
@@ -50,8 +49,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuthStore } from '@/stores/authStore';
-import { hasHostPermission } from '@/utils/keycloakTokenRoles';
+import { getRealmRolesFromAccessToken, hasHostPermission, normalizeRoleName } from '@/utils/keycloakTokenRoles';
 import { hostPermissions } from '../permissions/hostPermissions';
+import { fetchMyManagerScope } from '../services/hostStaffService';
 
 const PROPERTY_TYPE_OPTIONS = [
     { value: 'COMMERCIAL_BUILDING', labelKey: 'common.propertyTypes.commercialBuilding' },
@@ -237,12 +237,37 @@ export function BranchesPage() {
     const loadBranches = useCallback(async () => {
         setLoadingBranches(true);
         try {
-            const user = await profileService.getProfile();
+            let ownerIds: string[] = [];
+            try {
+                const me = await profileService.getProfile();
+                ownerIds = Array.from(
+                    new Set(
+                        [me?.id, me?.keycloakId]
+                            .map((v) => (typeof v === 'string' ? v.trim() : ''))
+                            .filter((v) => v.length > 0)
+                    )
+                );
+            } catch {
+                ownerIds = [];
+            }
+
             const [list, pendingUpdates] = await Promise.all([
-                branchService.listByOwner(user.id),
+                ownerIds.length > 0
+                    ? branchService.listByOwner(ownerIds[0], ownerIds.slice(1))
+                    : Promise.resolve([]),
                 hostPartnerApplicationService.getMyPendingBranchUpdates(),
             ]);
-            setBranches(list);
+            const roles = getRealmRolesFromAccessToken(accessToken).map(normalizeRoleName);
+            const isManager = roles.includes('MANAGER') && !roles.includes('HOST');
+            let scopedList = list;
+            if (isManager) {
+                const scope = await fetchMyManagerScope().catch(() => ({ managerScoped: true, branchPropertyId: null }));
+                scopedList =
+                    scope.managerScoped && scope.branchPropertyId != null
+                        ? list.filter((b) => b.id === scope.branchPropertyId)
+                        : [];
+            }
+            setBranches(scopedList);
             setPendingUpdatePropertyIds(new Set(pendingUpdates.map((item) => item.propertyId).filter((id) => Number.isFinite(id))));
         } catch (error) {
             setBranches([]);
@@ -251,7 +276,7 @@ export function BranchesPage() {
         } finally {
             setLoadingBranches(false);
         }
-    }, []);
+    }, [accessToken]);
 
     useEffect(() => {
         void loadBranches();
@@ -490,7 +515,7 @@ export function BranchesPage() {
                     {canCreateBranch && (
                         <button
                             onClick={openCreateBranch}
-                            className="inline-flex h-10 items-center gap-2 rounded-xl bg-red-500 px-4 text-sm font-bold text-white shadow-md transition-all hover:bg-red-600 active:scale-95"
+                            className="inline-flex h-11 items-center gap-2 rounded-xl bg-red-500 px-4 text-sm font-bold text-white shadow-md transition-all hover:bg-red-600 active:scale-95"
                         >
                             <Plus className="h-4 w-4" />
                             Thêm cơ sở mới
@@ -1034,72 +1059,71 @@ export function BranchesPage() {
                                     </Select>
                                 </div>
 
-                                <div className="space-y-4 md:col-span-2">
-                                    <Label className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 ml-1">
-                                        Hình ảnh chi nhánh
+                                <div className="space-y-2 md:col-span-2">
+                                    <Label htmlFor="logo" className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                                        Logo URL (tuỳ chọn)
                                     </Label>
-                                    <div 
-                                        onClick={() => branchLogoFileInputRef.current?.click()}
-                                        className={`relative aspect-[16/6] rounded-[24px] border-2 border-dashed transition-all cursor-pointer group overflow-hidden flex flex-col items-center justify-center gap-3 ${
-                                            branchForm.logo 
-                                                ? 'border-red-100 bg-red-50/30' 
-                                                : 'border-gray-200 bg-gray-50 hover:border-red-300 hover:bg-red-50/50'
-                                        }`}
-                                    >
-                                        {branchForm.logo ? (
-                                            <>
-                                                <img 
-                                                    src={branchForm.logo} 
-                                                    alt="Branch Logo" 
-                                                    className="absolute inset-0 w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-500" 
-                                                />
-                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 backdrop-blur-[2px]">
-                                                    <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-red-500 shadow-xl">
-                                                        <ImageIcon className="w-5 h-5" />
-                                                    </div>
-                                                    <span className="text-white text-xs font-black tracking-widest uppercase">Thay đổi hình ảnh</span>
-                                                </div>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-gray-400 group-hover:text-red-500 shadow-sm transition-colors">
-                                                    {uploadingBranchLogo ? <Loader2 className="w-6 h-6 animate-spin" /> : <Upload className="w-6 h-6" />}
-                                                </div>
-                                                <div className="text-center">
-                                                    <p className="text-sm font-black text-gray-900 mb-0.5">Tải ảnh cơ sở lên Cloud</p>
-                                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">Kích thước khuyên dùng: 512x512</p>
-                                                </div>
-                                            </>
-                                        )}
-
+                                    <div className="flex gap-2">
+                                        <Input
+                                            id="logo"
+                                            placeholder="https://... hoặc tải ảnh bên cạnh"
+                                            value={branchForm.logo}
+                                            onChange={(e) => setBranchForm((prev) => ({ ...prev, logo: e.target.value }))}
+                                            className="h-11 min-w-0 flex-1 rounded-xl"
+                                            autoComplete="off"
+                                        />
                                         <input
                                             ref={branchLogoFileInputRef}
                                             type="file"
                                             accept="image/*"
-                                            className="hidden"
+                                            className="sr-only"
+                                            tabIndex={-1}
                                             onChange={async (e) => {
                                                 const file = e.target.files?.[0];
+                                                e.target.value = '';
                                                 if (!file) return;
                                                 if (!file.type.startsWith('image/')) {
                                                     showToast.error('Vui lòng chọn file ảnh (JPEG, PNG, WebP...).');
+                                                    return;
+                                                }
+                                                if (file.size > 10 * 1024 * 1024) {
+                                                    showToast.error('Ảnh tối đa 10MB.');
                                                     return;
                                                 }
                                                 setUploadingBranchLogo(true);
                                                 try {
                                                     const url = await uploadBranchLogoImage(file);
                                                     setBranchForm((prev) => ({ ...prev, logo: url }));
-                                                    showToast.success('Đã tải hình ảnh lên thành công.');
+                                                    showToast.success('Đã tải logo lên — URL đã được điền sẵn.');
                                                 } catch (err) {
-                                                    showToast.error(getApiErrorMessage(err, 'Không tải được hình ảnh.'));
+                                                    showToast.error(
+                                                        getApiErrorMessage(err, 'Không tải được logo. Vui lòng thử lại.'),
+                                                    );
                                                 } finally {
                                                     setUploadingBranchLogo(false);
-                                                    e.target.value = '';
                                                 }
                                             }}
                                         />
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-11 w-11 shrink-0 rounded-xl border-gray-200"
+                                            disabled={uploadingBranchLogo || savingBranch}
+                                            title="Tải ảnh logo lên cloud (thư mục EduSpace)"
+                                            aria-label="Tải ảnh logo lên"
+                                            onClick={() => branchLogoFileInputRef.current?.click()}
+                                        >
+                                            {uploadingBranchLogo ? (
+                                                <Loader2 className="h-4 w-4 animate-spin text-gray-600" />
+                                            ) : (
+                                                <Upload className="h-4 w-4 text-gray-700" />
+                                            )}
+                                        </Button>
                                     </div>
-                                    <p className="text-[10px] text-gray-400 font-bold leading-relaxed px-1">
-                                        Ảnh sẽ được lưu vĩnh viễn trên Cloud EduSpace. Bạn cũng có thể kéo thả ảnh trực tiếp vào khu vực này.
+                                    <p className="text-xs text-gray-500">
+                                        Có thể dán URL thủ công hoặc bấm nút tải — ảnh lưu trên cloud trong thư mục riêng
+                                        EduSpace (không dùng chung folder với hệ thống khác).
                                     </p>
                                 </div>
 

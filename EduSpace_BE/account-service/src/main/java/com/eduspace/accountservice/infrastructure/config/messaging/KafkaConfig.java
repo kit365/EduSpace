@@ -24,6 +24,10 @@ public class KafkaConfig {
     @Value("${spring.kafka.consumer.group-id}")
     private String groupId;
 
+    /** Honors spring.kafka.listener.auto-startup (custom factories do not get Boot auto-config). */
+    @Value("${spring.kafka.listener.auto-startup:true}")
+    private boolean kafkaListenerAutoStartup;
+
     @Bean
     public ProducerFactory<String, Object> producerFactory() {
         Map<String, Object> config = new HashMap<>();
@@ -72,6 +76,7 @@ public class KafkaConfig {
     public ConcurrentKafkaListenerContainerFactory<String, String> sagaKafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(sagaJsonStringConsumerFactory());
+        factory.setAutoStartup(kafkaListenerAutoStartup);
         return factory;
     }
 }

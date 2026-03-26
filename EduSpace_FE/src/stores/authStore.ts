@@ -65,7 +65,7 @@ export const useAuthStore = create<AuthStore>()(
                 let expiresIn: number | null = null;
                 if (typeof expiresRaw === 'number' && Number.isFinite(expiresRaw)) {
                     expiresIn = expiresRaw;
-                } else if (expiresRaw != null && expiresRaw !== '') {
+                } else if (typeof expiresRaw === 'string' && expiresRaw !== '') {
                     const n = Number(expiresRaw);
                     if (Number.isFinite(n)) expiresIn = n;
                 }

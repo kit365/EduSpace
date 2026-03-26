@@ -10,8 +10,8 @@ import {
     Users,
     ClipboardCheck,
     Clock,
-    Megaphone,
     Building2,
+    ShieldCheck,
     MessageSquare,
 } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
@@ -55,6 +55,7 @@ export function RentalSidebar({ isCollapsed = false }: RentalSidebarProps) {
         { path: '/rental/schedule', label: 'Lịch & Giờ', icon: Clock, permission: hostMenuPermissions.schedule },
         { path: '/rental/spaces', label: 'Phòng của tôi', icon: List, permission: hostMenuPermissions.spaces },
         { path: '/rental/room-status', label: 'Trạng thái phòng', icon: Building2, permission: hostMenuPermissions.roomStatus },
+        { path: '/rental/utility-prices', label: 'Quản lý tiện ích', icon: DollarSign, permission: hostMenuPermissions.finance },
         { path: '/rental/calendar', label: 'Lịch đặt phòng', icon: Calendar, permission: hostMenuPermissions.calendar },
     ];
 
@@ -62,8 +63,8 @@ export function RentalSidebar({ isCollapsed = false }: RentalSidebarProps) {
         { path: '/rental/checkout', label: 'Checkout (Staff)', icon: ClipboardCheck, permission: hostMenuPermissions.checkout },
         { path: '/rental/staff', label: 'Nhân viên', icon: Users, permission: hostMenuPermissions.staff },
         { path: '/rental/finance', label: 'Tài chính', icon: DollarSign, permission: hostMenuPermissions.finance },
+        { path: '/rental/deposit-policy', label: 'Chính sách đặt cọc', icon: ShieldCheck, permission: hostMenuPermissions.finance },
         { path: '/rental/messages', label: 'Tin nhắn', icon: MessageSquare, permission: hostMenuPermissions.messages },
-        { path: '/rental/ads', label: 'Quảng cáo', icon: Megaphone, permission: hostMenuPermissions.ads },
         { path: '/rental/kyc', label: 'Xác minh KYC', icon: Shield, permission: hostMenuPermissions.kyc },
     ];
 

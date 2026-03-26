@@ -30,6 +30,13 @@ public class HostStaffLinkEntity {
     @Column(name = "branch_property_id")
     Long branchPropertyId;
 
+    /**
+     * Per-host manager permissions (CSV, lowercase keys), e.g.:
+     * branch.booking.view,branch.booking.manage,...
+     */
+    @Column(name = "manager_permission_names")
+    String managerPermissionNames;
+
     @Column(name = "created_at")
     LocalDateTime createdAt;
 

@@ -8,19 +8,26 @@ function unwrap<T>(res: unknown): T {
   return res as T;
 }
 
+export interface BookingExtraAmenityResponse {
+  id: number;
+  amenityId: number;
+  quantity: number;
+}
+
 export interface CreateBookingResponse {
   id: number;
   bookingCode: string;
   roomId: number;
   userId: string;
+  guestEmail?: string;
   bookingDate: string;
-  slotId: number;
   durationValue: number;
   durationUnit: 'MINUTE' | 'HOUR';
   startDateTime: string;
   endDateTime: string;
   totalPrice: number;
   status: string;
+  extraAmenities?: BookingExtraAmenityResponse[];
 }
 
 export const checkoutBookingApiService = {

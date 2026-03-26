@@ -2,6 +2,7 @@ import { UserProfile, UserResponse, UpdateProfileRequest, TwoFactorSetup, Public
 import apiClient from '../../../../../lib/axios';
 import { ACCOUNT_API } from '../../../../../config/api/account';
 import { ApiResponse, User } from '@/types';
+import { useAuthStore } from '@/stores/authStore';
 
 class ProfileService {
     async getProfile(): Promise<UserProfile> {
@@ -9,20 +10,31 @@ class ProfileService {
             const response = await apiClient.get<unknown, ApiResponse<UserResponse>>(ACCOUNT_API.ME);
             const data = response.data;
 
+        const normalizedRoles = (data.roles ?? [])
+            .map((r) => String(r).toLowerCase().replace('role_', ''))
+            .filter(Boolean);
         let role = 'renter';
-        if (data.roles && data.roles.length > 0) {
-            const rawRole = data.roles[0].toLowerCase().replace('role_', '');
-            if (rawRole === 'student') role = 'renter';
-            else if (rawRole === 'tutor') role = 'host';
-            else if (rawRole === 'admin') role = 'admin';
-            else role = rawRole;
+        if (normalizedRoles.includes('super_admin') || normalizedRoles.includes('admin')) role = 'admin';
+        else if (
+            normalizedRoles.includes('host') ||
+            normalizedRoles.includes('manager') ||
+            normalizedRoles.includes('staff') ||
+            normalizedRoles.includes('tutor')
+        ) {
+            role = 'host';
+        } else if (normalizedRoles.length > 0) {
+            role = normalizedRoles[0];
         }
+
+        // Keep permission store in sync for host-console RBAC checks.
+        useAuthStore.getState().setHostPermissionsFromAccount(data.permissions ?? []);
 
         // Parse date safely
         const memberSinceStr = data.createdAt;
 
         return {
             id: data.id,
+            keycloakId: data.keycloakId ?? undefined,
             name: data.fullName,
             email: data.email,
             phone: data.phoneNumber || '',
