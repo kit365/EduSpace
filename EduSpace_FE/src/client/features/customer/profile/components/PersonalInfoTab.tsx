@@ -13,8 +13,10 @@ interface PersonalInfoTabProps {
 function getRoleLabel(role: UserRole | string, t: (k: string) => string): string {
   switch (role) {
     case 'renter': return t('customer.profile.header.roles.renter');
+    case 'guest': return t('customer.profile.header.roles.guest');
     case 'host': return t('customer.profile.header.roles.host');
     case 'staff': return t('customer.profile.header.roles.staff');
+    case 'manager': return t('customer.profile.header.roles.manager');
     case 'admin': return t('customer.profile.header.roles.admin');
     default: return String(role);
   }

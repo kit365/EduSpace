@@ -6,9 +6,11 @@ interface BookingCardProps {
   booking: Booking;
   onViewDetails: (id: number) => void;
   onCancel?: (id: number) => void;
+  /** false khi RBAC không cho phép khách huỷ đơn (mặc định true nếu không truyền). */
+  allowCancel?: boolean;
 }
 
-export function BookingCard({ booking, onViewDetails, onCancel }: BookingCardProps) {
+export function BookingCard({ booking, onViewDetails, onCancel, allowCancel = true }: BookingCardProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'upcoming':
@@ -140,7 +142,7 @@ export function BookingCard({ booking, onViewDetails, onCancel }: BookingCardPro
               <FileText className="w-3.5 h-3.5" />
               Chi tiết
             </button>
-            {canCancel && onCancel && (
+            {canCancel && onCancel && allowCancel && (
               <button
                 onClick={() => onCancel(booking.id)}
                 className="px-5 py-2.5 text-red-500 border border-red-200 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-50 transition-all active:scale-95"

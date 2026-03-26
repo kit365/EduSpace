@@ -3,11 +3,13 @@ package com.eduspace.accountservice.model.mapper;
 import com.eduspace.accountservice.model.dto.request.user.UpdateProfileRequest;
 import com.eduspace.accountservice.model.dto.response.PublicUserProfileResponse;
 import com.eduspace.accountservice.model.dto.response.user.UserResponse;
+import com.eduspace.accountservice.model.entity.PermissionEntity;
 import com.eduspace.accountservice.model.entity.RoleEntity;
 import com.eduspace.accountservice.model.entity.UserEntity;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -58,8 +60,20 @@ public class UserMapper {
     }
 
     public UserResponse toUserResponse(UserEntity entity) {
+        return toUserResponse(entity, null);
+    }
+
+    /**
+     * @param extraPermissionNames optional direct grants (e.g. STAFF Level-2 operational permissions)
+     */
+    public UserResponse toUserResponse(UserEntity entity, Set<String> extraPermissionNames) {
         if (entity == null) {
             return null;
+        }
+
+        Set<String> permissions = mapRolePermissionNames(entity);
+        if (extraPermissionNames != null && !extraPermissionNames.isEmpty()) {
+            permissions.addAll(extraPermissionNames);
         }
 
         return UserResponse.builder()
@@ -86,6 +100,7 @@ public class UserMapper {
                 .is2faEnabled(entity.getIs2faEnabled())
                 .pointBalance(entity.getPointBalance())
                 .roles(mapRoles(entity.getRoles()))
+                .permissions(permissions)
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
@@ -110,5 +125,23 @@ public class UserMapper {
         return roles.stream()
                 .map(RoleEntity::getName)
                 .collect(Collectors.toSet());
+    }
+
+    private Set<String> mapRolePermissionNames(UserEntity entity) {
+        if (entity == null || entity.getRoles() == null) {
+            return Collections.emptySet();
+        }
+        Set<String> out = new LinkedHashSet<>();
+        for (RoleEntity role : entity.getRoles()) {
+            if (role.getPermissions() == null) {
+                continue;
+            }
+            for (PermissionEntity p : role.getPermissions()) {
+                if (p != null && p.getName() != null && !p.getName().isBlank()) {
+                    out.add(p.getName().trim());
+                }
+            }
+        }
+        return out;
     }
 }

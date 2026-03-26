@@ -162,8 +162,8 @@
       },
       {
         "id": "a1b2c3d4-1111-2222-3333-444455556666",
-        "name": "STUDENT",
-        "description": "Student role",
+        "name": "GUEST",
+        "description": "Guest / customer role",
         "composite": false,
         "clientRole": false,
         "containerId": "c354498e-7897-4b4c-8eb9-6d28675c610d",
@@ -171,8 +171,26 @@
       },
       {
         "id": "a1b2c3d4-1111-2222-3333-444455557777",
-        "name": "TUTOR",
-        "description": "Tutor role",
+        "name": "HOST",
+        "description": "Host partner role",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "c354498e-7897-4b4c-8eb9-6d28675c610d",
+        "attributes": {}
+      },
+      {
+        "id": "a1b2c3d4-1111-2222-3333-444455558888",
+        "name": "MANAGER",
+        "description": "Manager role (branch / operations)",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "c354498e-7897-4b4c-8eb9-6d28675c610d",
+        "attributes": {}
+      },
+      {
+        "id": "a1b2c3d4-1111-2222-3333-444455559999",
+        "name": "STAFF",
+        "description": "Branch operational staff (Level-2 RBAC)",
         "composite": false,
         "clientRole": false,
         "containerId": "c354498e-7897-4b4c-8eb9-6d28675c610d",

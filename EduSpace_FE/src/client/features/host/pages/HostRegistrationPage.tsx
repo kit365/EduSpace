@@ -9,14 +9,19 @@ import { profileService } from '@/client/features/customer/profile/services/prof
 import { useAuthStore } from '@/stores/authStore';
 import { showToast } from '@/utils/toast';
 import { getApiErrorMessage } from '@/utils/apiError';
+import { canAccessHostConsole, getRealmRolesFromAccessToken } from '@/utils/keycloakTokenRoles';
 
 export function HostRegistrationPage() {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+    const accessToken = useAuthStore((s) => s.accessToken);
     const [step, setStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
+    /** Khách: true ngay; user đăng nhập: false cho đến khi kiểm tra đơn / realm role xong */
+    const [hostRegHydrated, setHostRegHydrated] = useState(() => !useAuthStore.getState().isAuthenticated);
+    const [appGate, setAppGate] = useState<'pending' | 'approved_relogin' | 'none'>('none');
 
     const [formData, setFormData] = useState({
         type: 'individual' as 'individual' | 'business',
@@ -76,6 +81,46 @@ export function HostRegistrationPage() {
         };
     }, [isAuthenticated]);
 
+    useEffect(() => {
+        if (!isAuthenticated || isSuccess) {
+            setHostRegHydrated(true);
+            setAppGate('none');
+            return;
+        }
+        let cancelled = false;
+        setHostRegHydrated(false);
+        void (async () => {
+            try {
+                const realmOk = canAccessHostConsole(getRealmRolesFromAccessToken(accessToken));
+                if (realmOk) {
+                    if (cancelled) return;
+                    navigate('/rental', { replace: true });
+                    return;
+                }
+                const st = await hostPartnerApplicationService.getMyStatus();
+                if (cancelled) return;
+                if (st.status === 'APPROVED') {
+                    setAppGate('approved_relogin');
+                    return;
+                }
+                if (st.status === 'PENDING') {
+                    setAppGate('pending');
+                    return;
+                }
+                setAppGate('none');
+            } catch {
+                if (!cancelled) {
+                    setAppGate('none');
+                }
+            } finally {
+                if (!cancelled) setHostRegHydrated(true);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [isAuthenticated, accessToken, isSuccess, navigate]);
+
     const nextStep = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
         setStep((s) => Math.min(s + 1, 3));
@@ -134,12 +179,71 @@ export function HostRegistrationPage() {
                         </p>
                         <button
                             type="button"
-                            onClick={() => navigate('/rental/spaces')}
+                            onClick={() => navigate('/')}
                             className="w-full rounded-2xl bg-gray-900 py-4 text-sm font-black uppercase tracking-widest text-white shadow-xl transition-all hover:shadow-gray-200 active:scale-95"
                         >
-                            Về Phòng cho thuê
+                            Về trang chủ
                         </button>
+                        <p className="mt-4 text-xs text-gray-500">
+                            Sau khi admin duyệt, bạn đăng xuất và đăng nhập lại để vào cổng Host.
+                        </p>
                     </div>
+                </div>
+            </CustomerLayout>
+        );
+    }
+
+    if (isAuthenticated && !isSuccess && !hostRegHydrated) {
+        return (
+            <CustomerLayout>
+                <div className="flex min-h-[50vh] items-center justify-center p-8">
+                    <Loader2 className="h-10 w-10 animate-spin text-red-500" />
+                </div>
+            </CustomerLayout>
+        );
+    }
+
+    if (isAuthenticated && appGate === 'pending') {
+        return (
+            <CustomerLayout>
+                <div className="mx-auto max-w-lg px-4 py-16 text-center">
+                    <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-amber-100">
+                        <Loader2 className="h-10 w-10 text-amber-600" />
+                    </div>
+                    <h1 className="mb-4 text-2xl font-black text-gray-900">Đơn đăng ký Host đang chờ duyệt</h1>
+                    <p className="mb-6 text-gray-600">
+                        Bạn đã gửi đơn thành công. Hệ thống chỉ mở cổng Host sau khi admin phê duyệt. Bạn chưa thể vào{' '}
+                        <strong>Phòng cho thuê</strong> cho đến lúc đó.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={() => navigate('/')}
+                        className="w-full rounded-2xl bg-gray-900 py-4 text-sm font-black uppercase tracking-widest text-white"
+                    >
+                        Về trang chủ
+                    </button>
+                </div>
+            </CustomerLayout>
+        );
+    }
+
+    if (isAuthenticated && appGate === 'approved_relogin') {
+        return (
+            <CustomerLayout>
+                <div className="mx-auto max-w-lg px-4 py-16 text-center">
+                    <CheckCircle2 className="mx-auto mb-6 h-16 w-16 text-green-500" />
+                    <h1 className="mb-4 text-2xl font-black text-gray-900">Tài khoản đã được duyệt làm Host</h1>
+                    <p className="mb-6 text-gray-600">
+                        Vai trò Host đã được kích hoạt trên hệ thống, nhưng phiên đăng nhập hiện tại chưa có quyền mới.
+                        Vui lòng <strong>đăng xuất rồi đăng nhập lại</strong>, sau đó mở cổng Host.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={() => navigate('/rental')}
+                        className="w-full rounded-2xl bg-gray-900 py-4 text-sm font-black uppercase tracking-widest text-white"
+                    >
+                        Thử vào cổng Host
+                    </button>
                 </div>
             </CustomerLayout>
         );
