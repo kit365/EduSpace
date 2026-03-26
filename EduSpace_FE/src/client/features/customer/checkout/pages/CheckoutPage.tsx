@@ -19,12 +19,30 @@ export function CheckoutPage() {
   const bookingDetails = (location.state as any)?.bookingDetails;
 
   // Form State aligned with CreateBookingReq
-  const [bookingData, setBookingData] = useState<Partial<CreateBookingReq>>({
-    roomId: bookingDetails?.roomId,
-    bookingDate: bookingDetails?.bookingDate,
-    slotId: bookingDetails?.slotId,
-    durationValue: bookingDetails?.durationValue,
-    durationUnit: bookingDetails?.durationUnit ?? 'HOUR',
+  const startTimeStr: string | undefined = bookingDetails?.startTime;
+  const endTimeStr: string | undefined = bookingDetails?.endTime;
+
+  const computeDurationMinutes = (startHm?: string, endHm?: string) => {
+    if (!startHm || !endHm) return 0;
+    const [sh, sm] = startHm.split(':').map((v: string) => Number(v));
+    const [eh, em] = endHm.split(':').map((v: string) => Number(v));
+    if (!Number.isFinite(sh) || !Number.isFinite(sm) || !Number.isFinite(eh) || !Number.isFinite(em)) return 0;
+    const start = sh * 60 + sm;
+    const end = eh * 60 + em;
+    return Math.max(0, end - start);
+  };
+
+  const [bookingData, setBookingData] = useState<Partial<CreateBookingReq>>(() => {
+    const bookingDate = bookingDetails?.bookingDate;
+    const durationMinutes = computeDurationMinutes(startTimeStr, endTimeStr);
+    return {
+      roomId: bookingDetails?.roomId,
+      bookingDate,
+      durationValue: durationMinutes,
+      durationUnit: durationMinutes > 0 ? 'MINUTE' : 'HOUR',
+      startDateTime: bookingDate && startTimeStr ? `${bookingDate}T${startTimeStr}:00` : undefined,
+      endDateTime: bookingDate && endTimeStr ? `${bookingDate}T${endTimeStr}:00` : undefined,
+    };
   });
 
   // Mock Pricing Result from BE
@@ -56,6 +74,20 @@ export function CheckoutPage() {
     return () => clearInterval(interval);
   }, [step, holdTimer, paymentTimer]);
 
+  // Keep start/end datetime in sync when user changes booking date on step 1.
+  useEffect(() => {
+    if (!bookingData.bookingDate || !startTimeStr || !endTimeStr) return;
+    const durationMinutes = computeDurationMinutes(startTimeStr, endTimeStr);
+    setBookingData((prev) => ({
+      ...prev,
+      startDateTime: `${bookingData.bookingDate}T${startTimeStr}:00`,
+      endDateTime: `${bookingData.bookingDate}T${endTimeStr}:00`,
+      durationValue: durationMinutes,
+      durationUnit: durationMinutes > 0 ? 'MINUTE' : 'HOUR',
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookingData.bookingDate, startTimeStr, endTimeStr]);
+
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
@@ -64,17 +96,31 @@ export function CheckoutPage() {
 
   const nextStep = async () => {
     if (step === 3) {
-      if (!bookingData.roomId || !bookingData.slotId || !bookingData.bookingDate || !bookingData.durationValue || !bookingData.durationUnit) {
+      if (
+        !bookingData.roomId ||
+        !bookingData.bookingDate ||
+        !bookingData.startDateTime ||
+        !bookingData.endDateTime ||
+        !bookingData.durationValue ||
+        !bookingData.durationUnit
+      ) {
         return;
       }
       const profile = await profileService.getProfile();
+      const email = (payerEmail || (profile as { email?: string }).email || '').trim();
+      if (!email) {
+        toast.error(t('checkout.emailRequired', 'Vui lòng nhập email để nhận xác nhận đặt phòng.'));
+        return;
+      }
       await checkoutBookingApiService.createBooking({
         roomId: bookingData.roomId,
         userId: profile.id,
-        bookingDate: bookingData.bookingDate,
-        slotId: bookingData.slotId,
-        durationValue: bookingData.durationValue,
-        durationUnit: bookingData.durationUnit,
+        guestEmail: email,
+        bookingDate: bookingData.bookingDate!,
+        startDateTime: bookingData.startDateTime!,
+        endDateTime: bookingData.endDateTime!,
+        durationValue: bookingData.durationValue!,
+        durationUnit: bookingData.durationUnit!,
       });
     }
     setStep((prev) => (prev < 4 ? prev + 1 : prev) as any);
@@ -82,37 +128,43 @@ export function CheckoutPage() {
   const prevStep = () => setStep(prev => (prev > 1 ? prev - 1 : prev) as any);
 
   useEffect(() => {
-    if (!bookingData.roomId || !bookingData.slotId || !bookingData.bookingDate || !bookingData.durationValue || !bookingData.durationUnit) {
+    if (
+      !bookingData.roomId ||
+      !bookingData.bookingDate ||
+      !bookingData.startDateTime ||
+      !bookingData.endDateTime
+    ) {
       return;
     }
     roomApiService
-      .quoteTimeslotPricing(bookingData.roomId, {
-        slotId: bookingData.slotId,
-        bookingDate: bookingData.bookingDate,
-        durationValue: bookingData.durationValue,
-        durationUnit: bookingData.durationUnit,
+      .quotePrice(bookingData.roomId, {
+        startDateTime: bookingData.startDateTime,
+        endDateTime: bookingData.endDateTime,
       })
       .then((quote) => {
+        const hours = quote.durationMinutes / 60;
+        const appliedPerHour = hours > 0 ? quote.subtotal / hours : quote.unitPrice ?? 0;
+
         setPricing({
           dailyBreakdown: [
             {
               date: bookingData.bookingDate ?? '',
-              hours: quote.durationMinutes / 60,
-              basePrice: quote.unitPrice,
-              appliedPrice: quote.unitPrice,
-              isWeekend: false,
+              hours,
+              basePrice: appliedPerHour,
+              appliedPrice: appliedPerHour,
+              isWeekend: quote.weekendSurchargeApplied,
             },
           ],
-          totalRoomPrice: quote.totalPrice,
+          totalRoomPrice: quote.total,
           cleaningFee: 50000,
           serviceFee: 100000,
           extraCharges: [],
-          grandTotal: quote.totalPrice + 150000,
-          currency: quote.currency,
+          grandTotal: quote.total + 150000,
+          currency: 'VNĐ',
         });
       })
       .catch(() => undefined);
-  }, [bookingData.roomId, bookingData.slotId, bookingData.bookingDate, bookingData.durationValue, bookingData.durationUnit]);
+  }, [bookingData.roomId, bookingData.bookingDate, bookingData.startDateTime, bookingData.endDateTime]);
 
   const handlePayDeposit = async () => {
     setPayingDeposit(true);
@@ -196,14 +248,12 @@ export function CheckoutPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t('customer.checkout.schedule.numDays')}</label>
-                      <select
-                        value={bookingData.durationValue}
-                        onChange={(e) => setBookingData({ ...bookingData, durationValue: parseInt(e.target.value), durationUnit: 'HOUR' })}
-                        className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-100 focus:border-red-400 transition-all appearance-none"
-                      >
-                        {[1, 2, 3, 4, 5, 6, 7].map(d => <option key={d} value={d}>{d} giờ</option>)}
-                      </select>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Thời lượng</label>
+                      <div className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-100 focus:border-red-400 transition-all">
+                        {bookingData.durationUnit === 'MINUTE'
+                          ? (bookingData.durationValue ?? 0) + ' phút'
+                          : (bookingData.durationValue ?? 0) + ' giờ'}
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t('customer.checkout.schedule.startTime')}</label>

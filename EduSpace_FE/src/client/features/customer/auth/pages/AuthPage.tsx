@@ -45,6 +45,11 @@ export function AuthPage() {
               err.response?.data?.message ||
                 'Vui lòng xác thực email trước khi đăng nhập (kiểm tra hộp thư).',
             );
+          } else if (code === 'KEYCLOAK_UNAVAILABLE') {
+            toast.error(
+              err.response?.data?.message ||
+                'Không kết nối được Keycloak. Chạy Keycloak (docker compose) và kiểm tra KEYCLOAK_SERVER_URL / cổng.',
+            );
           } else {
             toast.error(err.response?.data?.message || err.message || 'Login failed');
           }

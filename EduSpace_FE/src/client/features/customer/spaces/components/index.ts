@@ -3,3 +3,4 @@ export { BookingPanel } from './BookingPanel';
 export { SpaceInfo } from './SpaceInfo';
 export { SpaceLocation } from './SpaceLocation';
 export { SpaceReviews } from './SpaceReviews';
+export { PriceRulesCard } from './PriceRulesCard';
