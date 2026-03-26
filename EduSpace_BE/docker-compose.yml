@@ -210,6 +210,7 @@ services:
     ports:
       - "${BOOKING_SERVICE_PORT}:8082"
     environment:
+      EUREKA_CLIENT_ENABLED: "true"
       SPRING_DATASOURCE_URL: jdbc:postgresql://booking-db:5432/eduspace_booking
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
