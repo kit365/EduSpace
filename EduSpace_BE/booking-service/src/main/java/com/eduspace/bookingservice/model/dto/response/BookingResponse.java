@@ -24,6 +24,9 @@ public class BookingResponse {
     private LocalDateTime startDateTime;
     private LocalDateTime endDateTime;
     private java.math.BigDecimal totalPrice;
+    private String voucherCode;
+    private java.math.BigDecimal discountAmount;
+    private java.math.BigDecimal finalPrice;
     private List<BookingExtraAmenityResponse> extraAmenities;
     private BookingStatus status;
     private LocalDateTime createdAt;
