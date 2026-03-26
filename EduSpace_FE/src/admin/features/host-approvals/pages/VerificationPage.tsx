@@ -278,7 +278,7 @@ export function VerificationPage() {
                     );
                 }
             } else {
-                showToast.success('Đã duyệt — user có role TUTOR (host). Nhắc user đăng nhập lại.');
+                showToast.success('Đã duyệt — user có role HOST. Nhắc user đăng nhập lại.');
             }
             await loadPartners();
         } catch (e) {
@@ -399,7 +399,7 @@ export function VerificationPage() {
                 <div>
                     <div className="mb-6 flex items-center justify-between">
                         <p className="text-sm font-bold text-gray-500">
-                            Đơn từ account-service — Duyệt sẽ gán role <strong>TUTOR</strong> (host trên FE).
+                            Đơn từ account-service — Duyệt sẽ gán role <strong>HOST</strong> (đối tác trên FE).
                         </p>
                         <button
                             type="button"

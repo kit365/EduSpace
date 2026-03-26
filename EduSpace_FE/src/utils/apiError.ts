@@ -19,4 +19,5 @@ export function getApiErrorMessage(err: unknown, fallback: string): string {
 
 const BACKEND_ERROR_MESSAGE_MAP: Record<string, string> = {
   'host.application.pending-exists': 'Bạn đã có một đơn đăng ký chi nhánh đang chờ duyệt.',
+  'host.application.already-partner': 'Tài khoản của bạn đã là đối tác. Bạn không cần gửi lại đơn đăng ký.',
 };

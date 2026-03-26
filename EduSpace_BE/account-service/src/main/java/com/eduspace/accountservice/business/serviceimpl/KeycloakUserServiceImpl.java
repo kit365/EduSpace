@@ -108,7 +108,17 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
             return keycloakUserId;
         }
 
+        // Email/username already exists — treat as success and resolve id (avoids noisy startup errors).
+        if (response.getStatus() == 409) {
+            String errorBody = response.readEntity(String.class);
+            response.close();
+            log.info("User already exists in Keycloak for {} (409). Resolving id by email. Body: {}", email, errorBody);
+            return findUserIdByEmail(email).orElseThrow(() -> new RuntimeException(
+                    "User exists in Keycloak but id could not be resolved for email: " + email));
+        }
+
         String errorBody = response.readEntity(String.class);
+        response.close();
         log.error("Failed to create user in Keycloak. Status: {}, Body: {}", response.getStatus(), errorBody);
         throw new RuntimeException("Failed to create user in Keycloak: " + errorBody);
     }
@@ -138,6 +148,25 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
                 .add(List.of(role));
 
         log.info("Assigned role '{}' to user '{}'", roleName, userId);
+    }
+
+    @Override
+    public void removeRealmRole(String userId, String roleName) {
+        try {
+            RoleRepresentation role = keycloak.realm(realm)
+                    .roles()
+                    .get(roleName)
+                    .toRepresentation();
+            keycloak.realm(realm)
+                    .users()
+                    .get(userId)
+                    .roles()
+                    .realmLevel()
+                    .remove(List.of(role));
+            log.info("Removed realm role '{}' from user '{}'", roleName, userId);
+        } catch (jakarta.ws.rs.NotFoundException e) {
+            log.warn("Role '{}' not found or not assigned for user '{}': {}", roleName, userId, e.getMessage());
+        }
     }
 
     @Override
@@ -224,6 +253,11 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
 
     @Override
     public java.util.Optional<String> findUserIdByEmail(String email) {
+        // Prefer email-specific search — search(String, boolean) matches username/display fields and can miss users.
+        List<UserRepresentation> byEmail = keycloak.realm(realm).users().searchByEmail(email, true);
+        if (byEmail != null && !byEmail.isEmpty()) {
+            return java.util.Optional.of(byEmail.get(0).getId());
+        }
         List<UserRepresentation> users = keycloak.realm(realm).users().search(email, true);
         if (users != null && !users.isEmpty()) {
             return java.util.Optional.of(users.get(0).getId());

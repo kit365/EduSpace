@@ -10,11 +10,38 @@ import SockJS from 'sockjs-client';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 /** SockJS entry (gateway forwards /ws → conversation-service). Port is same as API_BASE_URL (e.g. 8080). */
 const WEBSOCKET_URL = API_BASE_URL + '/ws';
+const WS_HEALTHCHECK_TIMEOUT_MS = 2500;
+const WS_COOLDOWN_MS = 30000;
+let wsCooldownUntil = 0;
 
 function devWsLog(label: string, payload?: unknown) {
     if (import.meta.env.DEV) {
         // eslint-disable-next-line no-console
         console.info(`[chat WS] ${label}`, payload ?? '');
+    }
+}
+
+async function canConnectWebSocketGateway(): Promise<boolean> {
+    if (Date.now() < wsCooldownUntil) {
+        return false;
+    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), WS_HEALTHCHECK_TIMEOUT_MS);
+    try {
+        const res = await fetch(`${WEBSOCKET_URL}/info?t=${Date.now()}`, {
+            method: 'GET',
+            signal: controller.signal,
+        });
+        if (!res.ok) {
+            wsCooldownUntil = Date.now() + WS_COOLDOWN_MS;
+            return false;
+        }
+        return true;
+    } catch {
+        wsCooldownUntil = Date.now() + WS_COOLDOWN_MS;
+        return false;
+    } finally {
+        window.clearTimeout(timer);
     }
 }
 
@@ -53,6 +80,12 @@ export function useChatWebSocket(params: {
         void (async () => {
             await useAuthStore.persist.rehydrate();
             if (cancelled) return;
+            if (!(await canConnectWebSocketGateway())) {
+                devWsLog('skip connect: ws unavailable (cooldown)', {
+                    retryAfterMs: Math.max(0, wsCooldownUntil - Date.now()),
+                });
+                return;
+            }
 
             const token = useAuthStore.getState().accessToken;
             const guestIdForHeader = token ? null : getOrCreateGuestId();
@@ -119,10 +152,14 @@ export function useChatWebSocket(params: {
                 },
                 onStompError: (frame) => {
                     devWsLog('STOMP error', frame?.headers?.message ?? frame);
+                    wsCooldownUntil = Date.now() + WS_COOLDOWN_MS;
+                    stompClient.deactivate();
                     setIsConnected(false);
                 },
                 onWebSocketError: (e) => {
                     devWsLog('WebSocket error', e);
+                    wsCooldownUntil = Date.now() + WS_COOLDOWN_MS;
+                    stompClient.deactivate();
                     setIsConnected(false);
                 },
             });

@@ -8,6 +8,7 @@ import com.eduspace.accountservice.exception.ErrorCode;
 import com.eduspace.accountservice.model.dto.response.user.UserResponse;
 import com.eduspace.accountservice.model.entity.UserEntity;
 import com.eduspace.accountservice.model.mapper.UserMapper;
+import com.eduspace.accountservice.persistence.repository.UserPermissionRepository;
 import com.eduspace.accountservice.persistence.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,10 +19,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.eduspace.accountservice.model.dto.request.user.UpdateProfileRequest;
 import com.eduspace.accountservice.model.dto.response.user.TwoFactorResponse;
+import java.util.Collections;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -38,6 +42,9 @@ class UserServiceImplTest {
 
     @Mock
     private SupportStaffPresenceService supportStaffPresenceService;
+
+    @Mock
+    private UserPermissionRepository userPermissionRepository;
 
     @InjectMocks
     private UserServiceImpl userServiceImpl; // Target implementation
@@ -67,7 +74,8 @@ class UserServiceImplTest {
     void getProfile_Success() {
         // Arrange: Prepare data and mock behavior
         when(userRepository.findByKeycloakId("test-id")).thenReturn(Optional.of(userEntity));
-        when(userMapper.toUserResponse(userEntity)).thenReturn(userResponse);
+        when(userPermissionRepository.findPermissionNamesByUserId("user-uuid")).thenReturn(Collections.emptySet());
+        when(userMapper.toUserResponse(eq(userEntity), any())).thenReturn(userResponse);
 
         // Act: Execute method
         UserResponse result = userService.getProfile("test-id");
@@ -92,7 +100,8 @@ class UserServiceImplTest {
     @Test
     void getProfileByEmail_Success() {
         when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(userEntity));
-        when(userMapper.toUserResponse(userEntity)).thenReturn(userResponse);
+        when(userPermissionRepository.findPermissionNamesByUserId("user-uuid")).thenReturn(Collections.emptySet());
+        when(userMapper.toUserResponse(eq(userEntity), any())).thenReturn(userResponse);
 
         UserResponse result = userService.getProfileByEmail("test@example.com");
 
@@ -106,7 +115,8 @@ class UserServiceImplTest {
         request.setFullName("Updated Name");
 
         when(userRepository.findByKeycloakId("test-id")).thenReturn(Optional.of(userEntity));
-        when(userMapper.toUserResponse(userEntity)).thenReturn(userResponse);
+        when(userPermissionRepository.findPermissionNamesByUserId("user-uuid")).thenReturn(Collections.emptySet());
+        when(userMapper.toUserResponse(eq(userEntity), any())).thenReturn(userResponse);
 
         UserResponse result = userService.updateProfile("test-id", null, request);
 
@@ -120,7 +130,8 @@ class UserServiceImplTest {
         UpdateProfileRequest request = new UpdateProfileRequest();
 
         when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(userEntity));
-        when(userMapper.toUserResponse(userEntity)).thenReturn(userResponse);
+        when(userPermissionRepository.findPermissionNamesByUserId("user-uuid")).thenReturn(Collections.emptySet());
+        when(userMapper.toUserResponse(eq(userEntity), any())).thenReturn(userResponse);
 
         UserResponse result = userService.updateProfile(null, "test@example.com", request);
 

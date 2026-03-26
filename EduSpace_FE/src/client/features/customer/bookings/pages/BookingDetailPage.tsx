@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { CustomerLayout } from '../../../../layouts/CustomerLayout';
+import { useAuthStore } from '@/stores/authStore';
+import { guestFeatureAllowed, guestPermissions } from '../../permissions/guestPermissions';
 import { ArrowLeft, QrCode, MessageCircle, Calendar, Clock, MapPin, Users, CreditCard, Star, Copy, CheckCircle2, Phone, ShieldCheck } from 'lucide-react';
 import { formatCurrency } from '../../../../../utils';
 import { BOOKINGS } from '../data/mockData';
@@ -10,6 +12,12 @@ import { ReviewModal } from '../components/ReviewModal';
 export function BookingDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const accessToken = useAuthStore((s) => s.accessToken);
+    const hostPermissionsFromAccount = useAuthStore((s) => s.hostPermissionsFromAccount);
+    const canWriteReview = useMemo(
+        () => guestFeatureAllowed(accessToken, guestPermissions.createReviews, hostPermissionsFromAccount),
+        [accessToken, hostPermissionsFromAccount],
+    );
     const [copied, setCopied] = useState(false);
     const [showReview, setShowReview] = useState(false);
     const [reviewSubmitted, setReviewSubmitted] = useState(false);
@@ -148,7 +156,7 @@ export function BookingDetailPage() {
                             </div>
 
                             {/* FR-10: Review Form */}
-                            {booking.status === 'completed' && !reviewSubmitted && (
+                            {booking.status === 'completed' && !reviewSubmitted && canWriteReview && (
                                 <div className="bg-white rounded-3xl border border-gray-100 p-4 shadow-sm">
                                     <div className="text-center py-4">
                                         <Star className="w-10 h-10 text-amber-400 mx-auto mb-3" />

@@ -32,6 +32,9 @@ import {
 import { roomApiService } from '@/client/features/room/services/roomApiService';
 import type { RoomDto } from '@/client/features/room/types';
 import { isRoomOpenForBooking } from '@/client/features/room/utils/roomOperationalStatus';
+import { useAuthStore } from '@/stores/authStore';
+import { hasHostPermission } from '@/utils/keycloakTokenRoles';
+import { hostPermissions } from '../permissions/hostPermissions';
 
 const ROOM_TYPE_LABELS: Record<string, string> = {
     MEETING_ROOM: 'Phòng họp',
@@ -87,9 +90,15 @@ export function SpacesPage() {
     const [rooms, setRooms] = useState<RoomDto[]>([]);
     const [loadingRooms, setLoadingRooms] = useState(false);
     const [hostApp, setHostApp] = useState<MyHostApplicationStatus | null | undefined>(undefined);
+    const accessToken = useAuthStore((s) => s.accessToken);
+    const hostPermissionsFromAccount = useAuthStore((s) => s.hostPermissionsFromAccount);
 
     const isHostPartner = profile?.role === 'host';
     const canManageRooms = isHostPartner || hostApp?.status === 'APPROVED';
+    const canViewRoom = hasHostPermission(accessToken, hostPermissions.room.view, hostPermissionsFromAccount);
+    const canCreateRoom = hasHostPermission(accessToken, hostPermissions.room.create, hostPermissionsFromAccount);
+    const canEditRoom = hasHostPermission(accessToken, hostPermissions.room.edit, hostPermissionsFromAccount);
+    const canDeleteRoom = hasHostPermission(accessToken, hostPermissions.room.delete, hostPermissionsFromAccount);
 
     const loadRooms = useCallback(async () => {
         if (!profile?.id) return;
@@ -127,7 +136,7 @@ export function SpacesPage() {
         void loadRooms();
     }, [profileLoading, hostApp, canManageRooms, loadRooms]);
 
-    const creating = searchParams.has('create') && canManageRooms;
+    const creating = searchParams.has('create') && canManageRooms && canCreateRoom;
 
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -272,7 +281,7 @@ export function SpacesPage() {
     }, [filteredRooms, sortBy]);
 
     const openCreate = () => {
-        if (!canManageRooms) return;
+        if (!canManageRooms || !canCreateRoom) return;
         setSearchParams('?create');
     };
 
@@ -343,6 +352,16 @@ export function SpacesPage() {
                             <ArrowRight className="h-5 w-5" />
                         </Link>
                     </div>
+                </div>
+            </RentalLayout>
+        );
+    }
+
+    if (!canViewRoom) {
+        return (
+            <RentalLayout title="Phòng của tôi">
+                <div className="mx-auto max-w-lg p-8 text-center text-gray-600">
+                    Bạn không có quyền xem module phòng.
                 </div>
             </RentalLayout>
         );
@@ -438,28 +457,32 @@ export function SpacesPage() {
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                        <button
-                            type="button"
-                            className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-3.5 text-sm font-semibold text-gray-700"
-                        >
-                            <Download className="h-4 w-4" />
-                            Export
-                        </button>
-                        <button
-                            type="button"
-                            className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-3.5 text-sm font-semibold text-gray-700"
-                        >
-                            <Upload className="h-4 w-4" />
-                            Import
-                        </button>
-                        <button
-                            type="button"
-                            onClick={openCreate}
-                            className="inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-red-500 px-4 text-sm font-bold text-white shadow-lg shadow-red-200 transition hover:bg-red-600 active:scale-95"
-                        >
-                            <PlusCircle className="h-4 w-4" />
-                            Đăng phòng mới
-                        </button>
+                        {canCreateRoom && (
+                            <>
+                                <button
+                                    type="button"
+                                    className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-3.5 text-sm font-semibold text-gray-700"
+                                >
+                                    <Download className="h-4 w-4" />
+                                    Export
+                                </button>
+                                <button
+                                    type="button"
+                                    className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-3.5 text-sm font-semibold text-gray-700"
+                                >
+                                    <Upload className="h-4 w-4" />
+                                    Import
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={openCreate}
+                                    className="inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-red-500 px-4 text-sm font-bold text-white shadow-lg shadow-red-200 transition hover:bg-red-600 active:scale-95"
+                                >
+                                    <PlusCircle className="h-4 w-4" />
+                                    Đăng phòng mới
+                                </button>
+                            </>
+                        )}
                     </div>
                 </div>
 
@@ -671,28 +694,34 @@ export function SpacesPage() {
                                                         >
                                                             <Eye className="h-4 w-4" />
                                                         </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => navigate(`/rental/spaces/edit/${room.id}`)}
-                                                            className="rounded-lg p-2 text-gray-400 transition hover:bg-blue-50 hover:text-blue-500"
-                                                            title="Sửa"
-                                                        >
-                                                            <Edit2 className="h-4 w-4" />
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            className="rounded-lg p-2 text-gray-400 transition hover:bg-green-50 hover:text-green-500"
-                                                            title="Nhân bản"
-                                                        >
-                                                            <Copy className="h-4 w-4" />
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            className="rounded-lg p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-500"
-                                                            title="Xóa"
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </button>
+                                                        {canEditRoom && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => navigate(`/rental/spaces/edit/${room.id}`)}
+                                                                className="rounded-lg p-2 text-gray-400 transition hover:bg-blue-50 hover:text-blue-500"
+                                                                title="Sửa"
+                                                            >
+                                                                <Edit2 className="h-4 w-4" />
+                                                            </button>
+                                                        )}
+                                                        {canCreateRoom && (
+                                                            <button
+                                                                type="button"
+                                                                className="rounded-lg p-2 text-gray-400 transition hover:bg-green-50 hover:text-green-500"
+                                                                title="Nhân bản"
+                                                            >
+                                                                <Copy className="h-4 w-4" />
+                                                            </button>
+                                                        )}
+                                                        {canDeleteRoom && (
+                                                            <button
+                                                                type="button"
+                                                                className="rounded-lg p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-500"
+                                                                title="Xóa"
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -753,28 +782,34 @@ export function SpacesPage() {
                                                     >
                                                         <Eye className="h-4 w-4" />
                                                     </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => navigate(`/rental/spaces/edit/${room.id}`)}
-                                                        className="rounded-lg p-2 text-gray-400 transition hover:bg-blue-50 hover:text-blue-500"
-                                                        title="Sửa"
-                                                    >
-                                                        <Edit2 className="h-4 w-4" />
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        className="rounded-lg p-2 text-gray-400 transition hover:bg-green-50 hover:text-green-500"
-                                                        title="Nhân bản"
-                                                    >
-                                                        <Copy className="h-4 w-4" />
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        className="rounded-lg p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-500"
-                                                        title="Xóa"
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </button>
+                                                    {canEditRoom && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => navigate(`/rental/spaces/edit/${room.id}`)}
+                                                            className="rounded-lg p-2 text-gray-400 transition hover:bg-blue-50 hover:text-blue-500"
+                                                            title="Sửa"
+                                                        >
+                                                            <Edit2 className="h-4 w-4" />
+                                                        </button>
+                                                    )}
+                                                    {canCreateRoom && (
+                                                        <button
+                                                            type="button"
+                                                            className="rounded-lg p-2 text-gray-400 transition hover:bg-green-50 hover:text-green-500"
+                                                            title="Nhân bản"
+                                                        >
+                                                            <Copy className="h-4 w-4" />
+                                                        </button>
+                                                    )}
+                                                    {canDeleteRoom && (
+                                                        <button
+                                                            type="button"
+                                                            className="rounded-lg p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-500"
+                                                            title="Xóa"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -790,13 +825,15 @@ export function SpacesPage() {
                                         ? 'Chưa có phòng nào. Hãy đăng phòng mới hoặc thêm chi nhánh nếu cần.'
                                         : 'Chưa có phòng nào khớp bộ lọc hoặc trong chi nhánh đang chọn.'}
                                 </p>
-                                <button
-                                    type="button"
-                                    onClick={openCreate}
-                                    className="font-bold text-red-500 hover:underline"
-                                >
-                                    Đăng phòng mới
-                                </button>
+                                {canCreateRoom && (
+                                    <button
+                                        type="button"
+                                        onClick={openCreate}
+                                        className="font-bold text-red-500 hover:underline"
+                                    >
+                                        Đăng phòng mới
+                                    </button>
+                                )}
                             </div>
                         )}
                     </>

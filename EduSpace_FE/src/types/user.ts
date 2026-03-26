@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'super_admin' | 'host' | 'staff' | 'renter';
+export type UserRole = 'admin' | 'super_admin' | 'host' | 'manager' | 'guest' | 'staff' | 'renter';
 export type KycStatus = 'not_submitted' | 'pending' | 'verified' | 'rejected';
 export type AccountStatus = 'active' | 'pending' | 'suspended' | 'banned' | 'blocked';
 
@@ -46,6 +46,13 @@ export interface Role {
     id: string;
     name: string;
     userCount: number;
+    permissions: Permission[];
+}
+
+export interface PermissionTemplate {
+    id: number;
+    name: string;
+    description?: string | null;
     permissions: Permission[];
 }
 
