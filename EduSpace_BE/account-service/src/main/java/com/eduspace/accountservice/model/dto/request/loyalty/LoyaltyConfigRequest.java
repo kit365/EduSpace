@@ -1,4 +1,4 @@
-package com.eduspace.accountservice.model.dto.loyalty;
+package com.eduspace.accountservice.model.dto.request.loyalty;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;

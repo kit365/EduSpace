@@ -28,6 +28,7 @@ export interface UserResponse {
   postalCode?: string;
   taxId?: string;
   organizationName?: string;
+  verificationStatus?: KycStatus;
   verificationStatus?: string;
   ocrData?: {
     name: string;

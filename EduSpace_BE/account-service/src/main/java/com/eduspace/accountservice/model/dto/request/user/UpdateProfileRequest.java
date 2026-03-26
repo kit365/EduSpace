@@ -21,5 +21,6 @@ public class UpdateProfileRequest {
     String streetAddress;
     String postalCode;
     String taxId;
+    String hostType;
     String organizationName;
 }

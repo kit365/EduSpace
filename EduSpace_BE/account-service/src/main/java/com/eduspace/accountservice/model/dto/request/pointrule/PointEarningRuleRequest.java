@@ -1,4 +1,4 @@
-package com.eduspace.accountservice.model.dto.pointrule;
+package com.eduspace.accountservice.model.dto.request.pointrule;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

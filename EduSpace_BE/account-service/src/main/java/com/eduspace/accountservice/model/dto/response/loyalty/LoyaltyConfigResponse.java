@@ -1,4 +1,4 @@
-package com.eduspace.accountservice.model.dto.pointrule;
+package com.eduspace.accountservice.model.dto.response.loyalty;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -10,12 +10,8 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class PointEarningRuleResponse {
+public class LoyaltyConfigResponse {
     Long id;
-    String actionName;
-    Integer pointsEarned;
-    String description;
-    Boolean isActive;
-    LocalDateTime createdAt;
+    Integer vndPerPoint;
     LocalDateTime updatedAt;
 }

@@ -8,4 +8,7 @@ public class SagaEventConstants {
     
     // Luồng Chat (ví dụ)
     public static final String CHAT_MESSAGE_SENT = "CHAT_MESSAGE_SENT";
+    
+    // Luồng eKYC / Host Registration
+    public static final String EKYC_VERIFICATION_SUCCESS = "EKYC_VERIFICATION_SUCCESS";
 }

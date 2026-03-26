@@ -48,3 +48,22 @@ env/
 .env.*
 !.env.example
 *.log
+
+### Python ###
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+### macOS & OS ###
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db

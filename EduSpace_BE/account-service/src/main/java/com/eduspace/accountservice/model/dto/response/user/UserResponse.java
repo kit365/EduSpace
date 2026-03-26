@@ -1,5 +1,6 @@
 package com.eduspace.accountservice.model.dto.response.user;
 
+import com.eduspace.accountservice.common.enums.VerificationStatus;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -32,8 +33,15 @@ public class UserResponse {
     String taxId;
     String hostType;
     String organizationName;
-    String verificationDocument;
-    String verificationStatus;
+    VerificationStatus verificationStatus;
+    
+    // Verified Identity Data (from eKYC)
+    String legalName;
+    String idCardNumber;
+    java.time.LocalDate dob;
+    String verifiedAddress;
+    String idCardFrontUrl;
+
     Boolean isActive;
     Boolean isEmailVerified;
     Boolean is2faEnabled;
