@@ -301,6 +301,7 @@ export const en = {
             contactHostTitle: "Contact Host",
             contactHostDesc: "Need more information about amenities, schedule, or booking support? Message the host directly.",
             contactHostBtn: "Message host",
+            contactHostUnavailable: "This space does not have host contact information yet.",
             verifiedHost: "Verified Host"
         },
         search: {

@@ -69,8 +69,14 @@ public class ChatServiceImpl implements ChatService {
             log.error("currentUserId is null in getOrCreateConversation. Cannot proceed.");
             throw new AppException(ErrorCode.UNAUTHORIZED); 
         }
+        if (otherUserId == null || otherUserId.isBlank()) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
         final String userId = normalizeParticipantIdForStorage(currentUserId);
         final String peerId = normalizeParticipantIdForStorage(otherUserId);
+        if (peerId == null || peerId.isBlank()) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
 
         boolean effectiveIsAdmin = isAdminConversation
                 || "admin-keycloak-id-0000".equals(peerId)

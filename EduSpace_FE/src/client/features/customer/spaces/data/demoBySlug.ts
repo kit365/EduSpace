@@ -25,6 +25,7 @@ export const DEMO_SPACE_BY_SLUG: Record<string, SpaceDetails> = {
     description:
       'Phòng họp hiện đại, máy chiếu 4K, bảng tương tác. (Dữ liệu demo — chạy room-service + đăng nhập để lấy API thật.)',
     additionalInfo: 'EduSpace Demo Campus',
+    hostId: '',
     amenitiesDetailed: [
       { icon: Wifi, name: 'Wi-Fi' },
       { icon: Projector, name: 'Máy chiếu' },
@@ -60,6 +61,7 @@ export const DEMO_SPACE_BY_SLUG: Record<string, SpaceDetails> = {
     amenities: ['Wifi', 'Lighting'],
     description: 'Không gian studio cho workshop, quay chụp nhỏ. (Demo)',
     additionalInfo: 'EduSpace Demo Campus',
+    hostId: '',
     amenitiesDetailed: [{ icon: Wifi, name: 'Wi-Fi' }],
     reviews: [],
   },
@@ -81,6 +83,7 @@ export const DEMO_SPACE_BY_SLUG: Record<string, SpaceDetails> = {
     amenities: ['Wifi', 'AC'],
     description: 'Không gian làm việc chung, Wi-Fi tốc độ cao. (Demo)',
     additionalInfo: 'EduSpace Demo Campus',
+    hostId: '',
     amenitiesDetailed: [{ icon: Wifi, name: 'Wi-Fi' }],
     reviews: [],
   },

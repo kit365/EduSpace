@@ -28,8 +28,29 @@ export function SpaceDetailPage() {
   ];
 
   const hostName = space?.hostName || 'EduSpace Host';
+  const hostRecipientId = typeof space?.hostId === 'string' ? space.hostId.trim() : '';
+  const canContactHost = hostRecipientId.length > 0;
 
   const onBack = () => navigate(-1);
+  const handleContactHost = () => {
+    if (!canContactHost) {
+      window.alert(t('customer.spaceDetail.contactHostUnavailable'));
+      return;
+    }
+    if (!space) {
+      window.alert(t('customer.spaceDetail.notFoundDesc'));
+      return;
+    }
+    navigate('/messages', {
+      state: {
+        recipientId: hostRecipientId,
+        recipientName: hostName,
+        spaceId: space?.id ?? null,
+        spaceName: space?.name ?? '',
+        contactIntentId: `${space.id}-${Date.now()}`,
+      },
+    });
+  };
 
   if (loading) {
     return (
@@ -210,15 +231,10 @@ export function SpaceDetailPage() {
                       : t('customer.spaceDetail.contactHostDesc')}
                   </p>
                   <button
-                    onClick={() => navigate('/messages', {
-                      state: {
-                        recipientId: space.hostId,
-                        recipientName: hostName,
-                        spaceId: space.id,
-                        spaceName: space.name,
-                      }
-                    })}
-                    className="inline-flex items-center gap-2 rounded-xl bg-gray-900 px-5 py-3 text-sm font-bold text-white hover:bg-red-600 transition-colors"
+                    type="button"
+                    onClick={handleContactHost}
+                    className="inline-flex items-center gap-2 rounded-xl bg-gray-900 px-5 py-3 text-sm font-bold text-white hover:bg-red-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                    disabled={!canContactHost}
                   >
                     <MessageCircle className="w-4 h-4" />
                     {t('customer.spaceDetail.contactHostBtn')}
@@ -263,15 +279,10 @@ export function SpaceDetailPage() {
                 </div>
               </div>
               <button
-                onClick={() => navigate('/messages', {
-                  state: {
-                    recipientId: space.hostId,
-                    recipientName: hostName,
-                    spaceId: space.id,
-                    spaceName: space.name,
-                  }
-                })}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-50 hover:text-red-600 hover:border-red-200 transition-colors"
+                type="button"
+                onClick={handleContactHost}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-50 hover:text-red-600 hover:border-red-200 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                disabled={!canContactHost}
               >
                 <MessageCircle className="w-4 h-4" />
                 {t('customer.spaceDetail.contactHostBtn')}

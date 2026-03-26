@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { CustomerLayout } from '../../../../layouts/CustomerLayout';
 import { 
     Send, Search, MoreVertical, Paperclip, Smile, Loader2, Headphones,
@@ -54,6 +55,7 @@ export function MessagesPage() {
     const isPrependingRef = useRef(false);
     const queryClient = useQueryClient();
     const handledRecipientIdRef = useRef<string | null>(null);
+    const { t } = useTranslation();
 
     const { chatUserId: currentUserId } = useResolvedChatUserId();
     const { initiateCall, activeCall } = useVideoCall();
@@ -169,14 +171,17 @@ export function MessagesPage() {
     }, [conversations, selectedConversation]);
 
     useEffect(() => {
-        const recipientId = (location.state as { recipientId?: string } | null)?.recipientId;
+        const navState = (location.state as { recipientId?: string; contactIntentId?: string } | null) ?? null;
+        const recipientId = (navState?.recipientId ?? '').trim();
         if (!recipientId) return;
-        if (handledRecipientIdRef.current === recipientId) return;
-        handledRecipientIdRef.current = recipientId;
+
+        const contactIntentId = navState?.contactIntentId ?? recipientId;
+        if (handledRecipientIdRef.current === contactIntentId) return;
 
         const openHostConversation = async () => {
             try {
                 const conv = await messageService.createConversation(recipientId, false);
+                handledRecipientIdRef.current = contactIntentId;
                 setConversations((prev) => {
                     const filtered = prev.filter((c) => c.conversationId !== conv.conversationId);
                     return [conv, ...filtered];
@@ -185,11 +190,12 @@ export function MessagesPage() {
                 await queryClient.invalidateQueries({ queryKey: ['messages', conv.conversationId] });
             } catch (error) {
                 console.error('Failed to open host conversation', error);
+                window.alert(t('customer.spaceDetail.contactHostUnavailable'));
             }
         };
 
         void openHostConversation();
-    }, [location.state, queryClient, setConversations]);
+    }, [location.state, queryClient, setConversations, t]);
 
     useEffect(() => {
         if (!selectedConversation) return;
