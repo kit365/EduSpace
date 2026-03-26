@@ -8,6 +8,10 @@ import {
   type DepositRefundPolicyDto,
   type UpsertDepositRefundPolicyPayload,
 } from '../services/depositRefundPolicyService';
+import { useAuthStore } from '@/stores/authStore';
+import { hasHostPermission } from '@/utils/keycloakTokenRoles';
+import { hostPermissions } from '../permissions/hostPermissions';
+import { refreshHostPermissionsFromAccount } from '@/utils/refreshHostPermissionsFromAccount';
 
 type PolicyType = 'DEPOSIT' | 'REFUND';
 
@@ -90,6 +94,8 @@ function toPayload(form: PolicyForm): UpsertDepositRefundPolicyPayload {
 }
 
 export function DepositRefundPolicyManagementPage() {
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const hostPermissionsFromAccount = useAuthStore((s) => s.hostPermissionsFromAccount);
   const [policies, setPolicies] = useState<DepositRefundPolicyDto[]>([]);
   const [activeTab, setActiveTab] = useState<'ALL' | PolicyType>('ALL');
   const [loading, setLoading] = useState(false);
@@ -104,6 +110,10 @@ export function DepositRefundPolicyManagementPage() {
     if (activeTab === 'ALL') return policies;
     return policies.filter((p) => p.policyType === activeTab);
   }, [activeTab, policies]);
+  const canViewPolicy = hasHostPermission(accessToken, hostPermissions.depositPolicy.view, hostPermissionsFromAccount);
+  const canCreatePolicy = hasHostPermission(accessToken, hostPermissions.depositPolicy.create, hostPermissionsFromAccount);
+  const canEditPolicy = hasHostPermission(accessToken, hostPermissions.depositPolicy.edit, hostPermissionsFromAccount);
+  const canDeletePolicy = hasHostPermission(accessToken, hostPermissions.depositPolicy.delete, hostPermissionsFromAccount);
 
   const loadPolicies = async () => {
     setLoading(true);
@@ -118,10 +128,19 @@ export function DepositRefundPolicyManagementPage() {
   };
 
   useEffect(() => {
+    void refreshHostPermissionsFromAccount();
+  }, [accessToken]);
+
+  useEffect(() => {
+    if (!canViewPolicy) return;
     void loadPolicies();
-  }, []);
+  }, [canViewPolicy]);
 
   const openCreate = () => {
+    if (!canCreatePolicy) {
+      showToast.error('Bạn không có quyền tạo chính sách.');
+      return;
+    }
     setEditing(null);
     const next = toForm(null);
     if (activeTab !== 'ALL') {
@@ -132,6 +151,10 @@ export function DepositRefundPolicyManagementPage() {
   };
 
   const openEdit = (item: DepositRefundPolicyDto) => {
+    if (!canEditPolicy) {
+      showToast.error('Bạn không có quyền sửa chính sách.');
+      return;
+    }
     setEditing(item);
     setForm(toForm(item));
     setShowModal(true);
@@ -167,9 +190,17 @@ export function DepositRefundPolicyManagementPage() {
     try {
       const payload = toPayload(form);
       if (editing) {
+        if (!canEditPolicy) {
+          showToast.error('Bạn không có quyền sửa chính sách.');
+          return;
+        }
         await depositRefundPolicyService.update(editing.id, payload);
         showToast.success('Cập nhật chính sách thành công.');
       } else {
+        if (!canCreatePolicy) {
+          showToast.error('Bạn không có quyền tạo chính sách.');
+          return;
+        }
         await depositRefundPolicyService.create(payload);
         showToast.success('Tạo chính sách thành công.');
       }
@@ -183,6 +214,10 @@ export function DepositRefundPolicyManagementPage() {
   };
 
   const remove = async (id: number) => {
+    if (!canDeletePolicy) {
+      showToast.error('Bạn không có quyền xóa chính sách.');
+      return;
+    }
     if (!window.confirm('Bạn có chắc muốn xóa chính sách này?')) return;
     try {
       await depositRefundPolicyService.remove(id);
@@ -193,6 +228,14 @@ export function DepositRefundPolicyManagementPage() {
     }
   };
 
+  if (!canViewPolicy) {
+    return (
+      <RentalLayout title="Chính sách cọc & hoàn tiền">
+        <div className="mx-auto max-w-lg p-8 text-center text-gray-600">Bạn không có quyền xem module chính sách đặt cọc.</div>
+      </RentalLayout>
+    );
+  }
+
   return (
     <RentalLayout title="Chính sách cọc & hoàn tiền">
       <div className="mx-auto max-w-6xl space-y-6 p-6">
@@ -201,14 +244,16 @@ export function DepositRefundPolicyManagementPage() {
             <h1 className="text-2xl font-black text-gray-900">Quản lý chính sách đặt cọc / hoàn tiền</h1>
             <p className="text-sm font-medium text-gray-500">Đã tách theo policyType: DEPOSIT và REFUND.</p>
           </div>
-          <button
-            type="button"
-            onClick={openCreate}
-            className="inline-flex items-center gap-2 rounded-xl bg-red-500 px-4 py-2 font-bold text-white hover:bg-red-600"
-          >
-            <Plus className="h-4 w-4" />
-            Tạo chính sách
-          </button>
+          {canCreatePolicy && (
+            <button
+              type="button"
+              onClick={openCreate}
+              className="inline-flex items-center gap-2 rounded-xl bg-red-500 px-4 py-2 font-bold text-white hover:bg-red-600"
+            >
+              <Plus className="h-4 w-4" />
+              Tạo chính sách
+            </button>
+          )}
         </div>
 
         {loading ? <div className="rounded-xl bg-white p-4 text-sm">Đang tải dữ liệu...</div> : null}
@@ -246,12 +291,16 @@ export function DepositRefundPolicyManagementPage() {
                   <div className="mb-1 flex items-center justify-between">
                     <p className="font-bold text-gray-900">{p.policyName}</p>
                     <div className="flex items-center gap-2">
-                      <button type="button" onClick={() => openEdit(p)} className="text-blue-600">
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                      <button type="button" onClick={() => void remove(p.id)} className="text-red-600">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      {canEditPolicy && (
+                        <button type="button" onClick={() => openEdit(p)} className="text-blue-600">
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                      )}
+                      {canDeletePolicy && (
+                        <button type="button" onClick={() => void remove(p.id)} className="text-red-600">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                   <p className="text-xs text-gray-500">{p.description || '—'}</p>
@@ -272,12 +321,16 @@ export function DepositRefundPolicyManagementPage() {
                   <div className="mb-1 flex items-center justify-between">
                     <p className="font-bold text-gray-900">{p.policyName}</p>
                     <div className="flex items-center gap-2">
-                      <button type="button" onClick={() => openEdit(p)} className="text-blue-600">
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                      <button type="button" onClick={() => void remove(p.id)} className="text-red-600">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      {canEditPolicy && (
+                        <button type="button" onClick={() => openEdit(p)} className="text-blue-600">
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                      )}
+                      {canDeletePolicy && (
+                        <button type="button" onClick={() => void remove(p.id)} className="text-red-600">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                   <p className="text-xs text-gray-500">{p.description || '—'}</p>

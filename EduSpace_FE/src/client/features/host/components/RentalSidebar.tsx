@@ -17,7 +17,7 @@ import {
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useProfile } from '../../customer/profile/hooks/useProfile';
 import { useAuthStore } from '@/stores/authStore';
-import { hasHostPermission } from '@/utils/keycloakTokenRoles';
+import { getRealmRolesFromAccessToken, hasHostPermission, normalizeRoleName } from '@/utils/keycloakTokenRoles';
 import { hostMenuPermissions } from '../permissions/hostPermissions';
 import { refreshHostPermissionsFromAccount } from '@/utils/refreshHostPermissionsFromAccount';
 
@@ -48,6 +48,11 @@ export function RentalSidebar({ isCollapsed = false }: RentalSidebarProps) {
     const initials = useMemo(() => initialsFromName(profile?.name), [profile?.name]);
     const avatarUrl = profile?.avatar?.trim();
     const showVerifiedBadge = Boolean(profile?.verified || profile?.kycStatus === 'verified');
+    const normalizedRoles = useMemo(
+        () => getRealmRolesFromAccessToken(accessToken).map(normalizeRoleName),
+        [accessToken],
+    );
+    const consoleRoleLabel = normalizedRoles.includes('MANAGER') && !normalizedRoles.includes('HOST') ? 'Manager' : 'Host';
 
     const mainMenu = [
         { path: '/rental/dashboard', label: 'Dashboard', icon: LayoutGrid, permission: hostMenuPermissions.dashboard },
@@ -55,7 +60,7 @@ export function RentalSidebar({ isCollapsed = false }: RentalSidebarProps) {
         { path: '/rental/schedule', label: 'Lịch & Giờ', icon: Clock, permission: hostMenuPermissions.schedule },
         { path: '/rental/spaces', label: 'Phòng của tôi', icon: List, permission: hostMenuPermissions.spaces },
         { path: '/rental/room-status', label: 'Trạng thái phòng', icon: Building2, permission: hostMenuPermissions.roomStatus },
-        { path: '/rental/utility-prices', label: 'Quản lý tiện ích', icon: DollarSign, permission: hostMenuPermissions.finance },
+        { path: '/rental/utility-prices', label: 'Quản lý tiện ích', icon: DollarSign, permission: hostMenuPermissions.utility },
         { path: '/rental/calendar', label: 'Lịch đặt phòng', icon: Calendar, permission: hostMenuPermissions.calendar },
     ];
 
@@ -63,7 +68,7 @@ export function RentalSidebar({ isCollapsed = false }: RentalSidebarProps) {
         { path: '/rental/checkout', label: 'Checkout (Staff)', icon: ClipboardCheck, permission: hostMenuPermissions.checkout },
         { path: '/rental/staff', label: 'Nhân viên', icon: Users, permission: hostMenuPermissions.staff },
         { path: '/rental/finance', label: 'Tài chính', icon: DollarSign, permission: hostMenuPermissions.finance },
-        { path: '/rental/deposit-policy', label: 'Chính sách đặt cọc', icon: ShieldCheck, permission: hostMenuPermissions.finance },
+        { path: '/rental/deposit-policy', label: 'Chính sách đặt cọc', icon: ShieldCheck, permission: hostMenuPermissions.depositPolicy },
         { path: '/rental/messages', label: 'Tin nhắn', icon: MessageSquare, permission: hostMenuPermissions.messages },
         { path: '/rental/kyc', label: 'Xác minh KYC', icon: Shield, permission: hostMenuPermissions.kyc },
     ];
@@ -193,7 +198,9 @@ export function RentalSidebar({ isCollapsed = false }: RentalSidebarProps) {
                                                 showVerifiedBadge ? 'bg-green-500 animate-pulse' : 'bg-amber-500'
                                             }`}
                                         />
-                                        {showVerifiedBadge ? 'Host · Verified' : 'Host · Chưa xác minh'}
+                                        {showVerifiedBadge
+                                            ? `${consoleRoleLabel} · Verified`
+                                            : `${consoleRoleLabel} · Chưa xác minh`}
                                     </div>
                                 </>
                             )}

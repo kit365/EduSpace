@@ -245,7 +245,7 @@ function formatBlockedRangeVi(start: string, end: string): string {
   return `${s.toLocaleString('vi-VN', opt)} → ${e.toLocaleString('vi-VN', opt)}`;
 }
 
-export function SchedulePage() {
+function SchedulePageContent() {
   const { profile, loading: profileLoading } = useProfile();
   const { selectedBranch, branches } = useBranch();
 
@@ -292,8 +292,13 @@ export function SchedulePage() {
     branches.forEach((b) => {
       if (b?.id != null && !dedup.has(b.id)) dedup.set(b.id, b.name);
     });
+    // Hard fallback: if manager scope resolved selectedBranch but branches list is
+    // temporarily empty, still render exactly that branch in selector.
+    if (dedup.size === 0 && selectedBranch?.id != null) {
+      dedup.set(selectedBranch.id, selectedBranch.name);
+    }
     return Array.from(dedup.entries()).map(([id, name]) => ({ id, name }));
-  }, [filteredProperties, branches]);
+  }, [filteredProperties, branches, selectedBranch]);
 
   /** Lịch chặn theo cơ sở: chọn cơ sở → xem danh sách chặn của cơ sở đó. */
   const blocksForSelectedProperty = useMemo(() => {
@@ -346,6 +351,13 @@ export function SchedulePage() {
       propsNorm
         .filter((p) => ownerIdSet.has((p.ownerId ?? '').trim()))
         .forEach((p) => propertyIds.add(p.id));
+      // Manager accounts can be scoped to a branch without owning rooms/ownerId rows.
+      // Include scoped/fallback branch ids so newly created blocks don't disappear.
+      branches.forEach((b) => {
+        if (b?.id != null) propertyIds.add(b.id);
+      });
+      if (selectedBranch?.id != null) propertyIds.add(selectedBranch.id);
+      if (selectedPropertyId != null) propertyIds.add(selectedPropertyId);
       const branchNameByPropertyId = new Map(branches.map((br) => [br.id, br.name] as const));
       const allBlocks = await roomBlockService.listAll();
       const mine = allBlocks.filter((b) => propertyIds.has(b.propertyId));
@@ -358,7 +370,7 @@ export function SchedulePage() {
     } finally {
       setLoadingRooms(false);
     }
-  }, [profile?.id, profile?.keycloakId, branches]);
+  }, [profile?.id, profile?.keycloakId, branches, selectedBranch, selectedPropertyId]);
 
   useEffect(() => {
     void loadRoomsAndBlocks();
@@ -366,9 +378,22 @@ export function SchedulePage() {
 
   useEffect(() => {
     if (selectedPropertyId == null) return;
-    const ok = filteredProperties.some((p) => p.id === selectedPropertyId);
+    // Keep selection aligned with what the branch dropdown can actually render.
+    // `propertyOptions` may include BranchContext fallback entries even when
+    // `filteredProperties` is temporarily empty.
+    const ok = propertyOptions.some((p) => p.id === selectedPropertyId);
     if (!ok) setSelectedPropertyId(null);
-  }, [filteredProperties, selectedPropertyId]);
+  }, [propertyOptions, selectedPropertyId]);
+
+  useEffect(() => {
+    if (!selectedBranch) return;
+    const branchId = selectedBranch.id;
+    if (selectedPropertyId === branchId) return;
+    const existsInOptions = propertyOptions.some((p) => p.id === branchId);
+    if (existsInOptions) {
+      setSelectedPropertyId(branchId);
+    }
+  }, [selectedBranch, selectedPropertyId, propertyOptions]);
 
   useEffect(() => {
     if (selectedPropertyId == null) setShowBlockForm(false);
@@ -607,7 +632,16 @@ export function SchedulePage() {
   const confirmUnlockBlock = async () => {
     if (blockToDelete == null) return;
     try {
+      const target = blocks.find((b) => b.id === blockToDelete);
       await roomBlockService.remove(blockToDelete);
+      if (target?.roomId != null) {
+        try {
+          const updated = await roomApiService.patchStatus(target.roomId, 'READY');
+          setRooms((prev) => prev.map((r) => (r.id === target.roomId ? updated : r)));
+        } catch {
+          // Unlock should still succeed even if status fallback fails.
+        }
+      }
       showToast.success('Đã xóa lịch chặn.');
       setBlockToDelete(null);
       await loadRoomsAndBlocks();
@@ -623,7 +657,6 @@ export function SchedulePage() {
   const saveActionLabel = hasExistingScheduleData ? 'Cập nhật lịch' : 'Tạo lịch';
 
   return (
-    <RentalLayout title="Lịch & Giờ hoạt động">
       <div className="p-8 max-w-5xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
           <div>
@@ -1202,6 +1235,13 @@ export function SchedulePage() {
           </AlertDialogContent>
         </AlertDialog>
       </div>
+  );
+}
+
+export function SchedulePage() {
+  return (
+    <RentalLayout title="Lịch & Giờ hoạt động">
+      <SchedulePageContent />
     </RentalLayout>
   );
 }

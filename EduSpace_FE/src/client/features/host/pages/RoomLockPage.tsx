@@ -14,6 +14,7 @@ type RoomOption = { id: number; name: string; branchId: number };
 type RoomBlockRow = {
   id: number;
   propertyId: number;
+  roomId?: number | null;
   branchLabel: string;
   startDatetime: string;
   endDatetime: string;
@@ -35,6 +36,7 @@ function apiBlockToRow(block: RoomBlockDto, branchNameByPropertyId: Map<number, 
   return {
     id: block.id,
     propertyId: block.propertyId,
+    roomId: block.roomId ?? null,
     branchLabel:
       branchNameByPropertyId.get(block.propertyId) ?? `Cơ sở #${block.propertyId}`,
     startDatetime: block.startDatetime,
@@ -186,7 +188,16 @@ export function RoomLockPage() {
   const handleUnlock = async (id: number) => {
     if (!window.confirm('Mở khóa và xóa lịch chặn này?')) return;
     try {
+      const target = blocks.find((b) => b.id === id);
       await roomBlockService.remove(id);
+      if (target?.roomId != null) {
+        try {
+          const updated = await roomApiService.patchStatus(target.roomId, 'READY');
+          setRooms((prev) => prev.map((r) => (r.id === target.roomId ? updated : r)));
+        } catch {
+          // Keep unlock successful even if status sync fails.
+        }
+      }
       showToast.success('Đã xóa lịch khóa.');
       await loadData();
     } catch (error) {

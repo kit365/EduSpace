@@ -4,9 +4,12 @@ import { RentalLayout } from '../../../../layouts/RentalLayout';
 import { useProfile } from '../../../customer/profile/hooks/useProfile';
 import { formatJoinDate } from '@/utils/format';
 import { toast } from 'sonner';
+import { useAuthStore } from '@/stores/authStore';
+import { getRealmRolesFromAccessToken, normalizeRoleName } from '@/utils/keycloakTokenRoles';
 
 export function HostProfilePage() {
     const { profile, loading, updateProfile } = useProfile();
+    const accessToken = useAuthStore((s) => s.accessToken);
     const [isEditing, setIsEditing] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
@@ -62,6 +65,9 @@ export function HostProfilePage() {
     const initials = profile.name
         ? profile.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
         : 'H';
+    const normalizedRoles = getRealmRolesFromAccessToken(accessToken).map(normalizeRoleName);
+    const isManagerOnly = normalizedRoles.includes('MANAGER') && !normalizedRoles.includes('HOST');
+    const roleLabel = isManagerOnly ? 'Manager' : 'Host';
 
     return (
         <RentalLayout title="Cài đặt Profile Host">
@@ -92,7 +98,7 @@ export function HostProfilePage() {
                                 <h1 className="text-3xl font-black text-gray-900 tracking-tight">{profile.name}</h1>
                                 {profile.verified && <CheckCircle className="w-6 h-6 text-green-500" />}
                                 <span className="px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-black uppercase tracking-wider border border-amber-100 flex items-center gap-1.5">
-                                    <Building2 className="w-3.5 h-3.5" /> Hoster
+                                    <Building2 className="w-3.5 h-3.5" /> {roleLabel}
                                 </span>
                             </div>
 

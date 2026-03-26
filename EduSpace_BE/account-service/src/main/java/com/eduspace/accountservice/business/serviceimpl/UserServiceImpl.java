@@ -24,6 +24,7 @@ import java.util.Optional;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.stream.Collectors;
 import dev.samstevens.totp.code.CodeVerifier;
 import dev.samstevens.totp.code.DefaultCodeGenerator;
@@ -55,18 +56,39 @@ public class UserServiceImpl implements UserService {
             "branch.booking.view",
             "branch.booking.manage",
             "branch.room.view",
-            "branch.room.edit",
             "branch.checkin.manage",
             "branch.checkout.manage",
             "branch.room_status.manage",
             "branch.profile.view",
+            "branch.finance.view",
+            "branch.finance.export",
             "view_messages",
-            "manage_messages");
+            "manage_messages",
+            "branch.utility.view",
+            "branch.utility.create",
+            "branch.utility.edit",
+            "branch.utility.delete",
+            "branch.deposit_policy.view",
+            "branch.deposit_policy.create",
+            "branch.deposit_policy.edit",
+            "branch.deposit_policy.delete",
+            "rbac.permission.view",
+            "rbac.template.view");
 
     private UserResponse toUserResponseWithMergedPermissions(UserEntity user) {
         UserResponse response = userMapper.toUserResponse(user, userPermissionRepository.findPermissionNamesByUserId(user.getId()));
         boolean isManager = user.getRoles() != null
                 && user.getRoles().stream().anyMatch(r -> "MANAGER".equalsIgnoreCase(r.getName()));
+        boolean isHost = user.getRoles() != null
+                && user.getRoles().stream().anyMatch(r -> "HOST".equalsIgnoreCase(r.getName()));
+        // Strict host RBAC: if user has HOST role, permissions exposed to Host UI must come from HOST role only.
+        // This prevents MANAGER role grants from leaking host menu items when HOST role has no assigned permissions.
+        if (isHost) {
+            response.setPermissions(resolvePermissionsByRole(user, "HOST"));
+            return response;
+        }
+        // Only enforce per-host manager defaults for manager-only users.
+        // If a user also has HOST role, host role permissions should remain the source of truth.
         if (!isManager) return response;
         HostStaffLinkEntity link = hostStaffLinkRepository.findByStaffUserId(user.getId()).orElse(null);
         Set<String> linkPermissions = parsePermissionCsv(link != null ? link.getManagerPermissionNames() : null);
@@ -82,6 +104,19 @@ public class UserServiceImpl implements UserService {
         return Arrays.stream(csv.split(","))
                 .map(s -> s == null ? "" : s.trim().toLowerCase())
                 .filter(s -> !s.isBlank())
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    private static Set<String> resolvePermissionsByRole(UserEntity user, String roleName) {
+        if (user == null || user.getRoles() == null || roleName == null) {
+            return Collections.emptySet();
+        }
+        return user.getRoles().stream()
+                .filter(r -> r != null && roleName.equalsIgnoreCase(r.getName()))
+                .flatMap(r -> r.getPermissions() == null ? java.util.stream.Stream.empty() : r.getPermissions().stream())
+                .map(p -> p == null ? null : p.getName())
+                .filter(name -> name != null && !name.isBlank())
+                .map(name -> name.trim().toLowerCase())
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 

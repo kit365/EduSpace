@@ -60,6 +60,16 @@ export function getPermissionDisplayName(permissionName: string, language?: stri
             return isVi ? 'Tài chính: Tạo yêu cầu rút tiền' : 'Finance: Request withdrawal (payout)';
         return isVi ? `Tài chính: ${rest}` : `Finance: ${rest}`;
     }
+    if (n.startsWith('branch.utility.')) {
+        const action = n.replace('branch.utility.', '');
+        const t = mapAction(action);
+        return isVi ? `Tiện ích: ${t.vi}` : `Utilities: ${t.en}`;
+    }
+    if (n.startsWith('branch.deposit_policy.')) {
+        const action = n.replace('branch.deposit_policy.', '');
+        const t = mapAction(action);
+        return isVi ? `Chính sách đặt cọc: ${t.vi}` : `Deposit policy: ${t.en}`;
+    }
 
     if (n === 'branch.checkin.manage') return isVi ? 'Check-in: Quản lý' : 'Check-in: Manage';
     if (n === 'branch.checkout.manage') return isVi ? 'Check-out: Quản lý' : 'Check-out: Manage';
@@ -215,6 +225,36 @@ export function getPermissionDisplayDescription(permissionName: string, descript
                 ? 'Tạo yêu cầu rút tiền (payout) — tương ứng nút “Yêu cầu rút tiền” trên Host.'
                 : 'Create a withdrawal/payout request — same as the “Request withdrawal” action on Host.';
     }
+    if (n.startsWith('branch.utility.')) {
+        const action = n.replace('branch.utility.', '');
+        if (action === 'view')
+            return isVi ? 'Xem danh sách/cấu hình tiện ích trên Host Console.' : 'View utility list/configuration on Host Console.';
+        if (action === 'create')
+            return isVi ? 'Tạo tiện ích mới cho chi nhánh/phòng trên Host Console.' : 'Create new utilities for branch/room on Host Console.';
+        if (action === 'edit')
+            return isVi ? 'Cập nhật thông tin và giá tiện ích trên Host Console.' : 'Update utility details and pricing on Host Console.';
+        if (action === 'delete')
+            return isVi ? 'Xóa tiện ích trên Host Console.' : 'Delete utilities on Host Console.';
+    }
+    if (n.startsWith('branch.deposit_policy.')) {
+        const action = n.replace('branch.deposit_policy.', '');
+        if (action === 'view')
+            return isVi
+                ? 'Xem danh sách chính sách đặt cọc/hoàn cọc trên Host Console.'
+                : 'View booking deposit/refund policy list on Host Console.';
+        if (action === 'create')
+            return isVi
+                ? 'Tạo chính sách đặt cọc/hoàn cọc trên Host Console.'
+                : 'Create booking deposit/refund policies on Host Console.';
+        if (action === 'edit')
+            return isVi
+                ? 'Cập nhật chính sách đặt cọc/hoàn cọc trên Host Console.'
+                : 'Update booking deposit/refund policies on Host Console.';
+        if (action === 'delete')
+            return isVi
+                ? 'Xóa chính sách đặt cọc/hoàn cọc trên Host Console.'
+                : 'Delete booking deposit/refund policies on Host Console.';
+    }
 
     if (n === 'view_revenue') return isVi ? 'Truy cập dashboard tài chính và báo cáo.' : 'Access financial dashboard and reports.';
     if (n === 'view_transactions') return isVi ? 'Theo dõi mọi hoạt động tài chính.' : 'Audit all platform financial activity.';
@@ -292,6 +332,8 @@ export function getPermissionGroupDisplayName(groupName: string, language?: stri
     if (gl === 'branch.room') return isVi ? 'Phòng' : 'Rooms';
     if (gl === 'branch.branch') return isVi ? 'Chi nhánh' : 'Branches';
     if (gl === 'branch.finance') return isVi ? 'Tài chính' : 'Finance';
+    if (gl === 'branch.utility') return isVi ? 'Tiện ích' : 'Utilities';
+    if (gl === 'branch.deposit_policy') return isVi ? 'Chính sách đặt cọc' : 'Deposit Policy';
     if (gl === 'branch.operations') return isVi ? 'Vận hành' : 'Operations';
     if (gl === 'branch.schedule') return isVi ? 'Đặt phòng' : 'Bookings';
     if (gl === 'branch.settings') return isVi ? 'Hồ sơ & KYC' : 'Profile & KYC';

@@ -15,15 +15,51 @@ const MANAGER_ALLOWED_PERMISSION_NAMES = new Set([
     'branch.booking.view',
     'branch.booking.manage',
     'branch.room.view',
+    'branch.room.create',
     'branch.room.edit',
+    'branch.room.delete',
     'branch.checkin.manage',
     'branch.checkout.manage',
     'branch.room_status.manage',
     'branch.profile.view',
+    'branch.finance.view',
+    'branch.finance.export',
     'view_messages',
     'manage_messages',
+    'branch.utility.view',
+    'branch.utility.create',
+    'branch.utility.edit',
+    'branch.utility.delete',
+    'branch.deposit_policy.view',
+    'branch.deposit_policy.create',
+    'branch.deposit_policy.edit',
+    'branch.deposit_policy.delete',
+    'branch.staff.view',
     'branch.cleaning.manage',
     'branch.maintenance.manage',
+]);
+
+const MANAGER_DEFAULT_PERMISSION_NAMES = new Set([
+    'view_dashboard',
+    'branch.booking.view',
+    'branch.booking.manage',
+    'branch.room.view',
+    'branch.checkin.manage',
+    'branch.checkout.manage',
+    'branch.room_status.manage',
+    'branch.profile.view',
+    'branch.finance.view',
+    'branch.finance.export',
+    'view_messages',
+    'manage_messages',
+    'branch.utility.view',
+    'branch.utility.create',
+    'branch.utility.edit',
+    'branch.utility.delete',
+    'branch.deposit_policy.view',
+    'branch.deposit_policy.create',
+    'branch.deposit_policy.edit',
+    'branch.deposit_policy.delete',
 ]);
 
 type Props = {
@@ -63,6 +99,15 @@ export function ManagerPermissionsEditorModal({
         () => (permissionCatalog ?? []).filter((p) => MANAGER_ALLOWED_PERMISSION_NAMES.has((p.name ?? '').trim().toLowerCase())),
         [permissionCatalog],
     );
+    const managerDefaultIds = useMemo(
+        () =>
+            new Set(
+                allowedCatalog
+                    .filter((p) => MANAGER_DEFAULT_PERMISSION_NAMES.has((p.name ?? '').trim().toLowerCase()))
+                    .map((p) => p.id),
+            ),
+        [allowedCatalog],
+    );
 
     useEffect(() => {
         if (!open) return;
@@ -73,9 +118,10 @@ export function ManagerPermissionsEditorModal({
                 .map((p) => p.id),
         );
         setSelectedIds(next);
-        setDefaultIds(new Set(next));
+        // "Mặc định" should restore manager preset defaults, not current assignment.
+        setDefaultIds(new Set(managerDefaultIds));
         setActionFilter('all');
-    }, [open, initialPermissionNames, allowedCatalog]);
+    }, [open, initialPermissionNames, allowedCatalog, managerDefaultIds]);
 
     const matchesActionFilter = (permissionName: string): boolean => {
         if (actionFilter === 'all') return true;

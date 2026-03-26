@@ -76,15 +76,30 @@ public class HostStaffServiceImpl implements HostStaffService {
             "branch.booking.view",
             "branch.booking.manage",
             "branch.room.view",
+            "branch.room.create",
             "branch.room.edit",
+            "branch.room.delete",
             "branch.checkin.manage",
             "branch.checkout.manage",
             "branch.room_status.manage",
             "branch.profile.view",
+            "branch.finance.view",
+            "branch.finance.export",
             "view_messages",
             "manage_messages",
+            "branch.utility.view",
+            "branch.utility.create",
+            "branch.utility.edit",
+            "branch.utility.delete",
+            "branch.deposit_policy.view",
+            "branch.deposit_policy.create",
+            "branch.deposit_policy.edit",
+            "branch.deposit_policy.delete",
+            "branch.staff.view",
             "branch.cleaning.manage",
-            "branch.maintenance.manage");
+            "branch.maintenance.manage",
+            "rbac.permission.view",
+            "rbac.template.view");
 
     private static final Set<String> MANAGER_DEFAULT_PERMISSION_NAMES = Set.of(
             "view_dashboard",
@@ -92,13 +107,24 @@ public class HostStaffServiceImpl implements HostStaffService {
             "branch.booking.view",
             "branch.booking.manage",
             "branch.room.view",
-            "branch.room.edit",
             "branch.checkin.manage",
             "branch.checkout.manage",
             "branch.room_status.manage",
             "branch.profile.view",
+            "branch.finance.view",
+            "branch.finance.export",
             "view_messages",
-            "manage_messages");
+            "manage_messages",
+            "branch.utility.view",
+            "branch.utility.create",
+            "branch.utility.edit",
+            "branch.utility.delete",
+            "branch.deposit_policy.view",
+            "branch.deposit_policy.create",
+            "branch.deposit_policy.edit",
+            "branch.deposit_policy.delete",
+            "rbac.permission.view",
+            "rbac.template.view");
 
     private UserEntity resolveHost(String hostUserId) {
         return userRepository.findById(hostUserId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));

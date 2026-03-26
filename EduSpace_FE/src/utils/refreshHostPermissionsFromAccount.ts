@@ -20,7 +20,8 @@ export function refreshHostPermissionsFromAccount(): Promise<void> {
             const perms = (me as any)?.data?.permissions ?? (me as any)?.permissions ?? [];
             useAuthStore.getState().setHostPermissionsFromAccount(perms);
         } catch {
-            // giữ permissions hiện có (JWT / lần fetch trước)
+            // Fail closed for host console: nếu không lấy được quyền thì coi như không có quyền.
+            useAuthStore.getState().setHostPermissionsFromAccount([]);
         } finally {
             inFlight = null;
         }

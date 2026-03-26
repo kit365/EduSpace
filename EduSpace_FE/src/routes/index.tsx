@@ -39,7 +39,7 @@ const RootLayout = () => {
     const handleRoleChange = (newRole: UserRole) => {
         if (!allowedModes.includes(newRole)) return;
         if (newRole === 'admin') navigate('/admin');
-        else if (newRole === 'host') navigate('/rental');
+        else if (newRole === 'host') navigate('/rental/dashboard');
         else navigate('/');
     };
 
