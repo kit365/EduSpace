@@ -1,5 +1,6 @@
 import apiClient from '@/lib/axios';
 import { ACCOUNT_API } from '@/config/api/account';
+import { ApiResponse } from '@/types';
 
 function unwrap<T>(res: unknown): T {
   if (res && typeof res === 'object' && 'data' in res && (res as { data: unknown }).data !== undefined) {
@@ -27,6 +28,10 @@ export interface SubmitHostPartnerApplicationPayload {
   documentFrontUrl?: string;
   documentBackUrl?: string;
   businessLicenseUrl?: string;
+  bankAccountNumber?: string;
+  bankName?: string;
+  bankAccountHolder?: string;
+  taxId?: string;
 }
 
 export interface HostPartnerApplicationAdminItem {
@@ -43,6 +48,13 @@ export interface HostPartnerApplicationAdminItem {
   createdAt: string | null;
   reviewedAt: string | null;
   reviewedBy: string | null;
+  bankAccountNumber?: string;
+  bankName?: string;
+  bankAccountHolder?: string;
+  taxId?: string;
+  documentFrontUrl?: string;
+  documentBackUrl?: string;
+  businessLicenseUrl?: string;
 }
 
 export interface PendingBranchUpdateItem {
@@ -76,7 +88,22 @@ export const hostPartnerApplicationService = {
     await apiClient.post(`${ACCOUNT_API.HOST_APPLICATIONS_ADMIN}/${id}/approve`);
   },
 
-  adminReject: async (id: string, adminNote?: string): Promise<void> => {
-    await apiClient.post(`${ACCOUNT_API.HOST_APPLICATIONS_ADMIN}/${id}/reject`, { adminNote: adminNote ?? '' });
+  adminReject: async (id: string, adminNote: string) => {
+    return apiClient.post(`${ACCOUNT_API.HOST_APPLICATIONS_ADMIN}/${id}/reject`, { adminNote });
+  },
+
+  adminGetByUserId: async (userId: string): Promise<HostPartnerApplicationAdminItem> => {
+    const res = await apiClient.get<any, ApiResponse<HostPartnerApplicationAdminItem>>(
+      `${ACCOUNT_API.HOST_APPLICATIONS_ADMIN}/user/${userId}`
+    );
+    return res.data;
+  },
+
+  adminDownloadContract: async (id: string): Promise<Blob> => {
+    const response = await apiClient.get(`${ACCOUNT_API.HOST_APPLICATIONS_ADMIN}/${id}/contract`, {
+      responseType: 'blob',
+    });
+    // @ts-ignore - response is already the blob data because of interceptor and responseType
+    return response as unknown as Blob;
   },
 };

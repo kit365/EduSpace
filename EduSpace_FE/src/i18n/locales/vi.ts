@@ -375,6 +375,7 @@ export const vi = {
             description: "Để đảm bảo an toàn cho cộng đồng EduSpace, vui lòng xác thực danh tính bằng CMND/CCCD.",
             start: "Bắt đầu xác thực",
             steps: {
+                info: "Cung cấp thông tin",
                 front: "Mặt trước CMND/CCCD",
                 back: "Mặt sau CMND/CCCD",
                 selfie: "Ảnh chân dung",

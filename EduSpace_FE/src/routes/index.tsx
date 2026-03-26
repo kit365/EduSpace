@@ -21,10 +21,12 @@ const RootLayout = () => {
     const realmRoles = useMemo(() => getRealmRolesFromAccessToken(accessToken), [accessToken]);
     const allowedModes = useMemo((): UserRole[] => {
         const modes: UserRole[] = ['user'];
-        if (isAuthenticated && canAccessHostConsole(realmRoles)) {
+        const isAdmin = isAuthenticated && canAccessAdminPortal(realmRoles);
+
+        if (isAuthenticated && canAccessHostConsole(realmRoles) && !isAdmin) {
             modes.push('host');
         }
-        if (isAuthenticated && canAccessAdminPortal(realmRoles)) {
+        if (isAdmin) {
             modes.push('admin');
         }
         return modes;

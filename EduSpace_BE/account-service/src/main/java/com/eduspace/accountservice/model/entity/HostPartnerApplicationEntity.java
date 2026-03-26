@@ -1,6 +1,5 @@
 package com.eduspace.accountservice.model.entity;
 
-import com.eduspace.accountservice.common.enums.PartnerAppStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -59,6 +58,21 @@ public class HostPartnerApplicationEntity extends BaseEntity {
 
     @Column(name = "admin_note", columnDefinition = "TEXT")
     String adminNote;
+
+    @Column(name = "bank_account_number", length = 50)
+    String bankAccountNumber;
+
+    @Column(name = "bank_name", length = 100)
+    String bankName;
+
+    @Column(name = "bank_account_holder", length = 100)
+    String bankAccountHolder;
+
+    @Column(name = "tax_id", length = 50)
+    String taxId;
+
+    @Column(name = "contract_pdf")
+    byte[] contractPdf;
 
     @Column(name = "reviewed_at")
     LocalDateTime reviewedAt;

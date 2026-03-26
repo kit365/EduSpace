@@ -23,4 +23,7 @@ public final class HostPartnerApplicationPaths {
     public static final String ADMIN_APPROVE = ADMIN + "/{id}/approve";
 
     public static final String ADMIN_REJECT = ADMIN + "/{id}/reject";
+    public static final String ADMIN_BY_USER = ADMIN + "/user/{userId}";
+
+    public static final String ADMIN_CONTRACT_PDF = ADMIN + "/{id}/contract";
 }

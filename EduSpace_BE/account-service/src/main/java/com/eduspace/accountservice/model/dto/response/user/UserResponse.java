@@ -22,6 +22,7 @@ public class UserResponse {
     String avatarUrl;
     String studentId;
     String location;
+    String dateOfBirth;
     String shortBio;
     String cityState;
     String district;
@@ -42,4 +43,19 @@ public class UserResponse {
     Set<String> permissions;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
+
+    // AI logic results
+    OcrData ocrData;
+    Double faceMatchPercentage;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class OcrData {
+        String name;
+        String idNumber;
+        String dob;
+        String address;
+    }
 }

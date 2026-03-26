@@ -19,5 +19,7 @@ public interface HostPartnerApplicationRepository extends JpaRepository<HostPart
     List<HostPartnerApplicationEntity> findByUserIdAndStatusOrderByCreatedAtDesc(
             String userId, com.eduspace.accountservice.common.enums.PartnerAppStatus status);
 
+    Optional<HostPartnerApplicationEntity> findFirstByUserIdOrderByCreatedAtDesc(String userId);
+
     long countByStatus(com.eduspace.accountservice.common.enums.PartnerAppStatus status);
 }

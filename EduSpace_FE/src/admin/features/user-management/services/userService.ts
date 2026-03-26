@@ -25,6 +25,13 @@ interface ApiUser {
     verificationDocument?: string;
     roles?: string[];
     createdAt?: string;
+    ocrData?: {
+        name: string;
+        idNumber: string;
+        dob: string;
+        address: string;
+    };
+    faceMatchPercentage?: number;
     [key: string]: unknown;
 }
 
@@ -64,7 +71,9 @@ function mapApiUserToUser(api: ApiUser): User {
         kycStatus,
         isVerified: Boolean(api.isEmailVerified),
         verificationDocs: api.verificationDocument ? [api.verificationDocument] : [],
-        joinedAt: api.createdAt ? new Date(api.createdAt).toISOString() : new Date().toISOString()
+        joinedAt: api.createdAt ? new Date(api.createdAt).toISOString() : new Date().toISOString(),
+        ocrData: api.ocrData as User['ocrData'],
+        faceMatchPercentage: api.faceMatchPercentage as number
     };
 }
 

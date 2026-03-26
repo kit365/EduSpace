@@ -50,4 +50,28 @@ public class EkycVerificationEntity extends BaseEntity {
 
     @Column(name = "failure_reason", length = 500)
     String failureReason;
+
+    @Column(name = "ocr_name")
+    String ocrName;
+
+    @Column(name = "ocr_id_number")
+    String ocrIdNumber;
+
+    @Column(name = "ocr_dob")
+    String ocrDob;
+
+    @Column(name = "ocr_address", length = 500)
+    String ocrAddress;
+
+    @Column(name = "provided_name")
+    String providedName;
+
+    @Column(name = "provided_dob")
+    String providedDob;
+
+    @Column(name = "provided_phone")
+    String providedPhone;
+
+    @Column(name = "provided_address", length = 500)
+    String providedAddress;
 }

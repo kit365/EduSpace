@@ -28,11 +28,15 @@ public class EkycController {
     @PostMapping(value = AccountPaths.EKYC_VERIFY, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<EkycVerifyResponse> verify(
             @AuthenticationPrincipal Jwt jwt,
+            @RequestPart("fullName") String fullName,
+            @RequestPart("dob") String dob,
+            @RequestPart("phone") String phone,
+            @RequestPart("address") String address,
             @RequestPart("front") MultipartFile front,
             @RequestPart(value = "back", required = false) MultipartFile back,
             @RequestPart("selfie") MultipartFile selfie) {
         String keycloakId = jwt.getSubject();
-        EkycVerifyResponse data = ekycVerificationService.verify(keycloakId, front, back, selfie);
+        EkycVerifyResponse data = ekycVerificationService.verify(keycloakId, fullName, dob, phone, address, front, back, selfie);
         String message = messageSource.getMessage(
                 SuccessCode.EKYC_VERIFY_SUCCESS.getMessageKey(),
                 null,

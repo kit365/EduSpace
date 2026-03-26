@@ -24,6 +24,9 @@ import { UserDetailsModal } from '../../user-management/components/UserDetailsMo
 import type { User, AccountStatus } from '@/types';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
+import { hostPartnerApplicationService, HostPartnerApplicationAdminItem } from '@/client/features/host/services/hostPartnerApplicationService';
+import { AdminDetailOverlay } from '@/admin/components/AdminDetailOverlay';
+import { Image as ImageIcon, ExternalLink } from 'lucide-react';
 
 export function HostManagementPage() {
     const [loading, setLoading] = useState(false);
@@ -40,6 +43,8 @@ export function HostManagementPage() {
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [actingId, setActingId] = useState<string | null>(null);
     const [kycFilter, setKycFilter] = useState<string>('all');
+    const [selectedPartnerApp, setSelectedPartnerApp] = useState<HostPartnerApplicationAdminItem | null>(null);
+    const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
     const loadHosts = useCallback(async () => {
         setLoading(true);
@@ -80,6 +85,35 @@ export function HostManagementPage() {
             showToast.error(getApiErrorMessage(e, 'Cập nhật trạng thái thất bại'));
         } finally {
             setActingId(null);
+        }
+    };
+
+    const handleViewApplication = async (userId: string) => {
+        setActingId(userId);
+        try {
+            const app = await hostPartnerApplicationService.adminGetByUserId(userId);
+            setSelectedPartnerApp(app);
+        } catch (e) {
+            showToast.error(getApiErrorMessage(e, 'Không tìm thấy hồ sơ đăng ký'));
+        } finally {
+            setActingId(null);
+            setOpenMenuId(null);
+        }
+    };
+
+    const handleDownloadContract = async (id: string) => {
+        try {
+            const blob = await hostPartnerApplicationService.adminDownloadContract(id);
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `contract-${id}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (e) {
+            showToast.error("Không thể tải hợp đồng");
         }
     };
 
@@ -383,36 +417,66 @@ export function HostManagementPage() {
                                             {format(new Date(host.joinedAt), 'dd/MM/yyyy', { locale: vi })}
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <button 
-                                                    onClick={() => setSelectedUser(host)}
-                                                    className="p-2 rounded-lg text-gray-400 hover:bg-slate-100 hover:text-slate-900 transition-all"
-                                                    title="Xem chi tiết"
-                                                >
-                                                    <Eye className="w-4 h-4" />
-                                                </button>
-                                                {host.accountStatus === 'active' ? (
-                                                    <button
-                                                        onClick={() => void handleToggleStatus(host, false)}
-                                                        disabled={actingId === host.id}
-                                                        title="Đình chỉ tài khoản"
-                                                        className="p-2 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 transition-all disabled:opacity-50"
-                                                    >
-                                                        {actingId === host.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />}
-                                                    </button>
-                                                ) : (
-                                                    <button
-                                                        onClick={() => void handleToggleStatus(host, true)}
-                                                        disabled={actingId === host.id}
-                                                        title="Kích hoạt tài khoản"
-                                                        className="p-2 rounded-lg text-gray-400 hover:bg-green-50 hover:text-green-600 transition-all disabled:opacity-50"
-                                                    >
-                                                        {actingId === host.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                                                    </button>
-                                                )
-                                                }
-                                            </div>
-                                        </td>
+                                             <div className="flex items-center justify-end gap-2">
+                                                 <div className="relative">
+                                                     <button 
+                                                         onClick={() => setOpenMenuId(openMenuId === host.id ? null : host.id)}
+                                                         className={`p-2 rounded-lg transition-all ${openMenuId === host.id ? 'bg-slate-100 text-slate-900' : 'text-gray-400 hover:bg-slate-100 hover:text-slate-900'}`}
+                                                         title="Thao tác"
+                                                     >
+                                                         <MoreHorizontal className="w-5 h-5" />
+                                                     </button>
+
+                                                     {openMenuId === host.id && (
+                                                         <>
+                                                             <div 
+                                                                 className="fixed inset-0 z-30" 
+                                                                 onClick={() => setOpenMenuId(null)}
+                                                             />
+                                                             <div className="absolute right-0 top-10 z-40 w-56 rounded-2xl border border-gray-100 bg-white p-2 shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200">
+                                                                 <button
+                                                                     onClick={() => {
+                                                                         setSelectedUser(host);
+                                                                         setOpenMenuId(null);
+                                                                     }}
+                                                                     className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-bold text-gray-700 transition-colors hover:bg-slate-50"
+                                                                 >
+                                                                     <Eye className="h-4 w-4 text-gray-400" />
+                                                                     Xem thông tin tài khoản
+                                                                 </button>
+                                                                 <button
+                                                                     onClick={() => handleViewApplication(host.id)}
+                                                                     className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-bold text-gray-700 transition-colors hover:bg-slate-50"
+                                                                 >
+                                                                     <ImageIcon className="h-4 w-4 text-gray-400" />
+                                                                     Xem hồ sơ đối tác
+                                                                 </button>
+                                                                 <div className="my-1 h-px bg-gray-50" />
+                                                                 {host.accountStatus === 'active' ? (
+                                                                     <button
+                                                                         onClick={() => void handleToggleStatus(host, false)}
+                                                                         disabled={actingId === host.id}
+                                                                         className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-bold text-red-600 transition-colors hover:bg-red-50"
+                                                                     >
+                                                                         {actingId === host.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />}
+                                                                         Đình chỉ tài khoản
+                                                                     </button>
+                                                                 ) : (
+                                                                     <button
+                                                                         onClick={() => void handleToggleStatus(host, true)}
+                                                                         disabled={actingId === host.id}
+                                                                         className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-bold text-green-600 transition-colors hover:bg-green-50"
+                                                                     >
+                                                                         {actingId === host.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                                                                         Kích hoạt lại
+                                                                     </button>
+                                                                 )}
+                                                             </div>
+                                                         </>
+                                                     )}
+                                                 </div>
+                                             </div>
+                                         </td>
                                     </tr>
                                 ))
                             )}
@@ -424,6 +488,99 @@ export function HostManagementPage() {
                 user={selectedUser} 
                 onClose={() => setSelectedUser(null)} 
             />
+
+            <AdminDetailOverlay
+                isOpen={!!selectedPartnerApp}
+                onClose={() => setSelectedPartnerApp(null)}
+                title="Chi tiết hồ sơ đối tác"
+                subtitle="XEM LẠI THÔNG TIN ĐĂNG KÝ VÀ HỢP ĐỒNG ĐIỆN TỬ"
+            >
+                {selectedPartnerApp && (
+                    <div className="space-y-8">
+                        <section className="space-y-4">
+                            <h5 className="text-[11px] font-black uppercase text-slate-900 tracking-widest pl-1 opacity-40">Thông tin định danh</h5>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1.5 p-4 rounded-2xl bg-gray-50 border border-gray-100">
+                                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Họ tên & Email</span>
+                                    <p className="text-sm font-bold text-gray-900 truncate">{selectedPartnerApp.fullName}</p>
+                                    <p className="text-xs text-gray-500 truncate">{selectedPartnerApp.email}</p>
+                                </div>
+                                <div className="space-y-1.5 p-4 rounded-2xl bg-gray-50 border border-gray-100">
+                                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Số điện thoại & MST</span>
+                                    <p className="text-sm font-bold text-gray-900">{selectedPartnerApp.phone}</p>
+                                    <p className="text-xs text-gray-500 font-bold">{selectedPartnerApp.taxId || 'N/A'}</p>
+                                </div>
+                            </div>
+                            <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100">
+                                <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Địa chỉ hoạt động</span>
+                                <p className="text-xs font-bold text-gray-900 leading-relaxed mt-1">{selectedPartnerApp.address}</p>
+                            </div>
+                        </section>
+
+                        <section className="space-y-4">
+                            <h5 className="text-[11px] font-black uppercase text-slate-900 tracking-widest pl-1 opacity-40">Tài khoản thanh toán</h5>
+                            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Chủ tài khoản</span>
+                                        <p className="text-xs font-bold text-slate-900 mt-0.5">{selectedPartnerApp.bankAccountHolder || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Số tài khoản</span>
+                                        <p className="text-xs font-bold text-slate-900 mt-0.5">{selectedPartnerApp.bankAccountNumber || '-'}</p>
+                                    </div>
+                                </div>
+                                <div className="mt-3 pt-3 border-t border-slate-200/50">
+                                    <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Ngân hàng thụ hưởng</span>
+                                    <p className="text-xs font-bold text-slate-900 mt-0.5">{selectedPartnerApp.bankName || '-'}</p>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section className="space-y-4">
+                             <h5 className="text-[11px] font-black uppercase text-slate-900 tracking-widest pl-1 opacity-40">Hợp đồng điện tử & Tài liệu KYC</h5>
+                             <div className="grid grid-cols-2 gap-4">
+                                 <button 
+                                     onClick={() => handleDownloadContract(selectedPartnerApp.id)}
+                                     className="w-full flex items-center justify-between p-4 rounded-2xl bg-slate-900 text-white group hover:bg-black transition-all text-left cursor-pointer"
+                                 >
+                                     <div className="flex items-center gap-3">
+                                         <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+                                             <Download className="w-5 h-5" />
+                                         </div>
+                                         <div>
+                                             <p className="text-[10px] font-black uppercase tracking-widest opacity-60">E-Contract</p>
+                                             <p className="font-bold text-sm">TẢI HỢP ĐỒNG PDF</p>
+                                         </div>
+                                     </div>
+                                     <ExternalLink className="w-4 h-4 opacity-40" />
+                                 </button>
+
+                                 <div className="grid grid-cols-3 gap-2">
+                                     {[
+                                         { url: selectedPartnerApp.documentFrontUrl, label: 'CCCD Mặt trước' },
+                                         { url: selectedPartnerApp.documentBackUrl, label: 'CCCD Mặt sau' },
+                                         { url: selectedPartnerApp.businessLicenseUrl, label: 'GPKD' }
+                                     ].map((doc, idx) => (
+                                         doc.url && (
+                                             <a 
+                                               key={idx}
+                                               href={doc.url}
+                                               target="_blank"
+                                               rel="noreferrer"
+                                               className="aspect-square flex flex-col items-center justify-center gap-2 rounded-2xl bg-gray-50 border border-gray-100 hover:border-blue-200 hover:bg-white transition-all shadow-sm group"
+                                             >
+                                                 <ImageIcon className="w-6 h-6 text-gray-300 group-hover:text-blue-500" />
+                                                 <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">{doc.label}</span>
+                                             </a>
+                                         )
+                                     ))}
+                                 </div>
+                             </div>
+                        </section>
+                    </div>
+                )}
+            </AdminDetailOverlay>
         </AdminLayout>
     );
 }

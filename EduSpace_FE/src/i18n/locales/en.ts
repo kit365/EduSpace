@@ -372,6 +372,7 @@ export const en = {
             description: "To ensure safety for the EduSpace community, please verify your identity with ID/Passport.",
             start: "Start Verification",
             steps: {
+                info: "Basic Info",
                 front: "ID Front",
                 back: "ID Back",
                 selfie: "Portrait Photo",

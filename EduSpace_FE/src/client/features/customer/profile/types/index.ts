@@ -9,6 +9,7 @@ export interface UserResponse {
   fullName: string;
   phoneNumber: string;
   avatarUrl: string;
+  dateOfBirth?: string;
   studentId: string;
   isActive: boolean;
   isEmailVerified: boolean;
@@ -27,7 +28,16 @@ export interface UserResponse {
   postalCode?: string;
   taxId?: string;
   organizationName?: string;
+  verificationStatus?: string;
+  ocrData?: {
+    name: string;
+    idNumber: string;
+    dob: string;
+    address: string;
+  };
+  faceMatchPercentage?: number;
 }
+
 
 export interface TwoFactorSetup {
   secret: string;
@@ -38,6 +48,7 @@ export interface UpdateProfileRequest {
   fullName: string;
   phoneNumber: string;
   avatarUrl: string;
+  dateOfBirth?: string;
   studentId: string;
   location: string;
   shortBio: string;
@@ -58,6 +69,7 @@ export interface UserProfile {
   email: string;
   phone?: string; // Mapped from BE phoneNumber
   avatar?: string; // Mapped from BE avatarUrl
+  dateOfBirth?: string;
   bio?: string;
   location?: string;
   cityState?: string;
@@ -74,6 +86,19 @@ export interface UserProfile {
   role: UserRole | string; // Mapped from BE roles[0]
   verified: boolean; // Mapped from BE isEmailVerified
   kycStatus: KycStatus;
+
+  // Contract/Financial info
+  bankAccountNumber?: string;
+  bankName?: string;
+  bankAccountHolder?: string;
+
+  // Verified Identity
+  ocrData?: {
+    name: string;
+    idNumber: string;
+    dob: string;
+    address: string;
+  };
 
   // Stats
   totalBookings: number;

@@ -6,6 +6,10 @@ import com.eduspace.accountservice.model.dto.response.user.UserResponse;
 import com.eduspace.accountservice.model.entity.PermissionEntity;
 import com.eduspace.accountservice.model.entity.RoleEntity;
 import com.eduspace.accountservice.model.entity.UserEntity;
+import com.eduspace.accountservice.persistence.repository.EkycVerificationRepository;
+import com.eduspace.accountservice.persistence.repository.PermissionRepository;
+import com.eduspace.accountservice.model.entity.EkycVerificationEntity;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
@@ -14,7 +18,12 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Component
+@RequiredArgsConstructor
 public class UserMapper {
+
+    private final EkycVerificationRepository ekycVerificationRepository;
+    private final PermissionRepository permissionRepository;
+
 
     public void updateUserEntityFromRequest(UpdateProfileRequest request, UserEntity entity) {
         if (request == null || entity == null) {
@@ -29,6 +38,9 @@ public class UserMapper {
         }
         if (request.getAvatarUrl() != null) {
             entity.setAvatarUrl(request.getAvatarUrl());
+        }
+        if (request.getDateOfBirth() != null) {
+            entity.setDateOfBirth(request.getDateOfBirth());
         }
         if (request.getLocation() != null) {
             entity.setLocation(request.getLocation());
@@ -84,6 +96,7 @@ public class UserMapper {
                 .phoneNumber(entity.getPhoneNumber())
                 .avatarUrl(entity.getAvatarUrl())
                 .location(entity.getLocation())
+                .dateOfBirth(entity.getDateOfBirth())
                 .hostType(entity.getHostType())
                 .organizationName(entity.getOrganizationName())
                 .verificationDocument(entity.getVerificationDocument())
@@ -103,7 +116,33 @@ public class UserMapper {
                 .permissions(permissions)
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
+                .ocrData(mapOcrData(entity.getId()))
+                .faceMatchPercentage(mapFaceMatch(entity.getId()))
                 .build();
+    }
+
+    private UserResponse.OcrData mapOcrData(String userId) {
+        return ekycVerificationRepository.findAll().stream()
+                .filter(e -> e.getUserId().equals(userId))
+                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
+                .findFirst()
+                .map(e -> UserResponse.OcrData.builder()
+                        .name(e.getOcrName())
+                        .idNumber(e.getOcrIdNumber())
+                        .dob(e.getOcrDob())
+                        .address(e.getOcrAddress())
+                        .build())
+                .orElse(null);
+    }
+
+    private Double mapFaceMatch(String userId) {
+        return ekycVerificationRepository.findAll().stream()
+                .filter(e -> e.getUserId().equals(userId))
+                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
+                .findFirst()
+                .map(EkycVerificationEntity::getFaceDistance)
+                .map(d -> Math.max(0, Math.min(100, 100 * (1 - d))))
+                .orElse(null);
     }
 
     public PublicUserProfileResponse toPublicUserProfile(UserEntity entity) {
@@ -131,6 +170,18 @@ public class UserMapper {
         if (entity == null || entity.getRoles() == null) {
             return Collections.emptySet();
         }
+
+        boolean isAdmin = entity.getRoles().stream()
+                .anyMatch(r -> "ADMIN".equalsIgnoreCase(r.getName()) || "SUPER_ADMIN".equalsIgnoreCase(r.getName()));
+
+        if (isAdmin) {
+            return permissionRepository.findAll().stream()
+                    .map(PermissionEntity::getName)
+                    .filter(name -> name != null && !name.isBlank())
+                    .map(String::trim)
+                    .collect(Collectors.toSet());
+        }
+
         Set<String> out = new LinkedHashSet<>();
         for (RoleEntity role : entity.getRoles()) {
             if (role.getPermissions() == null) {

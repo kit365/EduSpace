@@ -41,6 +41,8 @@ public enum ErrorCode {
     INVALID_MANAGER_PERMISSION(HttpStatus.BAD_REQUEST, "INVALID_MANAGER_PERMISSION", "host.manager.invalid-permission"),
     HOST_MANAGER_INVALID_USER(HttpStatus.BAD_REQUEST, "HOST_MANAGER_INVALID_USER", "host.manager.invalid-user"),
     HOST_MANAGER_ALREADY_LINKED(HttpStatus.CONFLICT, "HOST_MANAGER_ALREADY_LINKED", "host.manager.already-linked"),
+    EKYC_DUPLICATE_ID(HttpStatus.CONFLICT, "EKYC_DUPLICATE_ID", "error.ekyc.duplicate-id"),
+
     HOST_BRANCH_NOT_FOUND(HttpStatus.BAD_REQUEST, "HOST_BRANCH_NOT_FOUND", "host.branch.not-found"),
     HOST_BRANCH_FORBIDDEN(HttpStatus.FORBIDDEN, "HOST_BRANCH_FORBIDDEN", "host.branch.forbidden"),
     HOST_BRANCH_VALIDATION_FAILED(

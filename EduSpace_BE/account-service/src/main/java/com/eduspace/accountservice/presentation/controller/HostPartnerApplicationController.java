@@ -74,4 +74,20 @@ public class HostPartnerApplicationController {
                 body != null ? body : new RejectHostPartnerApplicationRequest());
         return ApiResponse.success(null);
     }
+
+    @GetMapping(HostPartnerApplicationPaths.ADMIN_BY_USER)
+    @PreAuthorize(PreAuthorizeConstants.HAS_ANY_ROLE_ADMIN_OR_SUPER)
+    public ApiResponse<HostPartnerApplicationAdminResponse> findByUserId(@PathVariable String userId) {
+        return ApiResponse.success(hostPartnerApplicationService.findByUserId(userId));
+    }
+
+    @GetMapping(HostPartnerApplicationPaths.ADMIN_CONTRACT_PDF)
+    @PreAuthorize(PreAuthorizeConstants.HAS_ANY_ROLE_ADMIN_OR_SUPER)
+    public org.springframework.http.ResponseEntity<byte[]> downloadContractPdf(@PathVariable UUID id) {
+        byte[] pdf = hostPartnerApplicationService.getContractPdf(id);
+        return org.springframework.http.ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=contract-" + id + ".pdf")
+                .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
+                .body(pdf);
+    }
 }

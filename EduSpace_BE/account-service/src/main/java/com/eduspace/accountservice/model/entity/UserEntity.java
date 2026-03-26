@@ -38,6 +38,9 @@ public class UserEntity extends BaseEntity {
     @Column(name = "avatar_url")
     String avatarUrl;
 
+    @Column(name = "date_of_birth")
+    String dateOfBirth;
+
     @Column(name = "location")
     String location;
 

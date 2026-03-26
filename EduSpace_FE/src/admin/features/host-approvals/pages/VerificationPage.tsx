@@ -1,16 +1,13 @@
 import { AdminLayout } from '../../../layouts/AdminLayout';
 import {
     CheckCircle2,
-    XCircle,
     RefreshCw,
     ArrowRight,
     ArrowUpDown,
     ExternalLink,
     Search as SearchIcon,
     Filter,
-    Users,
     Download,
-    Upload,
     Building2,
     ImageIcon,
     Loader2,
@@ -24,36 +21,47 @@ import { showToast } from '@/utils/toast';
 import { hostPartnerApplicationService, type HostPartnerApplicationAdminItem } from '@/client/features/host/services/hostPartnerApplicationService';
 import { branchService } from '@/client/features/host/services/branchService';
 import { useAuthStore } from '@/stores/authStore';
-import type { User } from '@/types';
 
 export function VerificationPage() {
     const {
-        partners, rooms, kycUsers, loading, actingId,
-        fetchPartners, fetchRooms, fetchKyc,
+        partners, rooms, loading, actingId,
+        fetchPartners, fetchRooms,
         approvePartner, rejectPartner,
-        approveRoom, rejectRoom,
-        approveKyc, rejectKyc
+        approveRoom, rejectRoom
     } = useAdminApprovals();
 
-    const [tab, setTab] = useState<'partners' | 'rooms' | 'users'>('partners');
+    const [tab, setTab] = useState<'partners' | 'rooms'>('partners');
     const [searchTerm, setSearchTerm] = useState('');
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     
     // Detail Overlays
     const [selectedPartner, setSelectedPartner] = useState<HostPartnerApplicationAdminItem | null>(null);
     const [selectedRoomItem, setSelectedRoomItem] = useState<PendingRoomItem | null>(null);
-    const [selectedKycUser, setSelectedKycUser] = useState<User | null>(null);
+
+    const handleDownloadContract = async (id: string) => {
+        try {
+            const blob = await hostPartnerApplicationService.adminDownloadContract(id);
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `contract-${id}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (e) {
+            showToast.error("Không thể tải hợp đồng");
+        }
+    };
 
     useEffect(() => {
         if (tab === 'partners') void fetchPartners();
         if (tab === 'rooms') void fetchRooms();
-        if (tab === 'users') void fetchKyc();
-    }, [tab, fetchPartners, fetchRooms, fetchKyc]);
+    }, [tab, fetchPartners, fetchRooms]);
 
     const refresh = () => {
         if (tab === 'partners') void fetchPartners();
         if (tab === 'rooms') void fetchRooms();
-        if (tab === 'users') void fetchKyc();
     };
 
     const renderRegistrationInfo = (message: string) => {
@@ -64,7 +72,6 @@ export function VerificationPage() {
             </div>
         );
         
-        // Check if it's the pipe-separated format
         if (message.includes('|') && message.includes('=')) {
             const pairs = message.split('|').map(p => p.trim());
             const data: Record<string, string> = {};
@@ -95,7 +102,7 @@ export function VerificationPage() {
                         return (
                             <div key={key} className="space-y-1.5">
                                 <label className="block text-[13px] font-semibold text-[#374151] ml-1">{label}</label>
-                                <div className="min-h-[48px] flex items-center px-4 rounded-[12px] border border-[#d1d5db] bg-white transition-all hover:border-slate-400">
+                                <div className="min-h-[48px] flex items-center px-4 rounded-[12px] border border-[#d1d5db] bg-white transition-all hover:border-slate-400 shadow-sm">
                                     {key === 'logo' && val.startsWith('http') ? (
                                         <div className="py-1.5 w-full flex items-center justify-center">
                                             <img src={val} className="max-h-16 object-contain drop-shadow-sm" alt="Logo" />
@@ -171,7 +178,6 @@ export function VerificationPage() {
         } catch { return <p className="text-red-500">Lỗi parse dữ liệu chỉnh sửa.</p>; }
     };
 
-    // Helper to check if a logo URL is valid for automated creation
     const isUsableLogoUrl = (url?: string) => {
         return url && (url.startsWith('http') || url.startsWith('https'));
     };
@@ -200,8 +206,6 @@ export function VerificationPage() {
     };
 
     const handleApprovePartner = async (app: HostPartnerApplicationAdminItem) => {
-        // Acting ID handled by hook if we used the hook's method, 
-        // but since we're doing custom logic here, we just run it.
         try {
             await hostPartnerApplicationService.adminApprove(app.id);
             if (app.applicantType === 'BRANCH') {
@@ -270,13 +274,13 @@ export function VerificationPage() {
                 <div>
                     <h1 className="text-3xl font-black tracking-tight text-gray-900">Hộp thư Phê duyệt</h1>
                     <p className="font-medium text-gray-500">
-                        Thẩm định hồ sơ đối tác, phòng đăng mới và xác minh danh tính người dùng.
+                        Thẩm định hồ sơ đối tác và phòng đăng mới.
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     <button
                         type="button"
-                        className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-3.5 text-sm font-semibold text-gray-700"
+                        className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-3.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
                     >
                         <Download className="h-4 w-4" />
                         Export
@@ -296,14 +300,13 @@ export function VerificationPage() {
             {/* Toolbar */}
             <div className="mb-8 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-                    {/* Tabs - Centered or Left aligned but balanced */}
+                    {/* Tabs */}
                     <div className="flex flex-wrap items-center gap-2 lg:flex-1">
                         {(
                             [
                                 { value: 'partners', label: 'Đơn đối tác' },
                                 { value: 'rooms', label: 'Phê duyệt phòng' },
-                                { value: 'users', label: 'KYC Người dùng' },
-                            ] as { value: 'partners' | 'rooms' | 'users'; label: string }[]
+                            ] as { value: 'partners' | 'rooms'; label: string }[]
                         ).map((t) => (
                             <button
                                 key={t.value}
@@ -311,25 +314,19 @@ export function VerificationPage() {
                                 onClick={() => setTab(t.value)}
                                 className={`inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl border-2 px-4 text-sm font-bold transition-all ${
                                     tab === t.value
-                                        ? 'border-gray-900 bg-gray-900 text-white'
+                                        ? 'border-gray-900 bg-gray-900 text-white shadow-md'
                                         : 'border-gray-50 bg-white text-gray-500 hover:border-gray-200 hover:text-gray-900'
                                 }`}
                             >
                                 <span>{t.label}</span>
                                 <span className={`ml-1.5 rounded-lg px-2 py-0.5 text-[10px] font-black ${tab === t.value ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-400'}`}>
-                                    {t.value === 'partners' ? partners.length : t.value === 'rooms' ? rooms.length : kycUsers.length}
+                                    {t.value === 'partners' ? partners.length : rooms.length}
                                 </span>
                             </button>
                         ))}
                     </div>
 
-                    {/* Subheading / Info for developers/admins in specific tab */}
-                    {tab === 'partners' && (
-                        <p className="hidden lg:block text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                            Duyệt sẽ tạo chi nhánh & gán role HOST
-                        </p>
-                    )}
-                    {/* Search & Action Group - Centered visually in mobile/tablet */}
+                    {/* Search & Action Group */}
                     <div className="flex items-center justify-center gap-2 sm:justify-start lg:justify-end">
                         <div className="relative flex items-center gap-2">
                             <button
@@ -386,7 +383,6 @@ export function VerificationPage() {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    {/* Render logic based on tab */}
                     {tab === 'partners' && partners.map(app => (
                         <div 
                             key={app.id}
@@ -399,14 +395,16 @@ export function VerificationPage() {
                                 </div>
                                 <div className="flex-1">
                                     <h4 className="font-black text-gray-900 truncate">{app.fullName}</h4>
-                                    <p className="text-xs font-bold text-amber-600 uppercase tracking-widest">{app.applicantType === 'BRANCH' ? 'Đăng ký chi nhánh' : 'Cá nhân (Tutor)'}</p>
+                                    <p className="text-xs font-bold text-amber-600 uppercase tracking-widest leading-relaxed">
+                                        {app.applicantType === 'BRANCH' ? 'Đăng ký chi nhánh' : app.applicantType}
+                                    </p>
                                 </div>
                             </div>
                             <div className="space-y-2 mb-6">
                                 <p className="text-sm text-gray-500 font-medium truncate">{app.email}</p>
                                 <p className="text-sm text-gray-500 font-medium">{app.phone || 'Chưa có SĐT'}</p>
                             </div>
-                            <button className="w-full py-3 bg-gray-50 rounded-2xl text-xs font-black text-gray-700 hover:bg-gray-900 hover:text-white transition-all">
+                            <button className="w-full py-3 bg-gray-50 rounded-2xl text-[10px] font-black text-gray-700 hover:bg-gray-900 hover:text-white transition-all uppercase tracking-widest">
                                 XEM CHI TIẾT & DUYỆT
                             </button>
                         </div>
@@ -420,7 +418,7 @@ export function VerificationPage() {
                         >
                             <div className="h-40 overflow-hidden relative">
                                 <img 
-                                    src={item.room.images?.split(',')[0].trim() || 'https://placehold.co/800x450?text=Room'} 
+                                    src={String(item.room.images || '').split(',')[0].trim() || 'https://placehold.co/800x450?text=Room'} 
                                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
                                     alt=""
                                 />
@@ -431,39 +429,17 @@ export function VerificationPage() {
                             <div className="p-6">
                                 <h4 className="font-black text-gray-900 mb-1 truncate">{item.room.name}</h4>
                                 <p className="text-xs font-medium text-gray-400 mb-4">{item.property?.name || 'Cơ sở chưa xác định'}</p>
-                                <button className="w-full py-3 bg-gray-50 rounded-2xl text-xs font-black text-gray-700 hover:bg-gray-900 hover:text-white transition-all uppercase tracking-widest">
+                                <button className="w-full py-3 bg-gray-50 rounded-2xl text-[10px] font-black text-gray-700 hover:bg-gray-900 hover:text-white transition-all uppercase tracking-widest">
                                     Thẩm định phòng
                                 </button>
                             </div>
-                        </div>
-                    ))}
-
-                    {tab === 'users' && kycUsers.map(user => (
-                        <div 
-                            key={user.id}
-                            className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm hover:shadow-xl transition-all group cursor-pointer"
-                            onClick={() => setSelectedKycUser(user)}
-                        >
-                            <div className="flex items-center gap-4 mb-4">
-                                <div className="h-14 w-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center text-xl font-black shadow-lg shadow-slate-200 overflow-hidden">
-                                    {user.avatar ? <img src={user.avatar} className="w-full h-full object-cover" /> : user.name?.charAt(0)}
-                                </div>
-                                <div className="flex-1">
-                                    <h4 className="font-black text-gray-900">{user.name}</h4>
-                                    <p className="text-xs font-bold text-blue-600 uppercase tracking-widest">Xác minh định danh</p>
-                                </div>
-                            </div>
-                            <p className="text-sm text-gray-500 font-medium mb-6">{user.email}</p>
-                            <button className="w-full py-3 bg-gray-50 rounded-2xl text-xs font-black text-gray-700 hover:bg-gray-900 hover:text-white transition-all uppercase tracking-widest">
-                                Xem hồ sơ KYC
-                            </button>
                         </div>
                     ))}
                 </div>
             )}
 
             {/* Empty State */}
-            {!loading[tab] && (tab === 'partners' ? partners : tab === 'rooms' ? rooms : kycUsers).length === 0 && (
+            {!loading[tab] && (tab === 'partners' ? partners : rooms).length === 0 && (
                 <div className="flex flex-col items-center justify-center py-32 space-y-4 rounded-3xl border-2 border-dashed border-gray-100 bg-gray-50/50">
                     <div className="p-4 bg-white rounded-full shadow-sm text-gray-300">
                         <FileCheck className="h-12 w-12" />
@@ -480,45 +456,122 @@ export function VerificationPage() {
                 subtitle="Xem xét hồ sơ đăng ký Host / Chi nhánh"
                 actions={{
                     onApprove: () => selectedPartner && handleApprovePartner(selectedPartner).then(() => setSelectedPartner(null)),
-                    onReject: (note) => selectedPartner && rejectPartner(selectedPartner.id, note).then(() => setSelectedPartner(null)),
-                    isActing: actingId === selectedPartner?.id,
+                    onReject: (note) => selectedPartner && rejectPartner(selectedPartner!.id, note).then(() => setSelectedPartner(null)),
+                    isActing: actingId === (selectedPartner?.id || ''),
                     approveLabel: 'Duyệt & Cấp Role',
                 }}
             >
                 {selectedPartner && (
                     <div className="space-y-8">
+                         <div className="flex gap-3">
+                            <div className="bg-red-50 text-red-600 px-4 py-2 rounded-2xl border border-red-100 font-black text-[10px] uppercase tracking-[0.2em]">
+                                {selectedPartner.applicantType === 'BRANCH' ? 'Đăng ký chi nhánh' : selectedPartner.applicantType}
+                            </div>
+                            {selectedPartner.taxId && (
+                                <div className="bg-blue-50 text-blue-600 px-4 py-2 rounded-2xl border border-blue-100 font-black text-[10px] uppercase tracking-[0.2em]">
+                                    MST: {selectedPartner.taxId}
+                                </div>
+                            )}
+                         </div>
+
                          <section className="space-y-4">
-                              <h5 className="text-[11px] font-black uppercase text-slate-900 tracking-widest pl-1 opacity-40">Thông tin cá nhân</h5>
+                              <h5 className="text-[11px] font-black uppercase text-slate-900 tracking-widest pl-1 opacity-40">Thông tin cá nhân & Liên hệ</h5>
                               <div className="grid grid-cols-6 gap-4">
-                                 <div className="space-y-1.5 col-span-2">
+                                 <div className="space-y-1.5 col-span-3">
                                      <label className="block text-[13px] font-semibold text-[#374151] ml-1">Họ và tên</label>
-                                     <div className="h-[48px] flex items-center px-4 rounded-[12px] border border-[#d1d5db] bg-white text-sm font-bold text-gray-900">
+                                     <div className="h-[48px] flex items-center px-4 rounded-[12px] border border-[#d1d5db] bg-white text-sm font-bold text-gray-900 shadow-sm">
                                          {selectedPartner.fullName}
                                      </div>
                                  </div>
-                                 <div className="space-y-1.5 col-span-2">
+                                 <div className="space-y-1.5 col-span-3">
                                      <label className="block text-[13px] font-semibold text-[#374151] ml-1">Số điện thoại</label>
-                                     <div className="h-[48px] flex items-center px-4 rounded-[12px] border border-[#d1d5db] bg-white text-sm font-bold text-gray-900">
+                                     <div className="h-[48px] flex items-center px-4 rounded-[12px] border border-[#d1d5db] bg-white text-sm font-bold text-gray-900 shadow-sm">
                                          {selectedPartner.phone || '-'}
                                      </div>
                                  </div>
-                                 <div className="space-y-1.5 col-span-2">
+                                 <div className="space-y-1.5 col-span-6">
                                      <label className="block text-[13px] font-semibold text-[#374151] ml-1">Email liên hệ</label>
-                                     <div className="h-[48px] flex items-center px-4 rounded-[12px] border border-[#d1d5db] bg-white text-sm font-bold text-gray-900 truncate">
+                                     <div className="h-[48px] flex items-center px-4 rounded-[12px] border border-[#d1d5db] bg-white text-sm font-bold text-gray-900 shadow-sm">
                                          {selectedPartner.email}
                                      </div>
                                  </div>
                                  <div className="space-y-1.5 col-span-6">
                                      <label className="block text-[13px] font-semibold text-[#374151] ml-1">Địa chỉ hoạt động</label>
-                                     <div className="h-auto min-h-[48px] flex items-center px-4 py-2.5 rounded-[12px] border border-[#d1d5db] bg-white text-sm font-bold text-gray-900 leading-tight">
+                                     <div className="h-auto min-h-[48px] flex items-center px-4 py-2.5 rounded-[12px] border border-[#d1d5db] bg-white text-sm font-bold text-gray-900 leading-tight shadow-sm">
                                          {selectedPartner.address || '-'}
                                      </div>
                                  </div>
                               </div>
                          </section>
 
+                         <section className="space-y-4">
+                              <h5 className="text-[11px] font-black uppercase text-slate-900 tracking-widest pl-1 opacity-40">Thông tin tài khoản Thanh toán</h5>
+                              <div className="grid grid-cols-6 gap-4">
+                                 <div className="space-y-1.5 col-span-3">
+                                     <label className="block text-[13px] font-semibold text-[#374151] ml-1">Chủ tài khoản</label>
+                                     <div className="h-[48px] flex items-center px-4 rounded-[12px] border border-[#d1d5db] bg-white text-sm font-bold text-gray-900 shadow-sm">
+                                         {selectedPartner.bankAccountHolder || '-'}
+                                     </div>
+                                 </div>
+                                 <div className="space-y-1.5 col-span-3">
+                                     <label className="block text-[13px] font-semibold text-[#374151] ml-1">Số tài khoản</label>
+                                     <div className="h-[48px] flex items-center px-4 rounded-[12px] border border-[#d1d5db] bg-white text-sm font-bold text-gray-900 shadow-sm">
+                                         {selectedPartner.bankAccountNumber || '-'}
+                                     </div>
+                                 </div>
+                                 <div className="space-y-1.5 col-span-6">
+                                     <label className="block text-[13px] font-semibold text-[#374151] ml-1">Ngân hàng thụ hưởng</label>
+                                     <div className="h-[48px] flex items-center px-4 rounded-[12px] border border-[#d1d5db] bg-white text-sm font-bold text-gray-900 shadow-sm">
+                                         {selectedPartner.bankName || '-'}
+                                     </div>
+                                 </div>
+                              </div>
+                         </section>
+
+                         <section className="space-y-4">
+                              <h5 className="text-[11px] font-black uppercase text-slate-900 tracking-widest pl-1 opacity-40">Hợp đồng điện tử & Tài liệu KYC</h5>
+                              <div className="grid grid-cols-2 gap-4">
+                                  <button 
+                                      onClick={() => handleDownloadContract(selectedPartner.id)}
+                                      className="w-full flex items-center justify-between p-4 rounded-2xl bg-slate-900 text-white group hover:bg-black transition-all text-left cursor-pointer"
+                                  >
+                                      <div className="flex items-center gap-3">
+                                          <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+                                              <Download className="w-5 h-5" />
+                                          </div>
+                                          <div>
+                                              <p className="text-[10px] font-black uppercase tracking-widest opacity-60">E-Contract</p>
+                                              <p className="font-bold text-sm">TẢI HỢP ĐỒNG PDF</p>
+                                          </div>
+                                      </div>
+                                      <ExternalLink className="w-4 h-4 opacity-40" />
+                                  </button>
+
+                                  <div className="grid grid-cols-3 gap-2">
+                                      {[
+                                          { url: selectedPartner.documentFrontUrl, label: 'CCCD Mặt trước' },
+                                          { url: selectedPartner.documentBackUrl, label: 'CCCD Mặt sau' },
+                                          { url: selectedPartner.businessLicenseUrl, label: 'GPKD' }
+                                      ].map((doc, idx) => (
+                                          doc.url && (
+                                              <a 
+                                                key={idx}
+                                                href={doc.url}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="aspect-square flex flex-col items-center justify-center gap-2 rounded-2xl bg-gray-50 border border-gray-100 hover:border-blue-200 hover:bg-white transition-all shadow-sm group"
+                                              >
+                                                  <ImageIcon className="w-6 h-6 text-gray-300 group-hover:text-blue-500" />
+                                                  <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">{doc.label}</span>
+                                              </a>
+                                          )
+                                      ))}
+                                  </div>
+                              </div>
+                         </section>
+
                         <section className="space-y-4">
-                             <h5 className="text-[11px] font-black uppercase text-slate-900 tracking-widest pl-1 opacity-40">Thông tin đăng ký</h5>
+                             <h5 className="text-[11px] font-black uppercase text-slate-900 tracking-widest pl-1 opacity-40">Ghi chú từ Đối tác</h5>
                              {renderRegistrationInfo(selectedPartner.message || '')}
                         </section>
                     </div>
@@ -531,9 +584,9 @@ export function VerificationPage() {
                 title="Hồ sơ phê duyệt phòng"
                 subtitle={selectedRoomItem?.room.pendingEditStatus === 'PENDING' ? 'Kiểm tra các nội dung chỉnh sửa mới' : 'Thẩm định phòng mới đăng đăng'}
                 actions={{
-                    onApprove: () => selectedRoomItem && approveRoom(selectedRoomItem.room).then(() => setSelectedRoomItem(null)),
-                    onReject: (note) => selectedRoomItem && rejectRoom(selectedRoomItem.room, note).then(() => setSelectedRoomItem(null)),
-                    isActing: actingId === selectedRoomItem?.room.id,
+                    onApprove: () => selectedRoomItem && approveRoom(selectedRoomItem!.room).then(() => setSelectedRoomItem(null)),
+                    onReject: (note) => selectedRoomItem && rejectRoom(selectedRoomItem!.room, note).then(() => setSelectedRoomItem(null)),
+                    isActing: actingId === (selectedRoomItem?.room.id || ''),
                     approveLabel: 'Phê duyệt dữ liệu',
                 }}
             >
@@ -545,7 +598,7 @@ export function VerificationPage() {
                                      <h5 className="text-[11px] font-black uppercase text-slate-900 tracking-widest pl-1 opacity-40">Thông tin cơ bản</h5>
                                      <div className="space-y-1.5">
                                          <label className="block text-[13px] font-semibold text-[#374151] ml-1">Tên phòng & Địa chỉ</label>
-                                         <div className="h-auto min-h-[48px] flex flex-col justify-center px-4 py-2.5 rounded-[12px] border border-[#d1d5db] bg-white">
+                                         <div className="h-auto min-h-[48px] flex flex-col justify-center px-4 py-2.5 rounded-[12px] border border-[#d1d5db] bg-white shadow-sm">
                                              <p className="text-sm font-black text-gray-900">{selectedRoomItem.room.name}</p>
                                              <p className="text-xs text-gray-500">{selectedRoomItem.property?.name} • {selectedRoomItem.property?.addressDetail}</p>
                                          </div>
@@ -554,8 +607,8 @@ export function VerificationPage() {
                                 <section className="space-y-4">
                                      <h5 className="text-xs font-black uppercase text-gray-400 tracking-widest">Hình ảnh phòng</h5>
                                      <div className="grid grid-cols-2 gap-2">
-                                         {(selectedRoomItem.room.images || '').split(',').map((img, idx) => (
-                                             <img key={idx} src={img.trim()} className="w-full h-32 object-cover rounded-xl" alt="" />
+                                         {String(selectedRoomItem.room.images || '').split(',').map((img, idx) => (
+                                             <img key={idx} src={img.trim()} className="w-full h-32 object-cover rounded-xl shadow-sm" alt="" />
                                          ))}
                                      </div>
                                  </section>
@@ -563,61 +616,13 @@ export function VerificationPage() {
                                      <h5 className="text-[11px] font-black uppercase text-slate-900 tracking-widest pl-1 opacity-40">Mô tả</h5>
                                      <div className="space-y-1.5">
                                          <label className="block text-[13px] font-semibold text-[#374151] ml-1">Nội dung mô tả</label>
-                                         <div className="text-sm text-gray-700 leading-relaxed bg-white border border-[#d1d5db] p-4 rounded-[12px]">
+                                         <div className="text-sm text-gray-700 leading-relaxed bg-white border border-[#d1d5db] p-4 rounded-[12px] shadow-sm">
                                              {selectedRoomItem.room.description}
                                          </div>
                                      </div>
                                 </section>
                             </div>
                         )}
-                    </div>
-                )}
-            </AdminDetailOverlay>
-
-            <AdminDetailOverlay
-                isOpen={!!selectedKycUser}
-                onClose={() => setSelectedKycUser(null)}
-                title="Xác minh KYC"
-                subtitle="Thẩm định danh tính người dùng"
-                actions={{
-                    onApprove: () => selectedKycUser && approveKyc(selectedKycUser.id).then(() => setSelectedKycUser(null)),
-                    onReject: (reason) => selectedKycUser && rejectKyc(selectedKycUser.id, reason).then(() => setSelectedKycUser(null)),
-                    isActing: actingId === selectedKycUser?.id,
-                    approveLabel: 'Duyệt định danh',
-                }}
-            >
-                {selectedKycUser && (
-                    <div className="space-y-8">
-                        <div className="flex items-center gap-4 p-5 rounded-[20px] bg-slate-900 text-white shadow-xl shadow-slate-200">
-                             <div className="h-16 w-16 rounded-[12px] overflow-hidden border-2 border-white/20">
-                                 <img src={selectedKycUser.avatar || ''} className="w-full h-full object-cover" />
-                             </div>
-                             <div>
-                                 <h5 className="text-lg font-black">{selectedKycUser.name}</h5>
-                                 <p className="text-xs font-medium text-slate-400">{selectedKycUser.email}</p>
-                             </div>
-                         </div>
-
-                        <section className="space-y-4">
-                             <h5 className="text-[11px] font-black uppercase text-slate-900 tracking-widest pl-1 opacity-40">Tài liệu nộp lên</h5>
-                             <div className="space-y-4">
-                                 {selectedKycUser?.verificationDocs?.map((doc, idx) => (
-                                     <div key={idx} className="group relative rounded-3xl border border-gray-100 overflow-hidden shadow-sm">
-                                         <img src={doc} className="w-full h-auto max-h-[500px] object-contain bg-gray-900" alt="KYC Doc" />
-                                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
-                                             <a href={doc} target="_blank" rel="noreferrer" className="p-3 bg-white rounded-2xl text-gray-900 font-bold flex items-center gap-2 hover:scale-110 transition-transform">
-                                                <ExternalLink className="h-5 w-5" /> Mở ảnh gốc
-                                             </a>
-                                         </div>
-                                     </div>
-                                 ))}
-                                 {(!selectedKycUser?.verificationDocs || (selectedKycUser?.verificationDocs?.length ?? 0) === 0) && (
-                                     <div className="p-12 text-center rounded-3xl border-2 border-dashed border-gray-100 text-gray-400">
-                                         Người dùng chưa nộp tài liệu xác minh.
-                                     </div>
-                                 )}
-                             </div>
-                        </section>
                     </div>
                 )}
             </AdminDetailOverlay>

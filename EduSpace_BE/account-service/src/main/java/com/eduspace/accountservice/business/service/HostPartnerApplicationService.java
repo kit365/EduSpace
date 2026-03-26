@@ -24,4 +24,8 @@ public interface HostPartnerApplicationService {
     void reject(UUID applicationId, String adminKeycloakId, RejectHostPartnerApplicationRequest request);
 
     long countPendingApplications();
+
+    HostPartnerApplicationAdminResponse findByUserId(String userId);
+
+    byte[] getContractPdf(UUID applicationId);
 }

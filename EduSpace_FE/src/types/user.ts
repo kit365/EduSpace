@@ -19,6 +19,13 @@ export interface User {
     bio?: string;
     location?: string;
     parentHostId?: string;
+    ocrData?: {
+        name: string;
+        idNumber: string;
+        dob: string;
+        address: string;
+    };
+    faceMatchPercentage?: number;
 }
 
 export interface Staff extends User {
