@@ -10,6 +10,8 @@ import { Calendar, Clock, CreditCard, ChevronRight, CheckCircle2, ShieldCheck, L
 import { toast } from 'sonner';
 import { bookingDepositService } from '../services/bookingDepositService';
 import { formatCurrency } from '../../../../../utils';
+import { VoucherInput } from '../components/VoucherInput';
+import type { AppliedVoucher } from '../components/VoucherInput';
 
 export function CheckoutPage() {
   const navigate = useNavigate();
@@ -70,6 +72,8 @@ export function CheckoutPage() {
 
   const equipmentAddOnTotal = bookingDetails?.equipmentAddOnTotal ?? 0;
   const selectedEquipmentAmenities = bookingDetails?.selectedEquipmentAmenities ?? [];
+
+  const [appliedVoucher, setAppliedVoucher] = useState<AppliedVoucher | null>(null);
 
   const [holdTimer, setHoldTimer] = useState(600); // 10 mins
   const [paymentTimer, setPaymentTimer] = useState(900); // 15 mins
@@ -184,6 +188,9 @@ export function CheckoutPage() {
       })
       .catch(() => undefined);
   }, [bookingData.roomId, bookingData.bookingDate, bookingData.startDateTime, bookingData.endDateTime]);
+
+  const discountAmount = appliedVoucher?.discountAmount ?? 0;
+  const finalTotal = Math.max(0, pricing.grandTotal - discountAmount);
 
   const handlePayDeposit = async () => {
     setPayingDeposit(true);
@@ -352,10 +359,36 @@ export function CheckoutPage() {
                         <span className="font-black text-gray-900">{formatCurrency(equipmentAddOnTotal)}</span>
                       </div>
                     )}
+
+                    {/* Voucher Input */}
+                    <div className="pt-2">
+                      <VoucherInput
+                        orderTotal={pricing.grandTotal}
+                        onApply={setAppliedVoucher}
+                        appliedVoucher={appliedVoucher}
+                      />
+                    </div>
+
+                    {/* Discount row */}
+                    {discountAmount > 0 && (
+                      <div className="flex justify-between items-center text-sm animate-in fade-in duration-300">
+                        <span className="font-bold text-green-600 flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
+                          Giảm giá ({appliedVoucher?.code})
+                        </span>
+                        <span className="font-black text-green-600">-{formatCurrency(discountAmount)}</span>
+                      </div>
+                    )}
+
                     <div className="h-px bg-gray-100 my-4" />
                     <div className="flex justify-between items-center">
                       <span className="text-xl font-black text-gray-900">{t('customer.checkout.pricing.grandTotal')}</span>
-                      <span className="text-3xl font-black text-red-500 tracking-tight">{formatCurrency(pricing.grandTotal)}</span>
+                      <div className="text-right">
+                        {discountAmount > 0 && (
+                          <div className="text-sm font-black text-gray-300 line-through">{formatCurrency(pricing.grandTotal)}</div>
+                        )}
+                        <span className="text-3xl font-black text-red-500 tracking-tight">{formatCurrency(finalTotal)}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -550,10 +583,22 @@ export function CheckoutPage() {
                       </div>
                     )}
 
+                    {discountAmount > 0 && (
+                      <div className="flex justify-between text-[11px] font-bold text-green-600 animate-in fade-in duration-300">
+                        <span>Giảm giá ({appliedVoucher?.code})</span>
+                        <span>-{formatCurrency(discountAmount)}</span>
+                      </div>
+                    )}
+
                     <div className="h-px bg-gray-50 my-2" />
                     <div className="flex justify-between items-end">
                       <span className="text-sm font-black text-gray-900">Total</span>
-                      <span className="text-2xl font-black text-red-500 tracking-tight">{formatCurrency(pricing.grandTotal)}</span>
+                      <div className="text-right">
+                        {discountAmount > 0 && (
+                          <div className="text-[10px] font-black text-gray-300 line-through">{formatCurrency(pricing.grandTotal)}</div>
+                        )}
+                        <span className="text-2xl font-black text-red-500 tracking-tight">{formatCurrency(finalTotal)}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
