@@ -64,6 +64,15 @@ public class BookingEntity {
     @Column(name = "total_price")
     private java.math.BigDecimal totalPrice;
 
+    @Column(name = "voucher_code", length = 50)
+    private String voucherCode;
+
+    @Column(name = "discount_amount")
+    private java.math.BigDecimal discountAmount;
+
+    @Column(name = "final_price")
+    private java.math.BigDecimal finalPrice;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
     private BookingStatus status;
