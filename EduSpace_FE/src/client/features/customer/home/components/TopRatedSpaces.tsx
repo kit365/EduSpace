@@ -67,7 +67,7 @@ function SpaceCard({ space, onClick }: SpaceCardProps) {
     return badgeMap[badge] || badge;
   };
 
-  const badgeLabel = space.instantBook ? 'INSTANT BOOK' : getBadgeText(space.badge);
+  const badgeLabel = space.instantBook ? 'INSTANT BOOK' : getBadgeText(space.badge ?? null);
 
   return (
     <div

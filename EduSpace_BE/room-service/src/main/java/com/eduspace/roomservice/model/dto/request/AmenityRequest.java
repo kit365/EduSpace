@@ -20,4 +20,7 @@ public class AmenityRequest {
     String icon;
     AmenityType type;
     Integer position;
+
+    /** VNĐ — tiện ích tính phí (V21). */
+    Long price;
 }

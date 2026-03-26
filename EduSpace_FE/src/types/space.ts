@@ -76,7 +76,21 @@ export interface ReservationTimeslot {
   isActive: boolean;
 }
 
+/** Bậc giá theo giờ (room-service price rules) — dùng UI chi tiết / checkout. */
+export interface RoomPriceRule {
+  id?: number;
+  minHours: number;
+  maxHours?: number | null;
+  pricePerHour?: number | null;
+  flatPrice?: number | null;
+  label?: string | null;
+  applicableDayOfWeeks?: number[] | null;
+}
+
 export interface SpaceDetails extends Space {
+  /** Tên cơ sở / tòa nhà (hiển thị chi tiết). */
+  facilityName?: string;
+  priceRules?: RoomPriceRule[];
   amenitiesDetailed: SpaceAmenity[];
   reviews: SpaceReview[];
   availableSlots?: number;

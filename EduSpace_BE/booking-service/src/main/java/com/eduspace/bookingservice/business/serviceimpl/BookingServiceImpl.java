@@ -65,6 +65,13 @@ public class BookingServiceImpl implements BookingService {
         entity.setBookingCode(generateBookingCode());
         entity.setRoomId(request.getRoomId());
         entity.setUserId(request.getUserId());
+        String guestEmail = request.getGuestEmail();
+        if (guestEmail == null || guestEmail.isBlank()) {
+            guestEmail = "legacy@eduspace.local";
+        } else {
+            guestEmail = guestEmail.trim();
+        }
+        entity.setGuestEmail(guestEmail);
         entity.setCheckInDate(request.getBookingDate());
         entity.setCheckOutDate(request.getBookingDate());
         entity.setBookingDate(request.getBookingDate());

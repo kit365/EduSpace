@@ -36,6 +36,9 @@ public class BookingEntity {
     @Column(name = "user_id", nullable = false, length = 100)
     private String userId;
 
+    @Column(name = "guest_email", nullable = false, length = 255)
+    private String guestEmail;
+
     @Column(name = "check_in_date", nullable = false)
     private LocalDate checkInDate;
 

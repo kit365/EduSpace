@@ -36,13 +36,24 @@ public class BookingPersistenceServiceImpl implements BookingPersistenceService 
         entity.setBookingCode(generateBookingCode());
         entity.setRoomId(request.getRoomId());
         entity.setUserId(request.getUserId());
-        entity.setGuestEmail(request.getGuestEmail().trim());
+
+        String email = request.getGuestEmail() != null ? request.getGuestEmail().trim() : "";
+        if (email.isEmpty()) {
+            email = "legacy@eduspace.local";
+        }
+        entity.setGuestEmail(email);
 
         entity.setBookingDate(bookingDate);
-        entity.setCheckInDate(request.getStartDateTime().toLocalDate());
-        entity.setCheckOutDate(request.getEndDateTime().toLocalDate());
-        entity.setStartDateTime(request.getStartDateTime());
-        entity.setEndDateTime(request.getEndDateTime());
+        LocalDateTime start = request.getStartDateTime();
+        LocalDateTime end = request.getEndDateTime();
+        if (start == null || end == null) {
+            start = bookingDate.atStartOfDay();
+            end = bookingDate.atTime(23, 59);
+        }
+        entity.setCheckInDate(start.toLocalDate());
+        entity.setCheckOutDate(end.toLocalDate());
+        entity.setStartDateTime(start);
+        entity.setEndDateTime(end);
 
         entity.setDurationValue(request.getDurationValue());
         entity.setDurationUnit(request.getDurationUnit());

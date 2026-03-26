@@ -2,6 +2,10 @@ package com.eduspace.accountservice.business.serviceimpl;
 
 import com.eduspace.accountservice.business.service.EmailService;
 import jakarta.mail.internet.MimeMessage;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -76,6 +80,55 @@ public class EmailServiceImpl implements EmailService {
         } catch (Exception e) {
             log.error(
                     "[Mail] FAILED verification email to {} — {} ({})",
+                    toEmail,
+                    e.getMessage(),
+                    e.getClass().getSimpleName(),
+                    e);
+        }
+    }
+
+    @Override
+    @Async
+    public void sendBookingConfirmationEmail(
+            String toEmail,
+            String recipientName,
+            String bookingCode,
+            String roomTitle,
+            LocalDate bookingDate,
+            LocalDateTime startDateTime,
+            LocalDateTime endDateTime) {
+        if (!StringUtils.hasText(mailUsername)) {
+            log.warn("Skip booking confirmation email to {}: SMTP not configured (spring.mail.username empty)", toEmail);
+            return;
+        }
+        try {
+            DateTimeFormatter dateFmt = DateTimeFormatter.ofPattern("dd/MM/yyyy").withLocale(Locale.forLanguageTag("vi"));
+            DateTimeFormatter dtFmt =
+                    DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm").withLocale(Locale.forLanguageTag("vi"));
+
+            Context context = new Context();
+            context.setVariable("recipientName", StringUtils.hasText(recipientName) ? recipientName : "Khách");
+            context.setVariable("bookingCode", bookingCode);
+            context.setVariable("roomTitle", StringUtils.hasText(roomTitle) ? roomTitle : "—");
+            context.setVariable("bookingDate", bookingDate != null ? bookingDate.format(dateFmt) : "—");
+            context.setVariable("startDateTime", startDateTime != null ? startDateTime.format(dtFmt) : "—");
+            context.setVariable("endDateTime", endDateTime != null ? endDateTime.format(dtFmt) : "—");
+
+            String htmlContent = templateEngine.process("email/booking-confirmation", context);
+
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromEmail, displayName);
+            helper.setTo(toEmail);
+            helper.setSubject("EduSpace - Xác nhận đặt phòng " + bookingCode);
+            helper.setText(htmlContent, true);
+
+            mailSender.send(message);
+            log.info("[Mail] SUCCESS booking confirmation sent to {}", toEmail);
+        } catch (Exception e) {
+            log.error(
+                    "[Mail] FAILED booking confirmation to {} — {} ({})",
                     toEmail,
                     e.getMessage(),
                     e.getClass().getSimpleName(),

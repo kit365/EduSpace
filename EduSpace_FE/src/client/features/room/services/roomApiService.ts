@@ -173,6 +173,12 @@ export const roomApiService = {
     return unwrap<AmenityDto>(res);
   },
 
+  /** PATCH-style: chỉ gửi field cần đổi (BE MapStruct ignore null). */
+  updateAmenity: async (id: number, body: Partial<Pick<AmenityDto, 'price'>>): Promise<AmenityDto> => {
+    const res = await apiClient.put(`${ROOM_API.AMENITIES}/${id}`, body);
+    return unwrap<AmenityDto>(res);
+  },
+
   uploadRoomImage: async (file: File, folder?: string): Promise<string> => {
     const fd = new FormData();
     fd.append('file', file);

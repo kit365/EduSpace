@@ -89,9 +89,15 @@ export interface CreateBookingReq {
     roomId: number;
     userId: string;
     bookingDate: string;
-    slotId: number;
-    durationValue: number;
-    durationUnit: 'MINUTE' | 'HOUR';
+    /** API slot-based: một hoặc nhiều slot */
+    slotId?: number;
+    slotIds?: number[];
+    durationValue?: number;
+    durationUnit?: 'MINUTE' | 'HOUR';
+    /** Luồng datetime / email xác nhận */
+    guestEmail?: string;
+    startDateTime?: string;
+    endDateTime?: string;
     paymentMethod?: 'card' | 'bank' | 'momo';
     contactInfo?: {
         fullName: string;

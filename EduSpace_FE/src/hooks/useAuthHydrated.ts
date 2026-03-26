@@ -11,9 +11,10 @@ export function useAuthHydrated(): boolean {
 
     useEffect(() => {
         let cancelled = false;
-        void useAuthStore.persist.rehydrate().then(() => {
+        void (async () => {
+            await useAuthStore.persist.rehydrate();
             if (!cancelled) setReady(true);
-        });
+        })();
         return () => {
             cancelled = true;
         };

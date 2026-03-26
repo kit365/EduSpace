@@ -20,4 +20,6 @@ public class AmenityResponse {
     String icon;
     AmenityType type;
     Integer position;
+
+    Long price;
 }

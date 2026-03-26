@@ -275,6 +275,8 @@ export interface AmenityDto {
   icon: string;
   type: 'EQUIPMENT' | 'SERVICE' | 'FEATURE' | string;
   position: number;
+  /** VNĐ — cột price (V21) */
+  price?: number | null;
 }
 
 export interface AmenityCreateRequest {
