@@ -23,12 +23,6 @@ public final class ApiPaths {
         public static final String PUBLIC_PATH = BASE + "/public/properties";
     }
 
-    public static final class AdsPackages {
-        private AdsPackages() {
-        }
-        public static final String BASE_PATH = BASE + "/ads-packages";
-    }
-
     public static final class Amenities {
         private Amenities() {
         }
@@ -45,12 +39,6 @@ public final class ApiPaths {
         private Reviews() {
         }
         public static final String BASE_PATH = BASE + "/reviews";
-    }
-
-    public static final class RoomAds {
-        private RoomAds() {
-        }
-        public static final String BASE_PATH = BASE + "/room-ads";
     }
 
     public static final class SystemCalendarRules {

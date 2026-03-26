@@ -1,0 +1,14 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "booking-service (dev)",
+      "request": "launch",
+      "mainClass": "com.eduspace.bookingservice.BookingServiceApplication",
+      "projectName": "booking-service",
+      "cwd": "${workspaceFolder}/EduSpace_BE/booking-service",
+      "vmArgs": "-Dspring.profiles.active=dev"
+    }
+  ]
+}

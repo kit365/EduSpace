@@ -23,13 +23,14 @@ export function SpaceGallery({ images }: SpaceGalleryProps) {
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-4 md:grid-rows-2 gap-3 mb-8 md:h-[420px]">
-        <div className="md:col-span-2 md:row-span-2 overflow-hidden rounded-3xl">
+      <div className="grid grid-cols-1 md:grid-cols-4 md:grid-rows-2 gap-4 h-[300px] md:h-[500px] w-full overflow-hidden rounded-[2.5rem]">
+        <div className="md:col-span-2 md:row-span-2 overflow-hidden relative group cursor-pointer" onClick={() => setSelectedImage(0)}>
           <img
-            src={galleryImages[selectedImage]}
+            src={galleryImages[0]}
             alt="Main space view"
-            className="w-full h-full min-h-[260px] object-cover"
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
           />
+          <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors" />
         </div>
 
         {sideImages.map((image, index) => {
@@ -38,14 +39,15 @@ export function SpaceGallery({ images }: SpaceGalleryProps) {
           return (
             <div
               key={`${image}-${index}`}
-              className="relative group cursor-pointer overflow-hidden rounded-2xl"
+              className="relative group cursor-pointer overflow-hidden"
               onClick={() => setSelectedImage(imageIndex % galleryImages.length)}
             >
               <img
                 src={image}
                 alt={`Space view ${imageIndex + 1}`}
-                className="w-full h-full min-h-[128px] object-cover group-hover:scale-[1.03] transition-transform duration-300"
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
               />
+              <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors" />
 
               {isLast && (
                 <button
@@ -53,7 +55,7 @@ export function SpaceGallery({ images }: SpaceGalleryProps) {
                     e.stopPropagation();
                     openViewer();
                   }}
-                  className="absolute bottom-3 right-3 rounded-full bg-white/95 px-4 py-2 text-sm font-bold text-gray-700 shadow-lg hover:bg-white"
+                  className="absolute bottom-6 right-6 rounded-2xl bg-white/95 backdrop-blur-md px-6 py-3 text-xs font-black uppercase tracking-widest text-gray-900 shadow-2xl hover:bg-white hover:scale-105 transition-all"
                 >
                   {t('customer.spaceDetail.gallery.viewAllPhotos', { count: galleryImages.length })}
                 </button>
@@ -62,6 +64,7 @@ export function SpaceGallery({ images }: SpaceGalleryProps) {
           );
         })}
       </div>
+
 
       {isViewerOpen && (
         <div className="fixed inset-0 z-[120] bg-black/75 p-4 sm:p-8">

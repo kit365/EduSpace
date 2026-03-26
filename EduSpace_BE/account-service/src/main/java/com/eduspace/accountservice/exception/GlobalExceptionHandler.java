@@ -7,6 +7,7 @@ import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -15,6 +16,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 
 import java.util.Objects;
 
+import org.springframework.util.StringUtils;
+
 @Slf4j
 @ControllerAdvice
 @RequiredArgsConstructor
@@ -22,10 +25,28 @@ public class GlobalExceptionHandler {
 
     private final MessageSource messageSource;
 
+    @ExceptionHandler(value = IllegalArgumentException.class)
+    public ResponseEntity<ApiResponse<?>> handlingIllegalArgument(IllegalArgumentException exception) {
+        log.warn("Bad request: {}", exception.getMessage());
+        ApiResponse<?> apiResponse =
+                ApiResponse.error(HttpStatus.BAD_REQUEST.value(), "BAD_REQUEST", exception.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(apiResponse);
+    }
+
+    @ExceptionHandler(value = AccessDeniedException.class)
+    public ResponseEntity<ApiResponse<?>> handlingAccessDenied(AccessDeniedException exception) {
+        log.warn("Access denied: {}", exception.getMessage());
+        ApiResponse<?> apiResponse =
+                ApiResponse.error(HttpStatus.FORBIDDEN.value(), "FORBIDDEN", exception.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(apiResponse);
+    }
+
     @ExceptionHandler(value = AppException.class)
     public ResponseEntity<ApiResponse<?>> handlingAppException(AppException exception) {
         ErrorCode errorCode = exception.getErrorCode();
-        String message = resolveMessage(errorCode.getMessageKey());
+        String message = StringUtils.hasText(exception.getDetailMessage())
+                ? exception.getDetailMessage()
+                : resolveMessage(errorCode.getMessageKey());
         ApiResponse<?> apiResponse = ApiResponse.error(
                 errorCode.getHttpStatus().value(),
                 errorCode.getCode(),

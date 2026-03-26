@@ -111,12 +111,20 @@ export function RoomStatusPage() {
     [branchFilteredRooms]
   );
 
-  /** Cùng chi nhánh: lịch chặn cơ sở áp dụng cho mọi phòng thuộc property. */
+  /**
+   * Lịch chặn:
+   * - block theo cơ sở: `roomId = null` → áp dụng cho mọi phòng trong property.
+   * - block theo phòng: `roomId = room.id` → áp dụng đúng phòng đó.
+   */
   const blocksByRoomId = useMemo(() => {
     const m = new Map<number, RoomBlockDto[]>();
     for (const r of rooms) {
-      const forProp = roomBlocks.filter((b) => b.propertyId === r.propertyId);
-      m.set(r.id, forProp);
+      const forRoom = roomBlocks.filter(
+        (b) =>
+          b.propertyId === r.propertyId &&
+          (b.roomId == null || b.roomId === r.id),
+      );
+      m.set(r.id, forRoom);
     }
     return m;
   }, [roomBlocks, rooms]);

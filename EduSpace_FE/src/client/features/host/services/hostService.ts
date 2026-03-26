@@ -48,7 +48,11 @@ function mapRoomType(displayName: string): RoomType {
 }
 
 /** Payload đồng bộ với RoomRequest (BE) — dùng cho tạo / cập nhật / chỉnh sửa chờ duyệt. */
-function buildRoomPayload(data: HostPublishFormData, propertyId: number): RoomCreateRequest {
+function buildRoomPayload(
+  data: HostPublishFormData,
+  propertyId: number,
+  selectedAmenityIds: number[],
+): RoomCreateRequest {
   const roomName = data.roomName?.trim() ?? '';
   const floorNum = Number(data.floor);
   const floorStr = String(floorNum);
@@ -65,7 +69,6 @@ function buildRoomPayload(data: HostPublishFormData, propertyId: number): RoomCr
   const descParts = [
     data.title?.trim(),
     data.floor !== undefined && data.floor !== null ? `Tầng ${data.floor}` : '',
-    data.amenities.length ? `Tiện ích: ${data.amenities.join(', ')}` : '',
   ].filter(Boolean);
   
   const locationLine = [
@@ -78,6 +81,10 @@ function buildRoomPayload(data: HostPublishFormData, propertyId: number): RoomCr
 
   // data.roomType contains the slug from categories
   const categorySlug = data.roomType;
+  const weekendEnabled = Boolean(data.weekendSurchargeEnabled);
+  const weekendPercent = weekendEnabled ? Math.max(0, Math.round(Number(data.weekendSurchargePercent) || 0)) : 0;
+  const weekendSaturday = weekendEnabled ? Boolean(data.weekendApplySaturday) : false;
+  const weekendSunday = weekendEnabled ? Boolean(data.weekendApplySunday) : false;
 
   return {
     propertyId,
@@ -99,10 +106,10 @@ function buildRoomPayload(data: HostPublishFormData, propertyId: number): RoomCr
     minBookingHours: 1,
     minDuration: Math.max(30, Math.round(Number(data.minDuration) || 30)),
     stepUnit,
-    weekendSurchargeEnabled: Boolean(data.weekendSurchargeEnabled),
-    weekendSurchargePercent: Math.max(0, Math.round(Number(data.weekendSurchargePercent) || 0)),
-    weekendApplySaturday: Boolean(data.weekendApplySaturday),
-    weekendApplySunday: Boolean(data.weekendApplySunday),
+    weekendSurchargeEnabled: weekendEnabled,
+    weekendSurchargePercent: weekendPercent,
+    weekendApplySaturday: weekendSaturday,
+    weekendApplySunday: weekendSunday,
     priceRules: (data.priceRules ?? []).map((r) => ({
       minHours: Math.max(1, Math.round(Number(r.minHours) || 1)),
       maxHours: r.maxHours != null && Number.isFinite(Number(r.maxHours)) ? Math.round(Number(r.maxHours)) : null,
@@ -116,6 +123,8 @@ function buildRoomPayload(data: HostPublishFormData, propertyId: number): RoomCr
     mainImageUrl,
     descriptionVi: descParts.join('\n') || null,
     descriptionEn: descParts.join('\n') || null,
+    // Always send (even as []) so BE can clear existing room amenities on update.
+    amenityIds: selectedAmenityIds,
     status: 'ACTIVE',
     isActive: true,
   };
@@ -185,7 +194,7 @@ class HostService {
   /**
    * Gửi chỉnh sửa phòng đã duyệt — lưu payload chờ admin; dữ liệu hiển thị giữ nguyên đến khi duyệt.
    */
-  async submitRoomEdit(roomId: number, data: HostPublishFormData): Promise<void> {
+  async submitRoomEdit(roomId: number, data: HostPublishFormData, selectedAmenityIds: number[]): Promise<void> {
     validateHostPublishForm(data);
     const profile = await profileService.getProfile();
     if (!profile?.id) {
@@ -204,14 +213,18 @@ class HostService {
     if (!owner || owner !== profile.id.trim()) {
       throw new Error('Chi nhánh không thuộc tài khoản của bạn hoặc không hợp lệ.');
     }
-    const payload = buildRoomPayload(data, property.id);
+    const payload = buildRoomPayload(data, property.id, selectedAmenityIds);
     await roomApiService.submitPendingEdit(roomId, payload, profile.id.trim());
   }
 
   /**
    * Phòng đang chờ duyệt lần đầu — cập nhật trực tiếp (không qua hàng chờ chỉnh sửa).
    */
-  async updateRoomBeforeApproval(roomId: number, data: HostPublishFormData): Promise<void> {
+  async updateRoomBeforeApproval(
+    roomId: number,
+    data: HostPublishFormData,
+    selectedAmenityIds: number[],
+  ): Promise<void> {
     validateHostPublishForm(data);
     const profile = await profileService.getProfile();
     if (!profile?.id) {
@@ -230,14 +243,11 @@ class HostService {
     if (!owner || owner !== profile.id.trim()) {
       throw new Error('Chi nhánh không thuộc tài khoản của bạn hoặc không hợp lệ.');
     }
-    const payload = buildRoomPayload(data, property.id);
-    await roomApiService.update(roomId, {
-      ...payload,
-      approvalStatus: 'PENDING',
-    });
+    const payload = buildRoomPayload(data, property.id, selectedAmenityIds);
+    await roomApiService.update(roomId, { ...payload, approvalStatus: 'PENDING' });
   }
 
-  async publishSpace(data: HostPublishFormData): Promise<void> {
+  async publishSpace(data: HostPublishFormData, selectedAmenityIds: number[]): Promise<void> {
     validateHostPublishForm(data);
 
     const profile = await profileService.getProfile();
@@ -261,7 +271,7 @@ class HostService {
       throw new Error('Chi nhánh không thuộc tài khoản của bạn hoặc không hợp lệ.');
     }
 
-    const payload = buildRoomPayload(data, property.id);
+    const payload = buildRoomPayload(data, property.id, selectedAmenityIds);
     await roomApiService.create({
       ...payload,
       approvalStatus: 'PENDING',

@@ -1,49 +1,40 @@
 package com.eduspace.bookingservice.business.serviceimpl;
 
 import com.eduspace.bookingservice.business.service.RoomValidationService;
+import com.eduspace.bookingservice.infrastructure.client.RoomServiceClient;
 import com.eduspace.bookingservice.model.dto.integration.ApiWrapper;
 import com.eduspace.bookingservice.model.dto.integration.RoomBlockPayload;
 import com.eduspace.bookingservice.model.dto.integration.RoomResponsePayload;
-import com.eduspace.bookingservice.model.entity.TimeSlotEntity;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 @Service
 @RequiredArgsConstructor
 public class RoomValidationServiceImpl implements RoomValidationService {
 
     private static final Set<String> OPEN_STATUSES = Set.of("READY", "ACTIVE");
-    private final RestTemplate restTemplate;
-
-    @Value("${integration.room-service.base-url:http://localhost:8083}")
-    private String roomServiceBaseUrl;
+    private final RoomServiceClient roomServiceClient;
 
     @Override
-    public void validateRoomBookable(Long roomId, LocalDate bookingDate, List<TimeSlotEntity> requestedSlots) {
+    public RoomResponsePayload validateRoomBookableAndGetRoom(
+            Long roomId,
+            LocalDate bookingDate,
+            LocalDateTime startDateTime,
+            LocalDateTime endDateTime) {
         RoomResponsePayload room = fetchRoom(roomId);
         validateRoomFlags(room);
-        validateSchedule(room, bookingDate, requestedSlots);
-        validateNoActiveMaintenanceBlocks(roomId, bookingDate, requestedSlots);
+        validateSchedule(room, bookingDate, startDateTime, endDateTime);
+        validateNoActiveMaintenanceBlocks(roomId, bookingDate, startDateTime, endDateTime);
+        return room;
     }
 
     private RoomResponsePayload fetchRoom(Long roomId) {
-        String url = roomServiceBaseUrl + "/api/v1/public/rooms/" + roomId;
-        ResponseEntity<ApiWrapper<RoomResponsePayload>> response = restTemplate.exchange(
-                url,
-                HttpMethod.GET,
-                null,
-                new ParameterizedTypeReference<>() {});
-        ApiWrapper<RoomResponsePayload> body = response.getBody();
+        ApiWrapper<RoomResponsePayload> body = roomServiceClient.getPublicRoom(roomId);
         if (body == null || body.getData() == null) {
             throw new IllegalArgumentException("Room not found: " + roomId);
         }
@@ -62,7 +53,11 @@ public class RoomValidationServiceImpl implements RoomValidationService {
         }
     }
 
-    private void validateSchedule(RoomResponsePayload room, LocalDate bookingDate, List<TimeSlotEntity> requestedSlots) {
+    private void validateSchedule(
+            RoomResponsePayload room,
+            LocalDate bookingDate,
+            LocalDateTime startDateTime,
+            LocalDateTime endDateTime) {
         if (room.getSchedules() == null || room.getSchedules().isEmpty()) {
             throw new IllegalArgumentException("Room has no schedule configured");
         }
@@ -76,38 +71,34 @@ public class RoomValidationServiceImpl implements RoomValidationService {
             throw new IllegalArgumentException("Room is closed on the selected date");
         }
 
+        if (startDateTime == null || endDateTime == null) {
+            throw new IllegalArgumentException("Missing start/end time");
+        }
         LocalTime openTime = schedule.getOpenTime();
         LocalTime closeTime = schedule.getCloseTime();
-        for (TimeSlotEntity slot : requestedSlots) {
-            boolean outOfRange = slot.getStartTime().isBefore(openTime) || slot.getEndTime().isAfter(closeTime);
-            if (outOfRange) {
-                throw new IllegalArgumentException("Selected slot is outside room opening hours");
-            }
+        if (openTime == null || closeTime == null) {
+            throw new IllegalArgumentException("Room opening hours are not configured for the selected day");
+        }
+        LocalTime startTime = startDateTime.toLocalTime();
+        LocalTime endTime = endDateTime.toLocalTime();
+        boolean outOfRange = startTime.isBefore(openTime) || endTime.isAfter(closeTime) || !endTime.isAfter(startTime);
+        if (outOfRange) {
+            throw new IllegalArgumentException("Selected time range is outside room opening hours");
         }
     }
 
-    private void validateNoActiveMaintenanceBlocks(Long roomId, LocalDate bookingDate, List<TimeSlotEntity> requestedSlots) {
-        if (requestedSlots.isEmpty()) {
-            return;
-        }
-        String url = roomServiceBaseUrl + "/api/v1/room-blocks?roomId=" + roomId;
-        ResponseEntity<ApiWrapper<List<RoomBlockPayload>>> response = restTemplate.exchange(
-                url,
-                HttpMethod.GET,
-                null,
-                new ParameterizedTypeReference<>() {});
-        ApiWrapper<List<RoomBlockPayload>> body = response.getBody();
+    private void validateNoActiveMaintenanceBlocks(
+            Long roomId,
+            LocalDate bookingDate,
+            LocalDateTime startDateTime,
+            LocalDateTime endDateTime) {
+        ApiWrapper<List<RoomBlockPayload>> body = roomServiceClient.listRoomBlocks(roomId.intValue());
         List<RoomBlockPayload> blocks = body == null || body.getData() == null ? List.of() : body.getData();
-
-        for (TimeSlotEntity slot : requestedSlots) {
-            LocalDateTime slotStart = LocalDateTime.of(bookingDate, slot.getStartTime());
-            LocalDateTime slotEnd = LocalDateTime.of(bookingDate, slot.getEndTime());
-            boolean blocked = blocks.stream()
-                    .filter(b -> "MAINTENANCE".equalsIgnoreCase(b.getBlockType()))
-                    .anyMatch(block -> overlaps(slotStart, slotEnd, block.getStartDateTime(), block.getEndDateTime()));
-            if (blocked) {
-                throw new IllegalArgumentException("Room is under maintenance in selected slot");
-            }
+        boolean blocked = blocks.stream()
+                .filter(b -> "MAINTENANCE".equalsIgnoreCase(b.getBlockType()))
+                .anyMatch(block -> overlaps(startDateTime, endDateTime, block.getStartDateTime(), block.getEndDateTime()));
+        if (blocked) {
+            throw new IllegalArgumentException("Room is under maintenance in selected time range");
         }
     }
 

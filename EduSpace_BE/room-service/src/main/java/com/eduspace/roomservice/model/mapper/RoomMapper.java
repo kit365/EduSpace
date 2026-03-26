@@ -64,7 +64,6 @@ public interface RoomMapper {
     @Mapping(target = "description", expression = "java(TranslationUtil.translate(entity.getDescriptionVi(), entity.getDescriptionEn()))")
     @Mapping(target = "location", expression = "java(TranslationUtil.translate(entity.getLocationVi(), entity.getLocationEn()))")
     @Mapping(target = "imagesAlt", expression = "java(TranslationUtil.translate(entity.getImagesAltVi(), entity.getImagesAltEn()))")
-    @Mapping(target = "is24_7", source = "is24_7")
     @Mapping(target = "isActive", source = "isActive")
     @Mapping(target = "approvedBy", source = "approvedBy")
     @Mapping(target = "approvedAt", source = "approvedAt")

@@ -1,5 +1,53 @@
 -- Seed thêm 3 chi nhánh demo cho môi trường dev.
 -- Idempotent: nếu đã có theo (owner_id + name_vi) thì không chèn lại.
+--
+-- Một số DB dev có flyway version khớp nhưng bảng properties còn schema cũ (thiếu name_vi, ...).
+-- Bổ sung cột cần cho INSERT + backfill từ cột legacy "name" nếu có.
+
+ALTER TABLE IF EXISTS properties ADD COLUMN IF NOT EXISTS owner_id VARCHAR(36);
+ALTER TABLE IF EXISTS properties ADD COLUMN IF NOT EXISTS name_vi VARCHAR(255);
+ALTER TABLE IF EXISTS properties ADD COLUMN IF NOT EXISTS name_en VARCHAR(255);
+ALTER TABLE IF EXISTS properties ADD COLUMN IF NOT EXISTS property_type VARCHAR(100);
+ALTER TABLE IF EXISTS properties ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(50);
+ALTER TABLE IF EXISTS properties ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255);
+ALTER TABLE IF EXISTS properties ADD COLUMN IF NOT EXISTS province_code VARCHAR(20);
+ALTER TABLE IF EXISTS properties ADD COLUMN IF NOT EXISTS district_code VARCHAR(20);
+ALTER TABLE IF EXISTS properties ADD COLUMN IF NOT EXISTS ward_code VARCHAR(20);
+ALTER TABLE IF EXISTS properties ADD COLUMN IF NOT EXISTS address_detail_vi VARCHAR(500);
+ALTER TABLE IF EXISTS properties ADD COLUMN IF NOT EXISTS address_detail_en VARCHAR(500);
+ALTER TABLE IF EXISTS properties ADD COLUMN IF NOT EXISTS latitude DECIMAL(10, 8);
+ALTER TABLE IF EXISTS properties ADD COLUMN IF NOT EXISTS longitude DECIMAL(11, 8);
+ALTER TABLE IF EXISTS properties ADD COLUMN IF NOT EXISTS logo TEXT;
+ALTER TABLE IF EXISTS properties ADD COLUMN IF NOT EXISTS logo_alt_vi VARCHAR(255);
+ALTER TABLE IF EXISTS properties ADD COLUMN IF NOT EXISTS logo_alt_en VARCHAR(255);
+ALTER TABLE IF EXISTS properties ADD COLUMN IF NOT EXISTS description_vi TEXT;
+ALTER TABLE IF EXISTS properties ADD COLUMN IF NOT EXISTS description_en TEXT;
+ALTER TABLE IF EXISTS properties ADD COLUMN IF NOT EXISTS status VARCHAR(50);
+ALTER TABLE IF EXISTS properties ADD COLUMN IF NOT EXISTS rejection_note TEXT;
+ALTER TABLE IF EXISTS properties ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMP WITHOUT TIME ZONE;
+ALTER TABLE IF EXISTS properties ADD COLUMN IF NOT EXISTS approved_by VARCHAR(36);
+ALTER TABLE IF EXISTS properties ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP WITHOUT TIME ZONE;
+ALTER TABLE IF EXISTS properties ADD COLUMN IF NOT EXISTS deleted BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE IF EXISTS properties ADD COLUMN IF NOT EXISTS schedule_buffer_minutes INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE IF EXISTS properties ADD COLUMN IF NOT EXISTS schedule_is_over_day BOOLEAN NOT NULL DEFAULT FALSE;
+
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'properties'
+          AND column_name = 'name'
+    ) THEN
+        EXECUTE $m$
+            UPDATE properties
+            SET name_vi = COALESCE(name_vi, CAST(name AS VARCHAR(255))),
+                name_en = COALESCE(name_en, CAST(name AS VARCHAR(255)))
+            WHERE name_vi IS NULL OR name_en IS NULL
+        $m$;
+    END IF;
+END $$;
 
 INSERT INTO properties (
     owner_id,

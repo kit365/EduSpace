@@ -89,11 +89,11 @@ export function useChatWebSocket(params: {
 
             const token = useAuthStore.getState().accessToken;
             const guestIdForHeader = token ? null : getOrCreateGuestId();
-            const connectHeaders = token
+            const connectHeaders: Record<string, string> = token
                 ? { Authorization: `Bearer ${token}` }
                 : {
-                      'X-Guest-ID': guestIdForHeader!,
-                      'x-guest-id': guestIdForHeader!,
+                      'X-Guest-ID': String(guestIdForHeader),
+                      'x-guest-id': String(guestIdForHeader),
                   };
 
             const topicUserId = token

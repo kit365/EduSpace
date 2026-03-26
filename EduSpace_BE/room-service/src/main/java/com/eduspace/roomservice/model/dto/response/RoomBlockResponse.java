@@ -19,6 +19,7 @@ public class RoomBlockResponse {
 
     Integer id;
     Integer propertyId;
+    Integer roomId;
     LocalDateTime startDatetime;
     LocalDateTime endDatetime;
     String reason;

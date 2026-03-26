@@ -115,32 +115,6 @@ export interface RoomStatusInfo {
   branchId?: number;
 }
 
-// ─── FR-05: Ads Packages ──────────────────────────────────────
-export type AdsTier = 'silver' | 'gold';
-
-export interface AdsPackage {
-  id: string;
-  name: string;
-  tier: AdsTier;
-  price: number;          // VNĐ
-  duration: number;       // days
-  features: string[];
-  badge: string;
-  priorityBoost: number;  // % increase in visibility
-}
-
-export interface AdsSubscription {
-  id: string;
-  packageId: string;
-  packageName: string;
-  tier: AdsTier;
-  spaceId: number;
-  spaceName: string;
-  startDate: string;
-  endDate: string;
-  status: 'active' | 'expired' | 'pending_payment';
-}
-
 // ─── ROOM TYPES ────────────────────────────────────────────────
 export interface RoomType {
   id: string;
@@ -149,4 +123,14 @@ export interface RoomType {
   icon: string;
   status: 'active' | 'inactive';
   basePrice: number;
+}
+  
+// ─── UTILITY PRICES ────────────────────────────────────────────
+export interface UtilityPrice {
+  id: string;
+  name: string;
+  price: number;
+  unit: string;
+  description?: string;
+  status: 'active' | 'inactive';
 }

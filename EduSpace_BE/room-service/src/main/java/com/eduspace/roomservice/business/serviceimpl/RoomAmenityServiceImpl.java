@@ -68,6 +68,7 @@ public class RoomAmenityServiceImpl implements RoomAmenityService {
                 .id(id)
                 .room(room)
                 .amenity(amenity)
+                .type(amenity.getType() != null && "POLICY".equalsIgnoreCase(amenity.getType()) ? "POLICY" : "AMENITY")
                 .quantity(request.getQuantity() != null ? request.getQuantity() : 1)
                 .notes(request.getNotes())
                 .build();

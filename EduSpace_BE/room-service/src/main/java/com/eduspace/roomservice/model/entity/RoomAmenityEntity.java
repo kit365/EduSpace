@@ -7,6 +7,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.MapsId;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -46,5 +47,26 @@ public class RoomAmenityEntity extends BaseEntity {
 
     @Column(name = "notes", columnDefinition = "TEXT")
     String notes;
+
+    /**
+     * Grouping type for UI/behavior.
+     * - POLICY: "CHÍNH SÁCH CHO PHÒNG"
+     * - AMENITY: "TIỆN ÍCH & TRANG THIẾT BỊ"
+     */
+    @Column(name = "type")
+    String type;
+
+    @PrePersist
+    void ensureCompositeId() {
+        if (id == null) {
+            id = new RoomAmenityId();
+        }
+        if (room != null && room.getId() != null) {
+            id.setRoomId(room.getId());
+        }
+        if (amenity != null && amenity.getId() != null) {
+            id.setAmenityId(amenity.getId());
+        }
+    }
 
 }
