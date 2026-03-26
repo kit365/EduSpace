@@ -14,6 +14,8 @@ export interface UserResponse {
   isEmailVerified: boolean;
   is2faEnabled: boolean;
   roles: string[];
+  /** Permissions resolved from role permissions on server side (DB). */
+  permissions?: string[];
   createdAt: string;
   updatedAt: string;
   location: string;

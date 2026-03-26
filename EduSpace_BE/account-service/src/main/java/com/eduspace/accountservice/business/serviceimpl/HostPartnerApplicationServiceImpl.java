@@ -48,8 +48,7 @@ public class HostPartnerApplicationServiceImpl implements HostPartnerApplication
         if (roleName == null) {
             return false;
         }
-        String n = roleName.toUpperCase();
-        return "TUTOR".equals(n) || "HOST".equals(n);
+        return "HOST".equalsIgnoreCase(roleName);
     }
 
     private static boolean userIsHostPartner(UserEntity u) {
@@ -232,6 +231,20 @@ public class HostPartnerApplicationServiceImpl implements HostPartnerApplication
             // Guard concurrent requests that pass pre-check at the same time.
             throw new AppException(ErrorCode.HOST_APPLICATION_PENDING_EXISTS);
         }
+
+        if (!branchApplication) {
+            applyHostPartnerApplicationToUser(
+                    user,
+                    applicantType,
+                    fullName,
+                    phone,
+                    address,
+                    entity.getDocumentFrontUrl(),
+                    entity.getDocumentBackUrl(),
+                    entity.getBusinessLicenseUrl(),
+                    PartnerAppStatus.PENDING);
+            userRepository.save(user);
+        }
     }
 
     @Override
@@ -255,14 +268,25 @@ public class HostPartnerApplicationServiceImpl implements HostPartnerApplication
 
         boolean branchApplication = isBranchApplication(app.getApplicantType());
         if (!branchApplication) {
-            RoleEntity tutorRole = roleRepository.findByName(Role.TUTOR.getName())
+            RoleEntity hostRole = roleRepository.findByName(Role.HOST.getName())
                     .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND));
 
-            boolean hasTutor = user.getRoles().stream().anyMatch(r -> Role.TUTOR.getName().equalsIgnoreCase(r.getName()));
-            if (!hasTutor) {
-                user.getRoles().add(tutorRole);
-                userRepository.save(user);
+            applyHostPartnerApplicationToUser(
+                    user,
+                    app.getApplicantType(),
+                    app.getFullName(),
+                    app.getPhone(),
+                    app.getAddress(),
+                    app.getDocumentFrontUrl(),
+                    app.getDocumentBackUrl(),
+                    app.getBusinessLicenseUrl(),
+                    PartnerAppStatus.APPROVED);
+
+            boolean hasHost = user.getRoles().stream().anyMatch(r -> Role.HOST.getName().equalsIgnoreCase(r.getName()));
+            if (!hasHost) {
+                user.getRoles().add(hostRole);
             }
+            userRepository.save(user);
         }
 
         app.setStatus(PartnerAppStatus.APPROVED);
@@ -272,9 +296,9 @@ public class HostPartnerApplicationServiceImpl implements HostPartnerApplication
 
         if (!branchApplication) {
             try {
-                keycloakUserService.assignRole(user.getKeycloakId(), Role.TUTOR.getName());
+                keycloakUserService.assignRole(user.getKeycloakId(), Role.HOST.getName());
             } catch (Exception e) {
-                log.error("Keycloak assign TUTOR failed for user {}: {}", user.getKeycloakId(), e.getMessage());
+                log.error("Keycloak assign HOST failed for user {}: {}", user.getKeycloakId(), e.getMessage());
             }
         }
     }
@@ -292,6 +316,62 @@ public class HostPartnerApplicationServiceImpl implements HostPartnerApplication
         app.setReviewedAt(LocalDateTime.now());
         app.setReviewedBy(adminKeycloakId);
         applicationRepository.save(app);
+    }
+
+    /**
+     * Đồng bộ dữ liệu đơn đăng ký host vào bảng {@code users} (host_type, SĐT, location, giấy tờ, trạng thái xác minh).
+     * Đơn chi nhánh ({@code BRANCH}) không cập nhật hồ sơ host tổng quát.
+     */
+    private void applyHostPartnerApplicationToUser(
+            UserEntity user,
+            String applicantType,
+            String fullName,
+            String phone,
+            String address,
+            String documentFrontUrl,
+            String documentBackUrl,
+            String businessLicenseUrl,
+            PartnerAppStatus phase) {
+        if (user == null || isBranchApplication(applicantType)) {
+            return;
+        }
+        if (StringUtils.hasText(phone)) {
+            user.setPhoneNumber(phone.trim());
+        }
+        if (StringUtils.hasText(address)) {
+            user.setLocation(address.trim());
+        }
+        if (StringUtils.hasText(fullName)) {
+            user.setFullName(fullName.trim());
+        }
+        if (StringUtils.hasText(applicantType)) {
+            user.setHostType(applicantType.trim());
+        }
+        String doc = firstNonBlank(documentFrontUrl, documentBackUrl, businessLicenseUrl);
+        if (StringUtils.hasText(doc)) {
+            user.setVerificationDocument(doc);
+        }
+        if (phase == PartnerAppStatus.PENDING) {
+            user.setVerificationStatus("PENDING");
+        } else if (phase == PartnerAppStatus.APPROVED) {
+            user.setVerificationStatus("VERIFIED");
+        }
+        if (StringUtils.hasText(applicantType) && "BUSINESS".equalsIgnoreCase(applicantType.trim())
+                && StringUtils.hasText(fullName)) {
+            user.setOrganizationName(fullName.trim());
+        }
+    }
+
+    private static String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String v : values) {
+            if (StringUtils.hasText(v)) {
+                return v.trim();
+            }
+        }
+        return null;
     }
 
     private static String trimToNull(String s) {

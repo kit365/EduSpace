@@ -4,7 +4,6 @@ import { Users, Shield } from 'lucide-react';
 
 export function UserRoleTabs() {
     const { t } = useTranslation();
-
     return (
         <div className="flex gap-2 mb-8 border-b border-gray-100">
             <NavLink

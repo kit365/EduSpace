@@ -7,9 +7,14 @@ import {
     ChevronRight,
     RefreshCcw,
     Eye,
-    MoreVertical
+    MoreVertical,
+    ShieldCheck,
+    Building2,
+    Briefcase,
+    UserCircle as UserIcon,
+    UserRound
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { User } from '@/types';
 import { useUsers } from '../hooks/useUsers';
@@ -44,6 +49,19 @@ export function UserManagementView({
         kyc: (kycFilter && kycFilter !== 'all') ? kycFilter : undefined,
         sort: `${sortConfig.key},${sortConfig.direction}`
     });
+
+    const lastAppliedSearch = useRef(search || '');
+    const [searchQuery, setSearchQuery] = useState(search || '');
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (lastAppliedSearch.current === searchQuery) return;
+            lastAppliedSearch.current = searchQuery;
+            setParams(prev => ({ ...prev, search: searchQuery, page: 0 }));
+            setCurrentPage(0);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchQuery, setParams]);
 
     const getSortIcon = (key: string) => {
         if (sortConfig.key !== key) return <RefreshCcw className="w-3 h-3 text-gray-300 opacity-0 group-hover:opacity-100" />;
@@ -121,7 +139,7 @@ export function UserManagementView({
                                             u.role === 'super_admin' ? 'bg-indigo-50 text-indigo-600' :
                                             u.role === 'admin' ? 'bg-purple-50 text-purple-600' :
                                             u.role === 'host' ? 'bg-orange-50 text-orange-600' : 
-                                            u.role === 'staff' ? 'bg-cyan-50 text-cyan-600' :
+                                            u.role === 'staff' || u.role === 'manager' ? 'bg-cyan-50 text-cyan-600' :
                                             'bg-slate-50 text-slate-600'
                                             }`}>
                                             {(u.role === 'admin' || u.role === 'super_admin') && <Shield className="w-3 h-3" />}

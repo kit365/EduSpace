@@ -1,22 +1,20 @@
-export const bookingDepositService = {
-  /**
-   * Mock: Tạo yêu cầu thanh toán đặt cọc (Deposit Intent)
-   */
-  createIntent: async (data: { grandTotal: number; customerName: string; customerEmail: string; spaceRef: string }) => {
-    console.log('Mock: Creating payment intent', data);
-    // Giả lập ID tiền cọc
-    return { depositId: 'MOCK-DEP-' + Date.now() };
-  },
+/**
+ * Thanh toán cọc / PayOS — khi backend có endpoint, thay thế phần mock bên dưới.
+ * Hiện tại: stub để luồng checkout chuyển về /checkout/deposit-return (dev).
+ */
+export type CreateDepositIntentPayload = {
+    grandTotal: number;
+    customerName: string;
+    customerEmail: string;
+    spaceRef: string;
+};
 
-  /**
-   * Mock: Tạo link thanh toán PayOS
-   */
-  createPayos: async (depositId: string, returnUrl: string) => {
-    console.log('Mock: Creating PayOS link', { depositId, returnUrl });
-    // Trong thực tế sẽ gọi BE để lấy link từ PayOS. Ở đây ta trả về returnUrl để quay lại trang kết quả.
-    return { 
-      checkoutUrl: returnUrl,
-      paymentLinkId: 'MOCK-LINK-' + depositId 
-    };
-  }
+export const bookingDepositService = {
+    async createIntent(_payload: CreateDepositIntentPayload): Promise<{ depositId: string }> {
+        return { depositId: `dev-${Date.now()}` };
+    },
+
+    async createPayos(_depositId: string, returnUrl: string): Promise<{ checkoutUrl: string }> {
+        return { checkoutUrl: returnUrl };
+    },
 };

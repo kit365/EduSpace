@@ -35,3 +35,16 @@ target/
 .vscode/
 *.iml
 *.swp
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.env
+.env.*
+!.env.example
+*.log

@@ -11,6 +11,8 @@ public final class AccountPaths {
     public static final String TWO_FA_ENABLE = "/2fa/enable";
     public static final String TWO_FA_DISABLE = "/2fa/disable";
     public static final String ADMIN = "/admin";
+    /** Host console (Partner Portal) — RBAC templates, etc. */
+    public static final String HOST = "/host";
     public static final String USERS = "/users";
 
     public static final String PUBLIC_PROFILE = "/{userId}/public";

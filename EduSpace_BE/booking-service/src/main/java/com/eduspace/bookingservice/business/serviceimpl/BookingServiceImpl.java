@@ -13,7 +13,6 @@ import com.eduspace.bookingservice.model.entity.TimeSlotEntity;
 import com.eduspace.bookingservice.persistence.repository.BookingRepository;
 import com.eduspace.bookingservice.persistence.repository.BookingTimeSlotRepository;
 import com.eduspace.bookingservice.persistence.repository.TimeSlotRepository;
-import jakarta.transaction.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
@@ -25,6 +24,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor

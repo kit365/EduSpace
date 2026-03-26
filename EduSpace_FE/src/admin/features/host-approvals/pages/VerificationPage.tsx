@@ -21,7 +21,9 @@ import { useState, useEffect } from 'react';
 import { useAdminApprovals, type PendingRoomItem } from '@/admin/hooks/useAdminApprovals';
 import { AdminDetailOverlay } from '@/admin/components/AdminDetailOverlay';
 import { showToast } from '@/utils/toast';
-import type { HostPartnerApplicationAdminItem } from '@/client/features/host/services/hostPartnerApplicationService';
+import { hostPartnerApplicationService, type HostPartnerApplicationAdminItem } from '@/client/features/host/services/hostPartnerApplicationService';
+import { branchService } from '@/client/features/host/services/branchService';
+import { useAuthStore } from '@/stores/authStore';
 import type { User } from '@/types';
 
 export function VerificationPage() {
@@ -169,6 +171,99 @@ export function VerificationPage() {
         } catch { return <p className="text-red-500">Lỗi parse dữ liệu chỉnh sửa.</p>; }
     };
 
+    // Helper to check if a logo URL is valid for automated creation
+    const isUsableLogoUrl = (url?: string) => {
+        return url && (url.startsWith('http') || url.startsWith('https'));
+    };
+
+    const parseBranchMeta = (message: string) => {
+        if (!message || !message.includes('|')) return { meta: {} as any };
+        const pairs = message.split('|').map(p => p.trim());
+        const meta: any = {};
+        pairs.forEach(p => {
+            const [key, val] = p.split('=');
+            if (key && val) meta[key] = val;
+        });
+        return { meta };
+    };
+
+    const getApiErrorMessage = (e: any, defaultMsg: string) => {
+        return e?.response?.data?.message || e?.message || defaultMsg;
+    };
+
+    const getJwtSub = (token: string | null) => {
+        if (!token) return null;
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            return payload.sub;
+        } catch { return null; }
+    };
+
+    const handleApprovePartner = async (app: HostPartnerApplicationAdminItem) => {
+        // Acting ID handled by hook if we used the hook's method, 
+        // but since we're doing custom logic here, we just run it.
+        try {
+            await hostPartnerApplicationService.adminApprove(app.id);
+            if (app.applicantType === 'BRANCH') {
+                try {
+                    const { meta } = parseBranchMeta(app.message || '');
+                    const adminSub = getJwtSub(useAuthStore.getState().accessToken);
+                    let result;
+                    if (meta.propertyId) {
+                        if (meta.action === 'UPDATE') {
+                            await branchService.update(meta.propertyId, {
+                                ownerId: app.userId,
+                                name: app.fullName,
+                                propertyType: meta.propertyType || 'INDEPENDENT_SPACE',
+                                address: app.address ?? '',
+                                provinceCode: meta.provinceCode || '',
+                                districtCode: meta.districtCode || '',
+                                wardCode: meta.wardCode || '',
+                                phone: app.phone ?? '',
+                                email: app.email,
+                                manager: meta.description || app.fullName,
+                                logo: isUsableLogoUrl(meta.logo) ? meta.logo : '',
+                            });
+                        }
+                        result = { branch: await branchService.approve(meta.propertyId, { approvedBy: adminSub ?? undefined }), created: false };
+                    } else {
+                        result = await branchService.createIfNotExists({
+                            ownerId: app.userId,
+                            name: app.fullName,
+                            propertyType: meta.propertyType || 'INDEPENDENT_SPACE',
+                            address: app.address ?? '',
+                            provinceCode: meta.provinceCode || '',
+                            districtCode: meta.districtCode || '',
+                            wardCode: meta.wardCode || '',
+                            phone: app.phone ?? '',
+                            email: app.email,
+                            manager: meta.description || app.fullName,
+                            logo: isUsableLogoUrl(meta.logo) ? meta.logo : '',
+                        });
+                        await branchService.approve(result.branch.id, { approvedBy: adminSub ?? undefined });
+                    }
+                    showToast.success(
+                        result.created
+                            ? 'Đã duyệt đơn BRANCH và tạo cơ sở.'
+                            : 'Đã duyệt đơn BRANCH và cập nhật trạng thái cơ sở.'
+                    );
+                } catch (branchError) {
+                    showToast.error(
+                        getApiErrorMessage(
+                            branchError,
+                            'Đã duyệt đơn BRANCH nhưng chưa tự tạo được cơ sở. Vui lòng tạo thủ công.'
+                        )
+                    );
+                }
+            } else {
+                showToast.success('Đã duyệt — user có role HOST. Nhắc user đăng nhập lại.');
+            }
+            await fetchPartners();
+        } catch (e) {
+            showToast.error(getApiErrorMessage(e, 'Duyệt thất bại'));
+        }
+    };
+
     return (
         <AdminLayout title="Hộp thư Phê duyệt">
             <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -228,6 +323,12 @@ export function VerificationPage() {
                         ))}
                     </div>
 
+                    {/* Subheading / Info for developers/admins in specific tab */}
+                    {tab === 'partners' && (
+                        <p className="hidden lg:block text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                            Duyệt sẽ tạo chi nhánh & gán role HOST
+                        </p>
+                    )}
                     {/* Search & Action Group - Centered visually in mobile/tablet */}
                     <div className="flex items-center justify-center gap-2 sm:justify-start lg:justify-end">
                         <div className="relative flex items-center gap-2">
@@ -378,7 +479,7 @@ export function VerificationPage() {
                 title="Chi tiết đơn đối tác"
                 subtitle="Xem xét hồ sơ đăng ký Host / Chi nhánh"
                 actions={{
-                    onApprove: () => selectedPartner && approvePartner(selectedPartner).then(() => setSelectedPartner(null)),
+                    onApprove: () => selectedPartner && handleApprovePartner(selectedPartner).then(() => setSelectedPartner(null)),
                     onReject: (note) => selectedPartner && rejectPartner(selectedPartner.id, note).then(() => setSelectedPartner(null)),
                     isActing: actingId === selectedPartner?.id,
                     approveLabel: 'Duyệt & Cấp Role',
@@ -500,7 +601,7 @@ export function VerificationPage() {
                         <section className="space-y-4">
                              <h5 className="text-[11px] font-black uppercase text-slate-900 tracking-widest pl-1 opacity-40">Tài liệu nộp lên</h5>
                              <div className="space-y-4">
-                                 {selectedKycUser.verificationDocs?.map((doc, idx) => (
+                                 {selectedKycUser?.verificationDocs?.map((doc, idx) => (
                                      <div key={idx} className="group relative rounded-3xl border border-gray-100 overflow-hidden shadow-sm">
                                          <img src={doc} className="w-full h-auto max-h-[500px] object-contain bg-gray-900" alt="KYC Doc" />
                                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
@@ -510,7 +611,7 @@ export function VerificationPage() {
                                          </div>
                                      </div>
                                  ))}
-                                 {(!selectedKycUser.verificationDocs || selectedKycUser.verificationDocs.length === 0) && (
+                                 {(!selectedKycUser?.verificationDocs || (selectedKycUser?.verificationDocs?.length ?? 0) === 0) && (
                                      <div className="p-12 text-center rounded-3xl border-2 border-dashed border-gray-100 text-gray-400">
                                          Người dùng chưa nộp tài liệu xác minh.
                                      </div>
