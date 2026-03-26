@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { User, Shield, Activity, Settings, LogOut, DollarSign, FileCheck, MessageSquareWarning, Building2, Gift, MessageSquare } from "lucide-react";
+import { User, Shield, Activity, Settings, LogOut, DollarSign, FileCheck, MessageSquareWarning, Building2, Gift, MessageSquare, Ticket } from "lucide-react";
 
 export function AdminSidebar() {
     const navigate = useNavigate();
@@ -15,6 +15,7 @@ export function AdminSidebar() {
         { nameKey: 'admin_sidebar.hosts', icon: Building2, path: '/admin/hosts' },
         { nameKey: 'admin_sidebar.users', icon: User, path: '/admin/users' },
         { nameKey: 'admin_sidebar.roles', icon: Shield, path: '/admin/roles' },
+        { nameKey: 'Vouchers', icon: Ticket, path: '/admin/vouchers' },
         { nameKey: 'admin_sidebar.points', icon: Gift, path: '/admin/points' },
         { nameKey: 'admin_sidebar.settings', icon: Settings, path: '/admin/settings' },
     ];

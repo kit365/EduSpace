@@ -15,6 +15,7 @@ import { ReviewManagementPage } from '../features/reviews';
 import { FacilityManagementPage } from '../features/facilities';
 import { PointManagementPage } from '../features/points';
 import { AdminMessagesPage } from '../features/messages';
+import { VoucherManagementPage } from '../features/vouchers/pages/VoucherManagementPage';
 
 export const adminRoutes: RouteObject[] = [
     {
@@ -46,6 +47,7 @@ export const adminRoutes: RouteObject[] = [
 
             // ─── Platform ─────────────────────────────────────
             { path: 'facilities', element: <FacilityManagementPage /> },
+            { path: 'vouchers', element: <VoucherManagementPage /> },
             { path: 'points', element: <PointManagementPage /> },
 
             // ─── System ───────────────────────────────────────
