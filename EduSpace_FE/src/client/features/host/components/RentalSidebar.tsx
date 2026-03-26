@@ -1,25 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import {
-    LayoutGrid,
-    List,
-    Calendar,
-    DollarSign,
-    Settings,
-    LogOut,
-    Shield,
-    Users,
-    ClipboardCheck,
-    Clock,
-    Megaphone,
-    Building2,
-    MessageSquare,
-} from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { LayoutGrid, List, Calendar, DollarSign, Settings, LogOut, Shield, Users, ClipboardCheck, Clock, Megaphone, Building2, ShieldCheck } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useProfile } from '../../customer/profile/hooks/useProfile';
-import { useAuthStore } from '@/stores/authStore';
-import { hasHostPermission } from '@/utils/keycloakTokenRoles';
-import { hostMenuPermissions } from '../permissions/hostPermissions';
-import { refreshHostPermissionsFromAccount } from '@/utils/refreshHostPermissionsFromAccount';
 
 interface RentalSidebarProps {
     isCollapsed?: boolean;
@@ -36,13 +18,6 @@ export function RentalSidebar({ isCollapsed = false }: RentalSidebarProps) {
     const navigate = useNavigate();
     const { profile, loading: profileLoading } = useProfile();
     const [hoverTooltip, setHoverTooltip] = useState<{ label: string; x: number; y: number } | null>(null);
-    const accessToken = useAuthStore((s) => s.accessToken);
-    const hostPermissionsFromAccount = useAuthStore((s) => s.hostPermissionsFromAccount);
-
-    useEffect(() => {
-        if (!accessToken) return;
-        void refreshHostPermissionsFromAccount();
-    }, [accessToken]);
 
     const displayName = profile?.name?.trim() || '—';
     const initials = useMemo(() => initialsFromName(profile?.name), [profile?.name]);
@@ -50,38 +25,25 @@ export function RentalSidebar({ isCollapsed = false }: RentalSidebarProps) {
     const showVerifiedBadge = Boolean(profile?.verified || profile?.kycStatus === 'verified');
 
     const mainMenu = [
-        { path: '/rental/dashboard', label: 'Dashboard', icon: LayoutGrid, permission: hostMenuPermissions.dashboard },
-        { path: '/rental/branches', label: 'Chi nhánh', icon: Building2, permission: hostMenuPermissions.branches },
-        { path: '/rental/schedule', label: 'Lịch & Giờ', icon: Clock, permission: hostMenuPermissions.schedule },
-        { path: '/rental/spaces', label: 'Phòng của tôi', icon: List, permission: hostMenuPermissions.spaces },
-        { path: '/rental/room-status', label: 'Trạng thái phòng', icon: Building2, permission: hostMenuPermissions.roomStatus },
-        { path: '/rental/calendar', label: 'Lịch đặt phòng', icon: Calendar, permission: hostMenuPermissions.calendar },
+        { path: '/rental/dashboard', label: 'Dashboard', icon: LayoutGrid },
+        { path: '/rental/branches', label: 'Chi nhánh', icon: Building2 },
+        { path: '/rental/schedule', label: 'Lịch & Giờ', icon: Clock },
+        { path: '/rental/spaces', label: 'Phòng của tôi', icon: List },
+        { path: '/rental/room-status', label: 'Trạng thái phòng', icon: Building2 },
+        { path: '/rental/utility-prices', label: 'Quản lý tiện ích', icon: DollarSign },
+        { path: '/rental/calendar', label: 'Lịch đặt phòng', icon: Calendar },
     ];
 
     const managementMenu = [
-        { path: '/rental/checkout', label: 'Checkout (Staff)', icon: ClipboardCheck, permission: hostMenuPermissions.checkout },
-        { path: '/rental/staff', label: 'Nhân viên', icon: Users, permission: hostMenuPermissions.staff },
-        { path: '/rental/finance', label: 'Tài chính', icon: DollarSign, permission: hostMenuPermissions.finance },
-        { path: '/rental/messages', label: 'Tin nhắn', icon: MessageSquare, permission: hostMenuPermissions.messages },
-        { path: '/rental/ads', label: 'Quảng cáo', icon: Megaphone, permission: hostMenuPermissions.ads },
-        { path: '/rental/kyc', label: 'Xác minh KYC', icon: Shield, permission: hostMenuPermissions.kyc },
+        { path: '/rental/checkout', label: 'Checkout (Staff)', icon: ClipboardCheck },
+        { path: '/rental/staff', label: 'Nhân viên', icon: Users },
+        { path: '/rental/finance', label: 'Tài chính', icon: DollarSign },
+        { path: '/rental/ads', label: 'Quảng cáo', icon: Megaphone },
+        { path: '/rental/deposit-policy', label: 'Chính sách đặt cọc', icon: ShieldCheck },
+        { path: '/rental/kyc', label: 'Xác minh KYC', icon: Shield },
     ];
 
-    const visibleMainMenu = mainMenu.filter((item) =>
-        hasHostPermission(accessToken, item.permission, hostPermissionsFromAccount),
-    );
-    const visibleManagementMenu = managementMenu.filter((item) =>
-        hasHostPermission(accessToken, item.permission, hostPermissionsFromAccount),
-    );
-
-    const renderMenu = (
-        items: Array<{
-            path: string;
-            label: string;
-            icon: typeof LayoutGrid;
-            permission: string;
-        }>
-    ) => items.map(item => {
+    const renderMenu = (items: typeof mainMenu) => items.map(item => {
         const Icon = item.icon;
         return (
             <NavLink
@@ -137,12 +99,12 @@ export function RentalSidebar({ isCollapsed = false }: RentalSidebarProps) {
                 {/* Main */}
                 <div className={isCollapsed ? 'mb-1' : 'mb-2'}>
                     {!isCollapsed && <div className="px-4 py-2 text-[10px] font-black text-gray-300 uppercase tracking-[0.2em]">Quản lý</div>}
-                    {renderMenu(visibleMainMenu)}
+                    {renderMenu(mainMenu)}
                 </div>
                 {/* Management */}
                 <div className={`${isCollapsed ? 'pt-1' : 'pt-2'} border-t border-gray-100`}>
                     {!isCollapsed && <div className="px-4 py-2 text-[10px] font-black text-gray-300 uppercase tracking-[0.2em]">Vận hành</div>}
-                    {renderMenu(visibleManagementMenu)}
+                    {renderMenu(managementMenu)}
                 </div>
             </nav>
 

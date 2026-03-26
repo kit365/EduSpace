@@ -36,14 +36,14 @@ public class BookingEntity {
     @Column(name = "user_id", nullable = false, length = 100)
     private String userId;
 
+    @Column(name = "guest_email", nullable = false, length = 255)
+    private String guestEmail;
+
     @Column(name = "check_in_date", nullable = false)
     private LocalDate checkInDate;
 
     @Column(name = "check_out_date", nullable = false)
     private LocalDate checkOutDate;
-
-    @Column(name = "slot_id")
-    private Long slotId;
 
     @Column(name = "booking_date")
     private LocalDate bookingDate;

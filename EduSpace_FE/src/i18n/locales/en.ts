@@ -301,7 +301,19 @@ export const en = {
             contactHostTitle: "Contact Host",
             contactHostDesc: "Need more information about amenities, schedule, or booking support? Message the host directly.",
             contactHostBtn: "Message host",
-            verifiedHost: "Verified Host"
+            verifiedHost: "Verified Host",
+            pricing: {
+                open24Hours: "Open 24/7",
+                perHour: "/ hour",
+                total: "Total"
+            },
+            status: {
+                open: "Open Now",
+                closed: "Closed",
+                opensAt: "Opens at {{time}}",
+                closesAt: "Closes at {{time}}",
+                open24_7: "Active 24/7"
+            }
         },
         search: {
             title: "Search Spaces",

@@ -5,23 +5,26 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.eduspace.bookingservice.business.service.BookingPersistenceService;
 import com.eduspace.bookingservice.business.service.RoomValidationService;
+import com.eduspace.bookingservice.business.service.SagaService;
 import com.eduspace.bookingservice.common.enums.BookingStatus;
+import com.eduspace.bookingservice.common.enums.DurationUnit;
+import com.eduspace.bookingservice.infrastructure.client.AccountNotificationClient;
+import com.eduspace.bookingservice.model.dto.integration.AccountApiResponse;
+import com.eduspace.bookingservice.model.dto.integration.RoomResponsePayload;
 import com.eduspace.bookingservice.model.dto.request.CreateBookingRequest;
-import com.eduspace.bookingservice.model.dto.response.BookingAvailabilityResponse;
 import com.eduspace.bookingservice.model.dto.response.BookingResponse;
 import com.eduspace.bookingservice.model.entity.BookingEntity;
-import com.eduspace.bookingservice.model.entity.BookingTimeSlotEntity;
-import com.eduspace.bookingservice.model.entity.TimeSlotEntity;
 import com.eduspace.bookingservice.persistence.repository.BookingRepository;
-import com.eduspace.bookingservice.persistence.repository.BookingTimeSlotRepository;
-import com.eduspace.bookingservice.persistence.repository.TimeSlotRepository;
+import com.eduspace.bookingservice.persistence.repository.ExtraBookingAmenityRepository;
 import java.time.LocalDate;
-import java.time.LocalTime;
+import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,77 +39,135 @@ class BookingServiceImplTest {
 
     @Mock
     private BookingRepository bookingRepository;
+
     @Mock
-    private BookingTimeSlotRepository bookingTimeSlotRepository;
-    @Mock
-    private TimeSlotRepository timeSlotRepository;
+    private ExtraBookingAmenityRepository extraBookingAmenityRepository;
+
     @Mock
     private RoomValidationService roomValidationService;
+
+    @Mock
+    private BookingPersistenceService bookingPersistenceService;
+
+    @Mock
+    private AccountNotificationClient accountNotificationClient;
+
+    @Mock
+    private SagaService sagaService;
 
     @InjectMocks
     private BookingServiceImpl bookingService;
 
     private CreateBookingRequest request;
-    private TimeSlotEntity slot1;
-    private TimeSlotEntity slot2;
 
     @BeforeEach
     void setUp() {
         request = new CreateBookingRequest();
         request.setRoomId(101L);
         request.setUserId("user-1");
+        request.setGuestEmail("guest@example.com");
         request.setBookingDate(LocalDate.now().plusDays(1));
-        request.setSlotIds(List.of(1L, 2L));
-
-        slot1 = new TimeSlotEntity();
-        slot1.setId(1L);
-        slot1.setSlotCode("SLOT_08_09");
-        slot1.setStartTime(LocalTime.of(8, 0));
-        slot1.setEndTime(LocalTime.of(9, 0));
-        slot1.setIsActive(true);
-
-        slot2 = new TimeSlotEntity();
-        slot2.setId(2L);
-        slot2.setSlotCode("SLOT_09_10");
-        slot2.setStartTime(LocalTime.of(9, 0));
-        slot2.setEndTime(LocalTime.of(10, 0));
-        slot2.setIsActive(true);
+        request.setStartDateTime(request.getBookingDate().atTime(8, 0));
+        request.setEndDateTime(request.getBookingDate().atTime(10, 0));
+        request.setDurationValue(120);
+        request.setDurationUnit(DurationUnit.MINUTE);
     }
 
     @Test
-    void createBooking_success_whenSlotsAvailable() {
-        when(timeSlotRepository.findByIdInAndIsActiveTrue(List.of(1L, 2L))).thenReturn(List.of(slot1, slot2));
-        doNothing().when(roomValidationService).validateRoomBookable(request.getRoomId(), request.getBookingDate(), List.of(slot1, slot2));
-        when(bookingTimeSlotRepository.findBookedSlotIds(request.getRoomId(), request.getBookingDate(), List.of(1L, 2L)))
-                .thenReturn(List.of());
+    void createBooking_success_whenRangeAvailable() {
+        RoomResponsePayload room = new RoomResponsePayload();
+        room.setId(101);
+        room.setName("Phòng A");
+
+        when(roomValidationService.validateRoomBookableAndGetRoom(
+                        request.getRoomId(),
+                        request.getBookingDate(),
+                        request.getStartDateTime(),
+                        request.getEndDateTime()))
+                .thenReturn(room);
+
+        when(bookingRepository.existsOverlap(
+                        request.getRoomId(),
+                        request.getBookingDate(),
+                        request.getStartDateTime(),
+                        request.getEndDateTime(),
+                        BookingStatus.CANCELLED))
+                .thenReturn(false);
 
         BookingEntity saved = new BookingEntity();
         saved.setId(10L);
         saved.setBookingCode("BK-2026-ABCDEF12");
         saved.setRoomId(request.getRoomId());
         saved.setUserId(request.getUserId());
+        saved.setGuestEmail(request.getGuestEmail());
         saved.setBookingDate(request.getBookingDate());
+        saved.setCheckInDate(request.getStartDateTime().toLocalDate());
+        saved.setCheckOutDate(request.getEndDateTime().toLocalDate());
+        saved.setStartDateTime(request.getStartDateTime());
+        saved.setEndDateTime(request.getEndDateTime());
+        saved.setDurationValue(request.getDurationValue());
+        saved.setDurationUnit(request.getDurationUnit());
         saved.setStatus(BookingStatus.PENDING);
-        when(bookingRepository.save(any(BookingEntity.class))).thenReturn(saved);
+
+        when(bookingPersistenceService.saveBookingAndExtras(request))
+                .thenReturn(new BookingPersistenceService.PersistedBooking(saved, List.of()));
+
+        AccountApiResponse mailOk = new AccountApiResponse();
+        mailOk.setSuccess(true);
+        when(accountNotificationClient.sendBookingConfirmation(any())).thenReturn(mailOk);
+
         BookingResponse response = bookingService.createBooking(request);
+
+        verify(extraBookingAmenityRepository, never()).saveAll(any());
+        verify(sagaService).completeSaga(any());
 
         assertNotNull(response);
         assertEquals(10L, response.getId());
-        assertEquals(2, response.getSlots().size());
         assertEquals(BookingStatus.PENDING, response.getStatus());
-        verify(roomValidationService).validateRoomBookable(request.getRoomId(), request.getBookingDate(), List.of(slot1, slot2));
+        assertEquals(request.getGuestEmail(), response.getGuestEmail());
+        assertEquals(request.getStartDateTime(), response.getStartDateTime());
+        assertEquals(request.getEndDateTime(), response.getEndDateTime());
+        verify(roomValidationService)
+                .validateRoomBookableAndGetRoom(
+                        request.getRoomId(),
+                        request.getBookingDate(),
+                        request.getStartDateTime(),
+                        request.getEndDateTime());
     }
 
     @Test
-    void createBooking_throw_whenConflictExists() {
-        when(timeSlotRepository.findByIdInAndIsActiveTrue(List.of(1L, 2L))).thenReturn(List.of(slot1, slot2));
-        doNothing().when(roomValidationService).validateRoomBookable(request.getRoomId(), request.getBookingDate(), List.of(slot1, slot2));
-        when(bookingTimeSlotRepository.findBookedSlotIds(request.getRoomId(), request.getBookingDate(), List.of(1L, 2L)))
-                .thenReturn(List.of(2L));
+    void createBooking_throw_whenOverlapExists() {
+        RoomResponsePayload room = new RoomResponsePayload();
+        room.setId(101);
+        when(roomValidationService.validateRoomBookableAndGetRoom(
+                        request.getRoomId(),
+                        request.getBookingDate(),
+                        request.getStartDateTime(),
+                        request.getEndDateTime()))
+                .thenReturn(room);
+        when(bookingRepository.existsOverlap(
+                        request.getRoomId(),
+                        request.getBookingDate(),
+                        request.getStartDateTime(),
+                        request.getEndDateTime(),
+                        BookingStatus.CANCELLED))
+                .thenReturn(true);
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> bookingService.createBooking(request));
+        IllegalArgumentException ex =
+                assertThrows(IllegalArgumentException.class, () -> bookingService.createBooking(request));
 
         assertTrue(ex.getMessage().contains("already booked"));
+    }
+
+    @Test
+    void createBooking_throw_whenEndBeforeStart() {
+        request.setStartDateTime(request.getBookingDate().atTime(10, 0));
+        request.setEndDateTime(request.getBookingDate().atTime(8, 0));
+
+        IllegalArgumentException ex =
+                assertThrows(IllegalArgumentException.class, () -> bookingService.createBooking(request));
+
+        assertTrue(ex.getMessage().contains("Invalid time range"));
     }
 
     @Test
@@ -115,19 +176,13 @@ class BookingServiceImplTest {
         existing.setId(9L);
         existing.setRoomId(101L);
         existing.setUserId("user-1");
+        existing.setGuestEmail("g@e.com");
         existing.setBookingDate(LocalDate.now().plusDays(1));
         existing.setStatus(BookingStatus.PENDING);
 
-        BookingTimeSlotEntity bookingSlot = new BookingTimeSlotEntity();
-        bookingSlot.setBookingId(9L);
-        bookingSlot.setTimeSlotId(1L);
-        bookingSlot.setStartTime(LocalTime.of(8, 0));
-        bookingSlot.setEndTime(LocalTime.of(9, 0));
-
         when(bookingRepository.findById(9L)).thenReturn(Optional.of(existing));
         when(bookingRepository.save(any(BookingEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(bookingTimeSlotRepository.findByBookingIdOrderByStartTimeAsc(9L)).thenReturn(List.of(bookingSlot));
-        when(timeSlotRepository.findByIdInAndIsActiveTrue(List.of(1L))).thenReturn(List.of(slot1));
+        when(extraBookingAmenityRepository.findByBookingId(9L)).thenReturn(Collections.emptyList());
 
         BookingResponse response = bookingService.cancelBooking(9L);
 
@@ -135,14 +190,29 @@ class BookingServiceImplTest {
     }
 
     @Test
-    void getAvailability_marksBookedSlots() {
-        when(timeSlotRepository.findByIsActiveTrueOrderByStartTimeAsc()).thenReturn(List.of(slot1, slot2));
-        when(bookingTimeSlotRepository.findAllBookedSlotIds(101L, request.getBookingDate())).thenReturn(List.of(2L));
+    void getAllBookings_success() {
+        BookingEntity b1 = new BookingEntity();
+        b1.setId(1L);
+        b1.setBookingCode("BK-1");
+        b1.setRoomId(101L);
+        b1.setUserId("u1");
+        b1.setGuestEmail("a@b.com");
+        b1.setBookingDate(LocalDate.now().plusDays(1));
+        b1.setStatus(BookingStatus.PENDING);
 
-        BookingAvailabilityResponse response = bookingService.getAvailability(101L, request.getBookingDate());
+        BookingEntity b2 = new BookingEntity();
+        b2.setId(2L);
+        b2.setBookingCode("BK-2");
+        b2.setRoomId(102L);
+        b2.setUserId("u2");
+        b2.setGuestEmail("c@d.com");
+        b2.setBookingDate(LocalDate.now().plusDays(2));
+        b2.setStatus(BookingStatus.CANCELLED);
 
-        assertEquals(2, response.getSlots().size());
-        assertTrue(response.getSlots().stream().anyMatch(s -> s.getId().equals(1L) && s.getAvailable()));
-        assertTrue(response.getSlots().stream().anyMatch(s -> s.getId().equals(2L) && !s.getAvailable()));
+        when(bookingRepository.findAll()).thenReturn(List.of(b1, b2));
+        when(extraBookingAmenityRepository.findByBookingIdIn(any())).thenReturn(Collections.emptyList());
+
+        List<BookingResponse> responses = bookingService.getAllBookings();
+        assertEquals(2, responses.size());
     }
 }

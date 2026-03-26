@@ -23,6 +23,12 @@ spring:
           issuer-uri: http://localhost:${KEYCLOAK_PORT:8180}/realms/eduspace
           jwk-set-uri: http://localhost:${KEYCLOAK_PORT:8180}/realms/eduspace/protocol/openid-connect/certs
 
+  # Không chạy Kafka local → consumer reconnect spam. Bật lại khi đã có broker (vd. docker compose up kafka):
+  #   KAFKA_LISTENER_AUTO_STARTUP=true
+  kafka:
+    listener:
+      auto-startup: ${KAFKA_LISTENER_AUTO_STARTUP:false}
+
 logging:
   level:
     com.eduspace.accountservice.business.serviceimpl.EmailServiceImpl: INFO

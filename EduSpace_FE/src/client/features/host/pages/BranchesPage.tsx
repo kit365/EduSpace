@@ -236,8 +236,24 @@ export function BranchesPage() {
     const loadBranches = useCallback(async () => {
         setLoadingBranches(true);
         try {
+            let ownerIds: string[] = [];
+            try {
+                const me = await profileService.getProfile();
+                ownerIds = Array.from(
+                    new Set(
+                        [me?.id, me?.keycloakId]
+                            .map((v) => (typeof v === 'string' ? v.trim() : ''))
+                            .filter((v) => v.length > 0)
+                    )
+                );
+            } catch {
+                ownerIds = [];
+            }
+
             const [list, pendingUpdates] = await Promise.all([
-                branchService.listAll(),
+                ownerIds.length > 0
+                    ? branchService.listByOwner(ownerIds[0], ownerIds.slice(1))
+                    : Promise.resolve([]),
                 hostPartnerApplicationService.getMyPendingBranchUpdates(),
             ]);
             setBranches(list);

@@ -173,6 +173,19 @@ export const roomApiService = {
     return unwrap<AmenityDto>(res);
   },
 
+  /** PUT /amenities/{id} — sửa thuộc tính tiện ích (name/icon/type/position/price). */
+  updateAmenity: async (
+    id: number,
+    body: Partial<AmenityCreateRequest> & { price?: number | null },
+  ): Promise<AmenityDto> => {
+    const res = await apiClient.put(`${ROOM_API.AMENITIES}/${id}`, body);
+    return unwrap<AmenityDto>(res);
+  },
+
+  deleteAmenity: async (id: number): Promise<void> => {
+    await apiClient.delete(`${ROOM_API.AMENITIES}/${id}`);
+  },
+
   uploadRoomImage: async (file: File, folder?: string): Promise<string> => {
     const fd = new FormData();
     fd.append('file', file);

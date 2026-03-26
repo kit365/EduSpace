@@ -11,11 +11,14 @@ export interface Space {
   /** Slug do BE trả về sau khi tạo phòng — dùng cho URL /{slug} */
   slug?: string;
   name: string;
+  /** Tên cơ sở/chi nhánh vật lý của phòng (map từ BE `properties.name`). */
+  facilityName?: string;
   location: string;
   address?: string;
   roomLocationHint?: string;
   capacity: number;
   size?: number;              // sqm
+  floorNumber?: string;
   price: number;              // VNĐ per hour
   rating: number;
   reviewCount?: number;
@@ -30,9 +33,12 @@ export interface Space {
   badge?: string | null;
   description?: string;
   additionalInfo?: string;
-  is24_7?: boolean;
   minDuration?: number;
   stepUnit?: number;
+  weekendSurchargeEnabled?: boolean;
+  weekendSurchargePercent?: number;
+  weekendApplySaturday?: boolean;
+  weekendApplySunday?: boolean;
 
   // Ownership & approval
   hostId?: string;
@@ -41,12 +47,15 @@ export interface Space {
   rejectionReason?: string;
   submittedAt?: string;
   approvedAt?: string;
+  priceRules?: RoomPriceRule[];
 }
 
 export interface SpaceAmenity {
+  id?: number;
   icon: LucideIcon;
   name: string;
 }
+
 
 export interface SpaceReview {
   id: number;
@@ -76,7 +85,31 @@ export interface ReservationTimeslot {
   isActive: boolean;
 }
 
+/** Bậc giá theo giờ (room-service price rules) — dùng UI chi tiết / checkout. */
+export interface RoomPriceRule {
+  id?: number;
+  minHours: number;
+  maxHours?: number | null;
+  pricePerHour?: number | null;
+  flatPrice?: number | null;
+  label?: string | null;
+  applicableDayOfWeeks?: number[] | null;
+}
+
+export interface RoomPriceRule {
+  id?: number;
+  minHours: number;
+  maxHours?: number | null;
+  pricePerHour?: number | null;
+  flatPrice?: number | null;
+  label?: string | null;
+  applicableDayOfWeeks?: number[] | null;
+}
+
 export interface SpaceDetails extends Space {
+  /** Tên cơ sở / tòa nhà (hiển thị chi tiết). */
+  facilityName?: string;
+  priceRules?: RoomPriceRule[];
   amenitiesDetailed: SpaceAmenity[];
   reviews: SpaceReview[];
   availableSlots?: number;

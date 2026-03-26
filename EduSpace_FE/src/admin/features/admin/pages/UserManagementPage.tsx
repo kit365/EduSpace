@@ -46,22 +46,22 @@ export function UserManagementPage() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${user.role === 'Admin' ? 'bg-purple-50 text-purple-600' :
-                                                user.role === 'Host' ? 'bg-orange-50 text-orange-600' : 'bg-blue-50 text-blue-600'
+                                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${user.role === 'admin' || user.role === 'super_admin' ? 'bg-purple-50 text-purple-600' :
+                                                user.role === 'host' ? 'bg-orange-50 text-orange-600' : 'bg-blue-50 text-blue-600'
                                                 }`}>
-                                                {user.role === 'Admin' && <Shield className="w-3 h-3" />}
+                                                {(user.role === 'admin' || user.role === 'super_admin') && <Shield className="w-3 h-3" />}
                                                 {user.role}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${user.status === 'Active' ? 'bg-green-50 text-green-600' :
-                                                user.status === 'Blocked' ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-500'
+                                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${user.accountStatus === 'active' ? 'bg-green-50 text-green-600' :
+                                                user.accountStatus === 'banned' || user.accountStatus === 'blocked' ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-500'
                                                 }`}>
-                                                <span className={`w-1.5 h-1.5 rounded-full ${user.status === 'Active' ? 'bg-green-500 animate-pulse' : user.status === 'Blocked' ? 'bg-red-500' : 'bg-gray-400'}`}></span>
-                                                {user.status}
+                                                <span className={`w-1.5 h-1.5 rounded-full ${user.accountStatus === 'active' ? 'bg-green-500 animate-pulse' : user.accountStatus === 'banned' || user.accountStatus === 'blocked' ? 'bg-red-500' : 'bg-gray-400'}`}></span>
+                                                {user.accountStatus}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-xs font-bold text-gray-500">{user.joined}</td>
+                                        <td className="px-6 py-4 text-xs font-bold text-gray-500">{user.joinedAt}</td>
                                     </tr>
                                 ))
                             )}

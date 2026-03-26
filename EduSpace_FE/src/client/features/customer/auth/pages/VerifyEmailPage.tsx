@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Mail, CheckCircle, XCircle, ArrowRight, Loader2 } from 'lucide-react';
+import { CheckCircle, XCircle, ArrowRight, Loader2 } from 'lucide-react';
 import { useVerifyEmail } from '../hooks/useAuth';
 import { CustomerLayout } from '../../../../layouts/CustomerLayout';
+
+// Module-level guards survive StrictMode remounts in dev.
+const verifyingTokens = new Set<string>();
+const verifiedTokens = new Set<string>();
 
 export function VerifyEmailPage() {
     const [searchParams] = useSearchParams();
@@ -20,17 +24,41 @@ export function VerifyEmailPage() {
             return;
         }
 
+        if (verifiedTokens.has(token)) {
+            setStatus('success');
+            setMessage('Email đã được xác thực thành công.');
+            return;
+        }
+        if (verifyingTokens.has(token)) {
+            return;
+        }
+        verifyingTokens.add(token);
+
         verifyEmail(token, {
             onSuccess: (res) => {
+                verifiedTokens.add(token);
                 setStatus('success');
                 setMessage(res.message || 'Xác thực email thành công!');
             },
             onError: (err: any) => {
                 setStatus('error');
                 setMessage(err.response?.data?.message || 'Xác thực thất bại. Token có thể đã hết hạn.');
-            }
+            },
+            onSettled: () => {
+                verifyingTokens.delete(token);
+            },
         });
     }, [token, verifyEmail]);
+
+    useEffect(() => {
+        if (status !== 'success') {
+            return;
+        }
+        const timer = window.setTimeout(() => {
+            navigate('/auth');
+        }, 2500);
+        return () => window.clearTimeout(timer);
+    }, [status, navigate]);
 
     return (
         <CustomerLayout>
@@ -63,6 +91,9 @@ export function VerifyEmailPage() {
                     <p className="text-slate-600 mb-8 font-medium">
                         {message}
                     </p>
+                    {status === 'success' && (
+                        <p className="text-sm text-slate-500 mb-6">Tự động chuyển tới trang đăng nhập sau vài giây...</p>
+                    )}
 
                     <button
                         onClick={() => navigate('/auth')}

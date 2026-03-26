@@ -150,3 +150,13 @@ export interface RoomType {
   status: 'active' | 'inactive';
   basePrice: number;
 }
+  
+// ─── UTILITY PRICES ────────────────────────────────────────────
+export interface UtilityPrice {
+  id: string;
+  name: string;
+  price: number;
+  unit: string;
+  description?: string;
+  status: 'active' | 'inactive';
+}
