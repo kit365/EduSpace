@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 @FeignClient(
         name = "account-service",
-        url = "${integration.account-service.base-url:http://localhost:8081}",
         contextId = "accountNotificationClient",
         configuration = AccountFeignConfig.class)
 public interface AccountNotificationClient {

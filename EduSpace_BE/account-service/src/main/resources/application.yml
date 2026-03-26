@@ -98,7 +98,7 @@ app:
 integration:
   booking-service:
     # Server-to-server lookup (by booking code). Dev: direct to booking-service port; prod: internal URL.
-    base-url: ${BOOKING_SERVICE_BASE_URL:http://localhost:8082}
+    base-url: ${BOOKING_SERVICE_BASE_URL:lb://BOOKING-SERVICE}
 
 springdoc:
   swagger-ui:
