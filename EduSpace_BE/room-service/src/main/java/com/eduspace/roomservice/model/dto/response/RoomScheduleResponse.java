@@ -18,6 +18,7 @@ public class RoomScheduleResponse {
     Long id;
     Integer dayOfWeek;
     Boolean isOpen;
+    Boolean isOverDay;
     LocalTime openTime;
     LocalTime closeTime;
 }

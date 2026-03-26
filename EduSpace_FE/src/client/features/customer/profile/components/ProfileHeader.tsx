@@ -12,9 +12,11 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
 
   const getRoleBadge = (role: UserRole | string) => {
     switch (role) {
-      case 'renter': return <span className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-black uppercase tracking-wider border border-blue-100"><GraduationCap className="w-3.5 h-3.5" /> {t('customer.profile.header.roles.renter')}</span>;
+      case 'renter':
+      case 'guest': return <span className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-black uppercase tracking-wider border border-blue-100"><GraduationCap className="w-3.5 h-3.5" /> {t('customer.profile.header.roles.guest')}</span>;
       case 'host': return <span className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-black uppercase tracking-wider border border-amber-100"><Building2 className="w-3.5 h-3.5" /> {t('customer.profile.header.roles.host')}</span>;
-      case 'staff': return <span className="flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-black uppercase tracking-wider border border-green-100"><UserCircle2 className="w-3.5 h-3.5" /> {t('customer.profile.header.roles.staff')}</span>;
+      case 'staff':
+      case 'manager': return <span className="flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-black uppercase tracking-wider border border-green-100"><UserCircle2 className="w-3.5 h-3.5" /> {t('customer.profile.header.roles.manager')}</span>;
       case 'admin': return <span className="flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-700 rounded-full text-xs font-black uppercase tracking-wider border border-red-100"><Code2 className="w-3.5 h-3.5" /> {t('customer.profile.header.roles.admin')}</span>;
       default: return null;
     }

@@ -16,8 +16,10 @@ import lombok.experimental.FieldDefaults;
 public class ExtraServiceRequest {
 
     Integer propertyId;
-    String name;
-    String description;
+    String nameVi;
+    String nameEn;
+    String descriptionVi;
+    String descriptionEn;
     Long price;
     PriceUnit priceUnit;
     String status;    // ACTIVE, INACTIVE

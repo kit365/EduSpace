@@ -14,6 +14,8 @@ export interface UserResponse {
   isEmailVerified: boolean;
   is2faEnabled: boolean;
   roles: string[];
+  /** Permissions resolved from role permissions on server side (DB). */
+  permissions?: string[];
   createdAt: string;
   updatedAt: string;
   location: string;
@@ -24,6 +26,7 @@ export interface UserResponse {
   streetAddress?: string;
   postalCode?: string;
   taxId?: string;
+  organizationName?: string;
 }
 
 export interface TwoFactorSetup {
@@ -44,6 +47,7 @@ export interface UpdateProfileRequest {
   streetAddress?: string;
   postalCode?: string;
   taxId?: string;
+  organizationName?: string;
 }
 
 export interface UserProfile {
@@ -62,6 +66,7 @@ export interface UserProfile {
   taxId?: string;
   memberSince: string; // Mapped from BE createdAt
   is2faEnabled: boolean;
+  organizationName?: string;
 
   // Role & verification
   role: UserRole | string; // Mapped from BE roles[0]
@@ -88,4 +93,15 @@ export interface PaymentMethod {
   last4: string;
   name: string;
   isDefault: boolean;
+}
+
+export interface PublicUserProfile {
+  id: string;
+  fullName: string;
+  avatarUrl?: string;
+  shortBio?: string;
+  location?: string;
+  createdAt: string;
+  isEmailVerified: boolean;
+  organizationName?: string;
 }

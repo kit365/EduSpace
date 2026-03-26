@@ -77,9 +77,9 @@ export function RoomStatusPage() {
         roomApiService.getAll({ ownerId: profile.id }),
         roomBlockService.listAll(),
       ]);
-      const roomIds = new Set(list.map((r) => r.id));
+      const propertyIds = new Set(list.map((r) => r.propertyId));
       setRooms(list);
-      setRoomBlocks(allBlocks.filter((b) => roomIds.has(b.roomId)));
+      setRoomBlocks(allBlocks.filter((b) => propertyIds.has(b.propertyId)));
     } catch {
       setRooms([]);
       setRoomBlocks([]);
@@ -111,15 +111,15 @@ export function RoomStatusPage() {
     [branchFilteredRooms]
   );
 
+  /** Cùng chi nhánh: lịch chặn cơ sở áp dụng cho mọi phòng thuộc property. */
   const blocksByRoomId = useMemo(() => {
     const m = new Map<number, RoomBlockDto[]>();
-    for (const b of roomBlocks) {
-      const arr = m.get(b.roomId) ?? [];
-      arr.push(b);
-      m.set(b.roomId, arr);
+    for (const r of rooms) {
+      const forProp = roomBlocks.filter((b) => b.propertyId === r.propertyId);
+      m.set(r.id, forProp);
     }
     return m;
-  }, [roomBlocks]);
+  }, [roomBlocks, rooms]);
 
   const filteredRooms = useMemo(() => {
     if (filter === 'all') return roomsOnStatusPage;

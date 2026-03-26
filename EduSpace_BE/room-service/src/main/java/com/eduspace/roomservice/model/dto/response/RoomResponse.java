@@ -28,17 +28,35 @@ public class RoomResponse {
     BookingType bookingType;
     String name;
     String location;
+    String roomLocationHint;
     String slug;
     Integer capacity;
     BigDecimal area;
     String roomNumber;
     String floorNumber;
     Boolean is24_7;
+    /** Từ property: phút nghỉ giữa các slot (turnover). */
+    Integer scheduleBufferMinutes;
+    /** Từ property: cho phép sinh slot trên toàn ngày. */
+    Boolean scheduleIsOverDay;
     List<RoomScheduleResponse> schedules;
+    List<RoomTimeslotResponse> timeslots;
+    List<RoomPolicyResponse> policies;
+    List<RoomAmenityResponse> amenities;
     BigDecimal pricePerHour;
     BigDecimal pricePerDay;
+    @Deprecated
     Integer minBookingHours;
+    Integer minDuration;
+    Integer stepUnit;
+    Boolean weekendSurchargeEnabled;
+    BigDecimal weekendSurchargePercent;
+    Boolean weekendApplySaturday;
+    Boolean weekendApplySunday;
+    List<RoomPriceRuleResponse> priceRules;
     String images;
+    String mainImageUrl;
+    String imagesAlt;
     String description;
     RoomStatus status;
     RoomApprovalStatus approvalStatus;
@@ -56,4 +74,11 @@ public class RoomResponse {
     String pendingEditRejectionNote;
     /** JSON RoomRequest — admin xem trước khi duyệt. */
     String pendingEditPayload;
+
+    BigDecimal latitude;
+    BigDecimal longitude;
+    String approvedBy;
+    LocalDateTime approvedAt;
+
+    RoomCategoryResponse category;
 }

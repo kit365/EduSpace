@@ -30,6 +30,7 @@ public class UserResponse {
     String postalCode;
     String taxId;
     String hostType;
+    String organizationName;
     String verificationDocument;
     String verificationStatus;
     Boolean isActive;
@@ -37,6 +38,8 @@ public class UserResponse {
     Boolean is2faEnabled;
     Integer pointBalance;
     Set<String> roles;
+    /** Quyền gán qua các role (tên permission trong DB, ví dụ view_rooms, branch.room.view). */
+    Set<String> permissions;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
 }

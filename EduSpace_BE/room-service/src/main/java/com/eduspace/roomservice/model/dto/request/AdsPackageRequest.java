@@ -15,8 +15,10 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class AdsPackageRequest {
 
-    String name;
-    String description;
+    String nameVi;
+    String nameEn;
+    String descriptionVi;
+    String descriptionEn;
     Integer durationDays;
     Long price;
     AdsPackageStatus status;

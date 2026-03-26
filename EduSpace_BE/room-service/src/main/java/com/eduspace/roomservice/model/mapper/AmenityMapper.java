@@ -8,20 +8,33 @@ import org.mapstruct.*;
 
 import java.util.List;
 
-@Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+import com.eduspace.roomservice.common.i18n.TranslationUtil;
+
+@Mapper(componentModel = "spring", 
+        nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE,
+        imports = {TranslationUtil.class})
 public interface AmenityMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "type", expression = "java(toTypeString(request.getType()))")
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "createdBy", ignore = true)
+    @Mapping(target = "updatedBy", ignore = true)
     AmenityEntity toEntity(AmenityRequest request);
 
     @Mapping(target = "type", expression = "java(toType(entity.getType()))")
+    @Mapping(target = "name", expression = "java(TranslationUtil.translate(entity.getNameVi(), entity.getNameEn()))")
     AmenityResponse toResponse(AmenityEntity entity);
 
     List<AmenityResponse> toResponseList(List<AmenityEntity> entities);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "type", expression = "java(toTypeString(request.getType()))")
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "createdBy", ignore = true)
+    @Mapping(target = "updatedBy", ignore = true)
     void updateEntity(AmenityRequest request, @MappingTarget AmenityEntity entity);
 
     default String toTypeString(AmenityType e) {

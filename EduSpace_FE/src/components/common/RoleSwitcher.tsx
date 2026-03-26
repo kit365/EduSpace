@@ -7,6 +7,7 @@ interface RoleSwitcherProps {
   onRoleChange: (role: UserRole) => void;
   /** Tab được phép hiển thị (phân quyền) — luôn gồm 'user' nếu có switcher */
   allowedModes: UserRole[];
+  variant?: 'floating' | 'inline';
 }
 
 const ALL_MODES: { id: UserRole; label: string; icon: typeof Users }[] = [
@@ -15,7 +16,7 @@ const ALL_MODES: { id: UserRole; label: string; icon: typeof Users }[] = [
   { id: 'admin', label: 'Admin Portal', icon: Shield },
 ];
 
-export function RoleSwitcher({ currentRole, onRoleChange, allowedModes }: RoleSwitcherProps) {
+export function RoleSwitcher({ currentRole, onRoleChange, allowedModes, variant = 'floating' }: RoleSwitcherProps) {
   const roles = ALL_MODES.filter((r) => allowedModes.includes(r.id));
 
   if (roles.length <= 1) {
@@ -23,7 +24,13 @@ export function RoleSwitcher({ currentRole, onRoleChange, allowedModes }: RoleSw
   }
 
   return (
-    <div className="fixed bottom-8 right-8 z-50 flex gap-2 rounded-full border border-gray-200 bg-white p-2 shadow-2xl">
+    <div
+      className={
+        variant === 'inline'
+          ? 'flex gap-2 rounded-full border border-gray-200 bg-white p-2 shadow-sm'
+          : 'fixed bottom-8 right-8 z-50 flex gap-2 rounded-full border border-gray-200 bg-white p-2 shadow-2xl'
+      }
+    >
       {roles.map((role) => {
         const Icon = role.icon;
         return (
@@ -39,7 +46,7 @@ export function RoleSwitcher({ currentRole, onRoleChange, allowedModes }: RoleSw
             title={role.label}
           >
             <Icon className="h-5 w-5" />
-            <span className="hidden text-sm font-semibold md:inline">{role.label}</span>
+            <span className="text-sm font-semibold">{role.label}</span>
           </button>
         );
       })}

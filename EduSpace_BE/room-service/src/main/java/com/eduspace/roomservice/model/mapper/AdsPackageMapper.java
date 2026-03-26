@@ -8,20 +8,36 @@ import org.mapstruct.*;
 
 import java.util.List;
 
-@Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+import com.eduspace.roomservice.common.i18n.TranslationUtil;
+
+@Mapper(componentModel = "spring", 
+        nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE,
+        imports = {TranslationUtil.class})
 public interface AdsPackageMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "status", expression = "java(toStatusString(request.getStatus()))")
+    @Mapping(target = "position", ignore = true)
+    @Mapping(target = "createdBy", ignore = true)
+    @Mapping(target = "updatedBy", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
     AdsPackageEntity toEntity(AdsPackageRequest request);
 
     @Mapping(target = "status", expression = "java(toStatus(entity.getStatus()))")
+    @Mapping(target = "name", expression = "java(TranslationUtil.translate(entity.getNameVi(), entity.getNameEn()))")
+    @Mapping(target = "description", expression = "java(TranslationUtil.translate(entity.getDescriptionVi(), entity.getDescriptionEn()))")
     AdsPackageResponse toResponse(AdsPackageEntity entity);
 
     List<AdsPackageResponse> toResponseList(List<AdsPackageEntity> entities);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "status", expression = "java(toStatusString(request.getStatus()))")
+    @Mapping(target = "position", ignore = true)
+    @Mapping(target = "createdBy", ignore = true)
+    @Mapping(target = "updatedBy", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
     void updateEntity(AdsPackageRequest request, @MappingTarget AdsPackageEntity entity);
 
     default String toStatusString(AdsPackageStatus e) {

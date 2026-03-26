@@ -23,6 +23,8 @@ export interface AuthState {
     refreshToken: string | null;
     expiresIn: number | null;
     isAuthenticated: boolean;
+    /** Quyền host từ GET /accounts/me (DB); bổ sung khi JWT Keycloak không có claim permissions */
+    hostPermissionsFromAccount: string[];
 }
 
 export interface AuthActions {
@@ -30,6 +32,7 @@ export interface AuthActions {
     clearTokens: () => void;
     getAccessToken: () => string | null;
     getRefreshToken: () => string | null;
+    setHostPermissionsFromAccount: (permissions: string[] | null | undefined) => void;
 }
 
 export type AuthStore = AuthState & AuthActions;
@@ -42,6 +45,7 @@ export const useAuthStore = create<AuthStore>()(
             refreshToken: null,
             expiresIn: null,
             isAuthenticated: false,
+            hostPermissionsFromAccount: [],
 
             // --- Actions ---
             setTokens: (tokens: AuthTokens) => {
@@ -78,12 +82,19 @@ export const useAuthStore = create<AuthStore>()(
                 }
             },
 
+            setHostPermissionsFromAccount: (permissions) =>
+                set({
+                    hostPermissionsFromAccount:
+                        Array.isArray(permissions) && permissions.length > 0 ? [...permissions] : [],
+                }),
+
             clearTokens: () =>
                 set({
                     accessToken: null,
                     refreshToken: null,
                     expiresIn: null,
                     isAuthenticated: false,
+                    hostPermissionsFromAccount: [],
                 }),
 
             getAccessToken: () => get().accessToken,

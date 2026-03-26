@@ -5,15 +5,18 @@ import { AuthPage, VerifyEmailPage } from '../features/customer/auth';
 import { ProfilePage, EkycPage } from '../features/customer/profile';
 import { BookingsPage, BookingDetailPage } from '../features/customer/bookings';
 import { CheckoutPage } from '../features/customer/checkout';
+import { DepositReturnPage } from '../features/customer/checkout/pages/DepositReturnPage';
 import { FavoritesPage } from '../features/customer/favorites';
 import { MessagesPage } from '../features/customer/messages';
 import { HelpPage } from '../features/customer/help';
 import { NotificationsPage } from '../features/customer/notifications/pages/NotificationsPage';
 import { TransactionHistoryPage } from '../features/customer/transactions/pages/TransactionHistoryPage';
+import { SpaceDetailPage } from '../features/customer/spaces/pages/SpaceDetailPage';
 
 export const customerRoutes: RouteObject[] = [
     { path: '/', element: <HomePage /> },
     { path: '/search', element: <SearchPage /> },
+    { path: '/space/:spaceRef', element: <SpaceDetailPage /> },
     { path: '/auth', element: <AuthPage /> },
     { path: '/verify-email', element: <VerifyEmailPage /> },
     { path: '/profile', element: <ProfilePage /> },
@@ -21,9 +24,11 @@ export const customerRoutes: RouteObject[] = [
     { path: '/bookings', element: <BookingsPage /> },
     { path: '/bookings/:id', element: <BookingDetailPage /> }, // FR-09: Chi tiết + QR + Chat
     { path: '/checkout', element: <CheckoutPage /> },    // FR-08: Đặt phòng & Thanh toán
+    { path: '/checkout/deposit-return', element: <DepositReturnPage /> },
     { path: '/favorites', element: <FavoritesPage /> },
     { path: '/messages', element: <MessagesPage /> },
     { path: '/notifications', element: <NotificationsPage /> },
     { path: '/transactions', element: <TransactionHistoryPage /> },
     { path: '/help', element: <HelpPage /> },
+    { path: '/:categorySlug', element: <SearchPage /> },
 ];

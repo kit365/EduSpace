@@ -45,6 +45,31 @@ const VideoCallContext = createContext<VideoCallContextValue | undefined>(undefi
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 const WEBSOCKET_URL = API_BASE_URL + '/ws';
+const WS_HEALTHCHECK_TIMEOUT_MS = 2500;
+const WS_COOLDOWN_MS = 30000;
+let wsCooldownUntil = 0;
+
+async function canConnectWebSocketGateway(): Promise<boolean> {
+    if (Date.now() < wsCooldownUntil) return false;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), WS_HEALTHCHECK_TIMEOUT_MS);
+    try {
+        const res = await fetch(`${WEBSOCKET_URL}/info?t=${Date.now()}`, {
+            method: 'GET',
+            signal: controller.signal,
+        });
+        if (!res.ok) {
+            wsCooldownUntil = Date.now() + WS_COOLDOWN_MS;
+            return false;
+        }
+        return true;
+    } catch {
+        wsCooldownUntil = Date.now() + WS_COOLDOWN_MS;
+        return false;
+    } finally {
+        window.clearTimeout(timer);
+    }
+}
 
 type CallState = 'idle' | 'outgoing_waiting' | 'incoming_ringing' | 'connected' | 'ended';
 type CallAction =
@@ -134,8 +159,9 @@ export function VideoCallProvider({ children }: { children: ReactNode }) {
         [accessToken]
     );
 
-    const connect = useCallback(() => {
+    const connect = useCallback(async () => {
         if (!accessToken) return;
+        if (!(await canConnectWebSocketGateway())) return;
 
         if (clientRef.current) {
             clientRef.current.deactivate();
@@ -187,6 +213,14 @@ export function VideoCallProvider({ children }: { children: ReactNode }) {
                         // ignore
                     }
                 });
+            },
+            onStompError: () => {
+                wsCooldownUntil = Date.now() + WS_COOLDOWN_MS;
+                setIncomingCall(null);
+            },
+            onWebSocketError: () => {
+                wsCooldownUntil = Date.now() + WS_COOLDOWN_MS;
+                setIncomingCall(null);
             },
         });
 

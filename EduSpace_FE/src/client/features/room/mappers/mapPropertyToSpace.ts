@@ -1,6 +1,41 @@
-import type { Space, SpaceDetails, SpaceApprovalStatus, SpaceType } from '@/types/space';
+import type { Space, SpaceDetails, SpaceApprovalStatus, SpaceType, SpaceAmenity } from '@/types/space';
 import type { PropertyDto, RoomDto, PropertyStatus, RoomType } from '../types';
 import { isRoomOpenForBooking } from '../utils/roomOperationalStatus';
+import {
+  Wifi,
+  Video,
+  Building2,
+  Wind,
+  Coffee,
+  ShieldCheck,
+  Clock,
+  Calendar,
+  CigaretteOff,
+  Car,
+  Brush,
+  LucideIcon,
+  Maximize2
+} from 'lucide-react';
+
+const AMENITY_ICON_MAP: Record<string, LucideIcon> = {
+    wifi: Wifi,
+    presentation: Video,
+    board: Building2,
+    ac: Wind,
+    water: Coffee,
+    support: ShieldCheck,
+    projectors: Video,
+    whiteboard: Building2,
+    sound: Maximize2,
+    lounge: Coffee,
+    clock: Clock,
+    calendar: Calendar,
+    shield: ShieldCheck,
+    smoking: CigaretteOff,
+    'support-247': ShieldCheck,
+    parking: Car,
+    cleaning: Brush,
+};
 
 function mapPropertyStatus(s: PropertyStatus): SpaceApprovalStatus {
   switch (s) {
@@ -74,8 +109,9 @@ export function propertyToSpace(property: PropertyDto, rooms: RoomDto[] = []): S
     id: property.id,
     slug: primary?.slug,
     name: property.name,
-    location: property.address,
-    address: property.address,
+    location: property.addressDetail,
+    address: property.addressDetail,
+    roomLocationHint: primary?.roomLocationHint ?? undefined,
     capacity: primary?.capacity ?? 0,
     size: primary?.area != null ? Number(primary.area) : undefined,
     price: roomPricePerHour(primary),
@@ -92,6 +128,9 @@ export function propertyToSpace(property: PropertyDto, rooms: RoomDto[] = []): S
     rejectionReason: property.rejectionNote ?? undefined,
     submittedAt: property.submittedAt ?? undefined,
     approvedAt: property.approvedAt ?? undefined,
+    is24_7: primary?.is24_7 ?? undefined,
+    minDuration: primary?.minDuration ?? undefined,
+    stepUnit: primary?.stepUnit ?? undefined,
   };
 }
 
@@ -106,6 +145,10 @@ export function propertyToSpaceDetails(
     amenitiesDetailed: [],
     reviews: [],
     availableSlots: undefined,
+    schedules: rooms[0]?.schedules || [], // Simplification for property level
+    timeslots: rooms[0]?.timeslots || [],
+    is24_7: rooms[0]?.is24_7 ?? false,
+    roomId: rooms[0]?.id,
   };
 }
 
@@ -117,8 +160,9 @@ export function roomToSpaceCard(room: RoomDto, property: PropertyDto): Space {
     id: room.id,
     slug: room.slug || undefined,
     name: room.name,
-    location: room.location || property.address,
-    address: property.address,
+    location: room.location || property.addressDetail,
+    roomLocationHint: room.roomLocationHint ?? undefined,
+    address: property.addressDetail,
     capacity: room.capacity,
     size: room.area != null ? Number(room.area) : undefined,
     price: roomPricePerHour(room),
@@ -128,10 +172,15 @@ export function roomToSpaceCard(room: RoomDto, property: PropertyDto): Space {
     images: imgs.length ? imgs : image ? [image] : [],
     verified: property.status === 'VERIFIED',
     type: mapRoomType(room.roomType),
-    amenities: [],
+    amenities: room.amenities?.map(a => a.amenityName) ?? [],
+    categoryName: room.category?.name,
+    categorySlug: room.category?.slug,
     description: room.description ?? property.description ?? undefined,
     hostId: property.ownerId,
     approvalStatus: mapPropertyStatus(property.status),
+    is24_7: room.is24_7 ?? undefined,
+    minDuration: room.minDuration ?? undefined,
+    stepUnit: room.stepUnit ?? undefined,
   };
 }
 
@@ -142,13 +191,29 @@ export function roomAndPropertyToSpaceDetails(
 ): SpaceDetails {
   const card = roomToSpaceCard(room, property);
   const imgs = parseImages(room.images);
+  
+  const amenitiesDetailed: SpaceAmenity[] = (room.amenities || []).map(a => ({
+    name: a.amenityName,
+    icon: AMENITY_ICON_MAP[a.amenityIcon.toLowerCase()] || Building2
+  }));
+
   return {
     ...card,
-    address: property.address,
-    location: room.location || property.address,
+    address: property.addressDetail,
+    location: room.location || property.addressDetail,
     images: imgs.length ? imgs : card.image ? [card.image] : [],
     additionalInfo: property.description ?? '',
-    amenitiesDetailed: [],
+    amenitiesDetailed,
     reviews: [],
+    policies: (room.policies || []).map(p => ({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      icon: p.logo ?? undefined
+    })),
+    schedules: room.schedules || [],
+    timeslots: room.timeslots || [],
+    is24_7: room.is24_7 ?? false,
+    roomId: room.id,
   };
 }

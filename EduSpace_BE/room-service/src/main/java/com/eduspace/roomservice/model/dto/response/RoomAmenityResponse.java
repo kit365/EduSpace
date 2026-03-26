@@ -16,6 +16,8 @@ public class RoomAmenityResponse {
 
     Integer roomId;
     Integer amenityId;
+    String amenityName;
+    String amenityIcon;
     Integer quantity;
     String notes;
 }

@@ -16,6 +16,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.web.SecurityFilterChain;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
 
@@ -69,6 +70,7 @@ public class SecurityConfig {
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
         converter.setJwtGrantedAuthoritiesConverter(jwt -> {
             java.util.Set<String> allRoles = new java.util.HashSet<>();
+            java.util.Set<String> allPermissions = new java.util.HashSet<>();
 
             // 1. Extract Realm Roles
             Map<String, Object> realmAccess = jwt.getClaimAsMap("realm_access");
@@ -98,17 +100,31 @@ public class SecurityConfig {
                 }
             }
 
-            System.out.println("DEBUG: Consolidated Keycloak Roles: " + allRoles);
+            // 3. Extract direct permission claims
+            List<String> permissions = jwt.getClaimAsStringList("permissions");
+            if (permissions != null) {
+                allPermissions.addAll(permissions.stream()
+                        .filter(p -> p != null && !p.isBlank())
+                        .map(String::trim)
+                        .collect(Collectors.toSet()));
+            }
+            List<String> authoritiesClaim = jwt.getClaimAsStringList("authorities");
+            if (authoritiesClaim != null) {
+                allPermissions.addAll(authoritiesClaim.stream()
+                        .filter(p -> p != null && !p.isBlank())
+                        .map(String::trim)
+                        .collect(Collectors.toSet()));
+            }
 
-            List<org.springframework.security.core.authority.SimpleGrantedAuthority> authorities = allRoles.stream()
+            Set<org.springframework.security.core.authority.SimpleGrantedAuthority> authorities = allRoles.stream()
                     .map(role -> {
                         String authority = "ROLE_" + role.toUpperCase();
-                        System.out.println("DEBUG: Mapping role '" + role + "' to authority '" + authority + "'");
                         return new org.springframework.security.core.authority.SimpleGrantedAuthority(authority);
                     })
-                    .collect(Collectors.toList());
-            
-            System.out.println("DEBUG: Final Authorities List: " + authorities);
+                    .collect(Collectors.toSet());
+            authorities.addAll(allPermissions.stream()
+                    .map(org.springframework.security.core.authority.SimpleGrantedAuthority::new)
+                    .collect(Collectors.toSet()));
             return (java.util.Collection<org.springframework.security.core.GrantedAuthority>) (java.util.Collection<?>) authorities;
         });
         return converter;

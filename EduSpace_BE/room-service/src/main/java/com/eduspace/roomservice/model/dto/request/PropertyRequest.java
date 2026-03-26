@@ -15,14 +15,33 @@ import lombok.experimental.FieldDefaults;
 public class PropertyRequest {
 
     String ownerId;
-    String name;
+
+    @com.fasterxml.jackson.annotation.JsonAlias("name")
+    String nameVi;
+
+    String nameEn;
+
     String propertyType; // COMMERCIAL_BUILDING, CENTER_COWORKING, INDEPENDENT_SPACE
     String contactPhone;
     String contactEmail;
     String provinceCode;
     String districtCode;
     String wardCode;
-    String addressDetail;
+
+    @com.fasterxml.jackson.annotation.JsonAlias("addressDetail")
+    String addressDetailVi;
+
+    String addressDetailEn;
+    java.math.BigDecimal latitude;
+    java.math.BigDecimal longitude;
     String logo;
-    String description;
+    @com.fasterxml.jackson.annotation.JsonAlias("logoAlt")
+    String logoAltVi;
+
+    String logoAltEn;
+
+    @com.fasterxml.jackson.annotation.JsonAlias("description")
+    String descriptionVi;
+
+    String descriptionEn;
 }

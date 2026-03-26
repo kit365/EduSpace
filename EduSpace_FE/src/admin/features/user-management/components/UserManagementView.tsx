@@ -58,9 +58,9 @@ export function UserManagementView() {
     const roleOptionsAll = [
         { id: 'super_admin', name: t('admin_management.roles.super_admin'), icon: Shield, value: 'Super Admin' },
         { id: 'admin', name: t('admin_management.roles.admin'), icon: Shield, value: 'Admin' },
-        { id: 'staff', name: t('admin_management.roles.staff'), icon: Briefcase, value: 'Nhân viên' },
+        { id: 'manager', name: t('admin_management.roles.manager'), icon: Briefcase, value: 'Quản lý' },
         { id: 'host', name: t('admin_management.roles.host'), icon: ShieldCheck, value: 'Host' },
-        { id: 'renter', name: t('admin_management.roles.renter'), icon: UserRound, value: 'Khách hàng' },
+        { id: 'guest', name: t('admin_management.roles.guest'), icon: UserRound, value: 'Khách hàng' },
     ];
 
     const toggleRole = (value: string) => {
@@ -281,8 +281,8 @@ export function UserManagementView() {
                                         <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
                                             u.role === 'super_admin' ? 'bg-indigo-50 text-indigo-600' :
                                             u.role === 'admin' ? 'bg-purple-50 text-purple-600' :
-                                            u.role === 'host' ? 'bg-orange-50 text-orange-600' : 
-                                            u.role === 'staff' ? 'bg-cyan-50 text-cyan-600' :
+                                            u.role === 'host' ? 'bg-orange-50 text-orange-600' :
+                                            u.role === 'manager' ? 'bg-cyan-50 text-cyan-600' :
                                             'bg-blue-50 text-blue-600'
                                             }`}>
                                             {(u.role === 'admin' || u.role === 'super_admin') && <Shield className="w-3 h-3" />}

@@ -37,6 +37,8 @@ export const en = {
         priceLowHigh: "Price: Low → High",
         priceHighLow: "Price: High → Low",
         rating: "Rating",
+        capacityLowHigh: "Capacity: Low → High",
+        capacityHighLow: "Capacity: High → Low",
         verifiedSpace: "VERIFIED SPACE",
         spacesFound: "spaces in Ho Chi Minh City",
         showingResults: "Showing results for",
@@ -298,12 +300,16 @@ export const en = {
             policyCheckIn: "Please check in within your selected time slot to guarantee room access.",
             contactHostTitle: "Contact Host",
             contactHostDesc: "Need more information about amenities, schedule, or booking support? Message the host directly.",
-            contactHostBtn: "Message host"
+            contactHostBtn: "Message host",
+            verifiedHost: "Verified Host"
         },
         search: {
             title: "Search Spaces",
             filters: "Filters",
             clearAll: "Clear All",
+            resultsFound: "results found",
+            sortCapacityLowHigh: "Capacity: Low → High",
+            sortCapacityHighLow: "Capacity: High → Low",
             district: "District",
             timeSlots: "Time Slots",
             priceRange: "Price Range (VNĐ/hr)",
@@ -394,7 +400,17 @@ export const en = {
             payment: {
                 onlineTitle: "Online Payment",
                 submit: "Confirm & Pay",
-                escrowNote: "Your payment is held in escrow and only released after check-in."
+                escrowNote: "Your payment is held in escrow and only released after check-in.",
+                payDeposit: "Pay deposit (PayOS)",
+                redirecting: "Redirecting to PayOS..."
+            },
+            depositReturn: {
+                title: "Deposit payment result",
+                waiting: "Confirming transaction...",
+                success: "Deposit paid successfully.",
+                bookingCode: "Booking code",
+                pending: "Not confirmed yet. Please wait or refresh.",
+                goBookings: "View bookings"
             },
             success: "Booking Successful! 🎉"
         },
@@ -442,8 +458,10 @@ export const en = {
             header: {
                 roles: {
                     renter: "Student / Learner",
+                    guest: "Guest",
                     host: "Hoster",
                     staff: "Staff",
+                    manager: "Manager",
                     admin: "Admin"
                 },
                 memberSince: "Member since",
@@ -572,9 +590,42 @@ export const en = {
         roles: "Role & Perms",
         settings: "System Settings",
         points: "Points & Rewards",
+        depositPolicies: "Deposits & Refunds",
         signOut: "Sign Out",
         adminPortal: "Admin Portal",
         systemControl: "System Control"
+    },
+    depositPolicies: {
+        title: "Deposit & refund policies",
+        subtitle: "Configure deposit % and refund windows",
+        add: "Add policy",
+        name: "Policy name",
+        description: "Description",
+        depositPct: "Deposit %",
+        default: "Default",
+        active: "Active",
+        actions: "Actions",
+        create: "Create policy",
+        edit: "Edit policy",
+        defaultPolicy: "Default policy",
+        displayOrder: "Display order",
+        saved: "Policy saved",
+        deleted: "Policy deleted",
+        confirmDelete: "Delete this policy?"
+    },
+    bookingAdmin: {
+        refundsTitle: "Refund requests by booking",
+        bookingIdPlaceholder: "Booking ID",
+        loadRefunds: "Load list",
+        refundStatus: "Status",
+        refundAmount: "Amount",
+        refundReason: "Reason",
+        handleRefund: "Handle",
+        approve: "Approve refund",
+        reject: "Reject",
+        adminNote: "Admin note",
+        transactionId: "Refund transaction ID",
+        refundHandled: "Updated"
     },
     admin_management: {
         title: "User Management",
@@ -594,8 +645,10 @@ export const en = {
             all: "All Roles",
             super_admin: "Super Admin",
             admin: "Admin",
-            staff: "Staff",
+            manager: "Manager",
             host: "Host",
+            guest: "Guest",
+            staff: "Staff",
             renter: "Customer"
         },
         status: {

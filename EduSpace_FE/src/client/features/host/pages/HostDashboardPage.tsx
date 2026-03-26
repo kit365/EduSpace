@@ -233,6 +233,66 @@ export function HostDashboardPage() {
           />
         </div>
       </div>
+
+      {/* Promoted Spaces CTA Section */}
+      <div className="mt-12 bg-gradient-to-br from-red-50 via-white to-orange-50 rounded-3xl border border-red-200 p-8 animate-in slide-in-from-bottom-4 duration-700 delay-700">
+        <div className="flex items-start justify-between gap-8">
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center">
+                <TrendingUp className="w-6 h-6 text-white" />
+              </div>
+              <h2 className="text-2xl font-black text-gray-900">Muốn booking tăng vọt?</h2>
+            </div>
+            <p className="text-gray-600 font-medium mb-6 max-w-xl">
+              Những phòng được quảng cáo nhận được tới <span className="font-black text-red-500">+45% lượt xem</span> trong tuần đầu tiên. Khách hàng sẽ thấy phòng của bạn ở vị trí hàng đầu tìm kiếm và banner nổi bật trên trang chủ.
+            </p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              {[
+                { number: '2,450+', label: 'Phòng được quảng cáo' },
+                { number: '+42%', label: 'Tăng booking trung bình' },
+                { number: '98%', label: 'Chủ phòng hài lòng' },
+              ].map((stat, i) => (
+                <div key={i} className="bg-white rounded-2xl p-4 border border-gray-200">
+                  <div className="text-2xl font-black text-red-500 mb-1">{stat.number}</div>
+                  <div className="text-xs font-semibold text-gray-600">{stat.label}</div>
+                </div>
+              ))}
+            </div>
+
+            <button className="bg-gradient-to-r from-red-500 to-orange-500 text-white font-black px-8 py-4 rounded-2xl hover:shadow-xl transition-all active:scale-95 inline-flex items-center gap-2">
+              Xem gói quảng cáo →
+            </button>
+          </div>
+
+          <div className="hidden lg:block flex-1 relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-red-200/20 to-orange-200/20 rounded-2xl blur-2xl" />
+            <div className="relative bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-lg">
+              <img 
+                src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=300&fit=crop"
+                alt="Promoted Space"
+                className="w-full h-48 object-cover"
+              />
+              <div className="p-4">
+                <div className="inline-flex items-center gap-2 bg-gradient-to-r from-red-500 to-orange-500 text-white px-3 py-1 rounded-full text-xs font-black mb-3">
+                  <span>🔥</span>
+                  Đang quảng cáo
+                </div>
+                <h4 className="font-black text-gray-900 mb-1">Executive Meeting Room</h4>
+                <p className="text-xs text-gray-500 font-medium mb-3">Quận 1, TP.HCM</p>
+                <div className="flex items-center justify-between">
+                  <div className="text-lg font-black text-gray-900">450.000đ/giờ</div>
+                  <div className="flex items-center gap-1 bg-gray-900 px-2 py-1 rounded-full">
+                    <span>⭐</span>
+                    <span className="text-white font-bold text-sm">4.8</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </RentalLayout>
   );
 }

@@ -15,6 +15,10 @@ public interface RoomAdMapper {
     @Mapping(target = "room", ignore = true)
     @Mapping(target = "adsPackage", ignore = true)
     @Mapping(target = "status", expression = "java(toStatusString(request.getStatus()))")
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "createdBy", ignore = true)
+    @Mapping(target = "updatedBy", ignore = true)
     RoomAdEntity toEntity(RoomAdRequest request);
 
     @Mapping(target = "roomId", expression = "java(entity.getRoom() != null ? entity.getRoom().getId() : null)")
@@ -28,6 +32,10 @@ public interface RoomAdMapper {
     @Mapping(target = "room", ignore = true)
     @Mapping(target = "adsPackage", ignore = true)
     @Mapping(target = "status", expression = "java(toStatusString(request.getStatus()))")
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "createdBy", ignore = true)
+    @Mapping(target = "updatedBy", ignore = true)
     void updateEntity(RoomAdRequest request, @MappingTarget RoomAdEntity entity);
 
     default String toStatusString(RoomAdStatus e) {

@@ -17,7 +17,12 @@ import java.time.LocalDateTime;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class RoomBlockRequest {
 
+    /** Cơ sở (chi nhánh) — ưu tiên khi tạo/cập nhật lịch chặn. */
+    Integer propertyId;
+
+    /** Tương thích cũ: suy ra property từ phòng nếu không gửi propertyId. */
     Integer roomId;
+
     LocalDateTime startDatetime;
     LocalDateTime endDatetime;
     String reason;

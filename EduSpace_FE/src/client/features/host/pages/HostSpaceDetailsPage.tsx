@@ -5,11 +5,17 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { RentalLayout } from '../../../layouts/RentalLayout';
 import { SpaceGallery, BookingPanel, SpaceInfo, SpaceLocation, SpaceReviews } from '../../customer/spaces/components';
 import { useSpaceDetails } from '../../customer/spaces/hooks/useSpaces';
+import { useAuthStore } from '@/stores/authStore';
+import { hasHostPermission } from '@/utils/keycloakTokenRoles';
+import { hostPermissions } from '../permissions/hostPermissions';
 
 export function HostSpaceDetailsPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { t } = useTranslation();
+    const accessToken = useAuthStore((s) => s.accessToken);
+    const hostPermissionsFromAccount = useAuthStore((s) => s.hostPermissionsFromAccount);
+    const canEditRoom = hasHostPermission(accessToken, hostPermissions.room.edit, hostPermissionsFromAccount);
 
     useEffect(() => {
         window.scrollTo(0, 0);
@@ -112,11 +118,14 @@ export function HostSpaceDetailsPage() {
                     <div className="lg:col-span-1">
                         <div className="sticky top-32">
                             <BookingPanel
+                                roomId={space.roomId ?? space.id}
                                 price={space.price}
                                 rating={space.rating}
                                 reviewCount={space.reviewCount || 0}
                                 spaceName={space.name}
                                 spaceImage={space.image}
+                                minDuration={space.minDuration}
+                                stepUnit={space.stepUnit}
                             />
                         </div>
                     </div>
@@ -131,13 +140,15 @@ export function HostSpaceDetailsPage() {
                 </div>
 
                 {/* Fixed Edit Button for Hoster */}
-                <button
-                    onClick={onEdit}
-                    className="fixed bottom-8 right-8 bg-red-500 text-white px-8 py-5 rounded-[24px] shadow-2xl shadow-red-200 hover:bg-red-600 hover:-translate-y-1 transition-all active:scale-95 z-[100] flex items-center gap-3 font-black uppercase tracking-widest text-sm group"
-                >
-                    <Edit2 className="w-5 h-5 group-hover:rotate-12 transition-transform" />
-                    Chỉnh sửa phòng
-                </button>
+                {canEditRoom && (
+                    <button
+                        onClick={onEdit}
+                        className="fixed bottom-8 right-8 bg-red-500 text-white px-8 py-5 rounded-[24px] shadow-2xl shadow-red-200 hover:bg-red-600 hover:-translate-y-1 transition-all active:scale-95 z-[100] flex items-center gap-3 font-black uppercase tracking-widest text-sm group"
+                    >
+                        <Edit2 className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+                        Chỉnh sửa phòng
+                    </button>
+                )}
             </div>
         </RentalLayout>
     );
