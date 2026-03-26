@@ -38,6 +38,17 @@ export function useVoucherCampaigns() {
         }
     }, [fetch]);
 
+    const updateCampaign = useCallback(async (id: number, payload: Partial<VoucherCampaign>) => {
+        try {
+            await voucherCampaignService.update(id, payload);
+            toast.success('Đã cập nhật chiến dịch!');
+            await fetch();
+        } catch (err: unknown) {
+            toast.error(getApiErrorMessage(err, 'Không thể cập nhật chiến dịch'));
+            throw err;
+        }
+    }, [fetch]);
+
     const toggleActive = useCallback(async (id: number) => {
         try {
             await voucherCampaignService.toggleActive(id);
@@ -60,5 +71,5 @@ export function useVoucherCampaigns() {
         }
     }, [fetch]);
 
-    return { campaigns, loading, error, refresh: fetch, createCampaign, toggleActive, deleteCampaign };
+    return { campaigns, loading, error, refresh: fetch, createCampaign, updateCampaign, toggleActive, deleteCampaign };
 }

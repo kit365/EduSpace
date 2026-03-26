@@ -1,19 +1,23 @@
 import { useState } from 'react';
 import { useVoucherCampaigns } from '../hooks/useVoucherCampaigns';
 import type { VoucherCampaign } from '../services/types';
-import { Layers, Plus, Trash2, Power, PowerOff } from 'lucide-react';
+import { Layers, Plus, Trash2, Power, PowerOff, Eye } from 'lucide-react';
 import { CampaignModal } from './CampaignModal';
+import { CampaignDetailDrawer } from './CampaignDetailDrawer';
 
 export function VoucherCampaignView() {
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const { campaigns, loading, toggleActive, deleteCampaign } = useVoucherCampaigns();
+    const [detailCampaign, setDetailCampaign] = useState<VoucherCampaign | null>(null);
+    const [editCampaign, setEditCampaign] = useState<VoucherCampaign | null>(null);
+    const { campaigns, loading, toggleActive, deleteCampaign, refresh } = useVoucherCampaigns();
 
     return (
+        <>
         <div className="bg-white text-black rounded-3xl border border-gray-100 shadow-sm p-8">
             <div className="flex justify-between items-center mb-8">
                 <div>
                     <h2 className="text-2xl font-black text-gray-900 tracking-tight">Chiến dịch Voucher</h2>
-                    <p className="text-xs text-gray-400 font-bold mt-1 uppercase tracking-wider">Quản lý tên và nhóm đợt khuyến mãi</p>
+                    <p className="text-xs text-gray-400 font-bold mt-1 uppercase tracking-wider">Quản lý tên và nhóm đợt khuyến mãi · Click dòng để xem chi tiết</p>
                 </div>
                 <button
                     onClick={() => setIsModalOpen(true)}
@@ -40,7 +44,11 @@ export function VoucherCampaignView() {
                             <tr><td colSpan={4} className="p-12 text-center text-gray-400 font-medium">Chưa có chiến dịch nào.</td></tr>
                         ) : (
                             campaigns.map((c: VoucherCampaign) => (
-                                <tr key={c.id} className="hover:bg-gray-50/50 transition-colors">
+                                <tr
+                                    key={c.id}
+                                    onClick={() => setDetailCampaign(c)}
+                                    className="hover:bg-cyan-50/40 transition-colors cursor-pointer group"
+                                >
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-500 text-white flex items-center justify-center">
@@ -65,7 +73,14 @@ export function VoucherCampaignView() {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        <div className="flex justify-end gap-2">
+                                        <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                                            <button
+                                                onClick={() => setDetailCampaign(c)}
+                                                className="p-2 rounded-xl bg-cyan-50 text-cyan-500 hover:bg-cyan-100 transition-colors opacity-0 group-hover:opacity-100"
+                                                title="Chi tiết"
+                                            >
+                                                <Eye className="w-4 h-4" />
+                                            </button>
                                             <button
                                                 onClick={() => toggleActive(c.id)}
                                                 className={`p-2 rounded-xl transition-colors ${c.isActive ? 'bg-yellow-50 text-yellow-600 hover:bg-yellow-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}
@@ -89,7 +104,21 @@ export function VoucherCampaignView() {
                 </table>
             </div>
 
-            <CampaignModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+            <CampaignModal
+                isOpen={isModalOpen}
+                onClose={() => { setIsModalOpen(false); setEditCampaign(null); }}
+                onSuccess={refresh}
+                editCampaign={editCampaign}
+            />
         </div>
+
+        <CampaignDetailDrawer
+            campaign={detailCampaign}
+            onClose={() => setDetailCampaign(null)}
+            onEdit={(c: VoucherCampaign) => { setEditCampaign(c); setIsModalOpen(true); setDetailCampaign(null); }}
+            onToggleActive={(id: number) => { toggleActive(id); setDetailCampaign(null); }}
+            onDelete={(id: number) => { deleteCampaign(id); setDetailCampaign(null); }}
+        />
+        </>
     );
 }

@@ -37,6 +37,14 @@ public class VoucherController {
         return ApiResponse.success(voucherService.create(request));
     }
 
+    /** Cập nhật voucher (admin). */
+    @PutMapping("/{id}")
+    public ApiResponse<VoucherResponse> update(
+            @PathVariable Long id,
+            @Valid @RequestBody CreateVoucherRequest request) {
+        return ApiResponse.success(voucherService.update(id, request));
+    }
+
     /**
      * Lấy tất cả vouchers (admin).
      * Query param campaignId (optional) để lọc theo chiến dịch.
