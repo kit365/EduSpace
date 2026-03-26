@@ -46,7 +46,6 @@ INSERT INTO permissions (name, description, group_name) VALUES
 ('branch.cleaning.manage', 'Manage cleaning tasks and room housekeeping workflow.', 'branch.operations'),
 ('branch.booking.view', 'View booking list and booking details.', 'branch.schedule'),
 ('branch.booking.manage', 'Update booking status and booking-related operations.', 'branch.schedule'),
-('branch.ads.manage', 'Manage advertisements and promotions for the branch.', 'branch.marketing'),
 ('branch.finance.view', 'View finance reports and branch transactions.', 'branch.finance'),
 ('branch.finance.manage', 'Manage branch finance settings and sensitive finance operations.', 'branch.finance'),
 ('view_dashboard', 'View host dashboard summary.', 'Dashboard'),
@@ -100,7 +99,6 @@ JOIN permissions p ON p.name IN (
   'branch.cleaning.manage',
   'branch.booking.view',
   'branch.booking.manage',
-  'branch.ads.manage',
   'branch.finance.view',
   'branch.finance.manage',
   'branch.finance.export',
@@ -136,7 +134,6 @@ JOIN permissions p ON p.name IN (
   'branch.cleaning.manage',
   'branch.booking.view',
   'branch.booking.manage',
-  'branch.ads.manage',
   'branch.finance.view',
   'branch.finance.export',
   'branch.profile.view',
@@ -220,13 +217,16 @@ JOIN permissions p_new
   )
 ON CONFLICT (role_id, permission_id) DO NOTHING;
 
--- Host ads: gán branch.ads.manage cho mọi role đã có branch.booking.manage (tách menu Quảng cáo khỏi Lịch & giờ).
-INSERT INTO roles_permissions (role_id, permission_id)
-SELECT DISTINCT rp.role_id, p_new.id
-FROM roles_permissions rp
-JOIN permissions p_old
-  ON p_old.id = rp.permission_id
- AND p_old.name = 'branch.booking.manage'
-JOIN permissions p_new
-  ON p_new.name = 'branch.ads.manage'
-ON CONFLICT (role_id, permission_id) DO NOTHING;
+-- Remove ads permission grants from existing roles/templates.
+DELETE FROM permission_template_permissions ptp
+USING permissions p
+WHERE ptp.permission_id = p.id
+  AND p.name = 'branch.ads.manage';
+
+DELETE FROM roles_permissions rp
+USING permissions p
+WHERE rp.permission_id = p.id
+  AND p.name = 'branch.ads.manage';
+
+DELETE FROM permissions
+WHERE name = 'branch.ads.manage';

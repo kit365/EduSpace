@@ -7,9 +7,6 @@ public interface EmailService {
 
     void sendVerificationEmail(String toEmail, String fullName, String token);
 
-    /**
-     * Gửi mail xác nhận đặt phòng (gọi nội bộ từ booking-service). Ném exception nếu gửi thất bại.
-     */
     void sendBookingConfirmationEmail(
             String toEmail,
             String recipientName,
@@ -18,4 +15,12 @@ public interface EmailService {
             LocalDate bookingDate,
             LocalDateTime startDateTime,
             LocalDateTime endDateTime);
+
+    void sendManagerAssignedEmail(String toEmail, String fullName, Long branchPropertyId);
+
+    void sendManagerInviteEmail(
+            String toEmail,
+            String fullName,
+            Long branchPropertyId,
+            String temporaryPassword);
 }

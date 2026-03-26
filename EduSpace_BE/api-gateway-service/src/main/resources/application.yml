@@ -73,7 +73,7 @@ spring:
         - id: room-service
           uri: ${eduspace.gateway.room-service-uri}
           predicates:
-            - Path=/api/v1/rooms,/api/v1/rooms/**,/api/v1/properties,/api/v1/properties/**,/api/v1/extra-services,/api/v1/extra-services/**,/api/v1/ads-packages,/api/v1/ads-packages/**,/api/v1/amenities,/api/v1/amenities/**,/api/v1/room-amenities,/api/v1/room-amenities/**,/api/v1/reviews,/api/v1/reviews/**,/api/v1/room-ads,/api/v1/room-ads/**,/api/v1/system-calendar-rules,/api/v1/system-calendar-rules/**,/api/v1/room-blocks,/api/v1/room-blocks/**,/api/v1/room-categories,/api/v1/room-categories/**,/api/v1/public/**
+            - Path=/api/v1/rooms,/api/v1/rooms/**,/api/v1/properties,/api/v1/properties/**,/api/v1/extra-services,/api/v1/extra-services/**,/api/v1/amenities,/api/v1/amenities/**,/api/v1/room-amenities,/api/v1/room-amenities/**,/api/v1/reviews,/api/v1/reviews/**,/api/v1/system-calendar-rules,/api/v1/system-calendar-rules/**,/api/v1/room-blocks,/api/v1/room-blocks/**,/api/v1/room-categories,/api/v1/room-categories/**,/api/v1/public/**
 
         # Room Service Swagger Docs
         - id: room-service-docs

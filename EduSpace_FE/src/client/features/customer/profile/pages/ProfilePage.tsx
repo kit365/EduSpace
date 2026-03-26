@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { User, Lock, Bell, CreditCard, Loader2, FileText, Users, UserPlus, Download, Trash2, ClipboardList, TrendingUp } from 'lucide-react';
+import { User, Lock, Bell, CreditCard, Loader2, FileText, Users, UserPlus, Download, Trash2, ClipboardList } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CustomerLayout } from '../../../../layouts/CustomerLayout';
-import { PersonalInfoTab, SecurityTab, NotificationsTab, PaymentMethodsTab, HostPartnerApplicationTab, UserPromotedRoomsTab } from '../components';
+import { PersonalInfoTab, SecurityTab, NotificationsTab, PaymentMethodsTab, HostPartnerApplicationTab } from '../components';
 import { TeamsTab, TeamMemberTab, DataExportTab, DeleteAccountTab } from '../components/PlaceholderTabs';
 import { NOTIFICATION_SETTINGS, PAYMENT_METHODS } from '../data/mockData';
 import { NotificationSettings } from '../types';
@@ -18,7 +18,6 @@ export function ProfilePage() {
 
   const tabs = [
     { id: 'personal', label: t('customer.profile.sidebar.myProfile'), icon: User },
-    { id: 'promotedRooms', label: 'Phòng được quảng cáo', icon: TrendingUp },
     { id: 'hostPartner', label: t('customer.profile.sidebar.hostApplication', 'Đơn đối tác'), icon: ClipboardList },
     { id: 'security', label: t('customer.profile.sidebar.security'), icon: Lock },
     { id: 'teams', label: t('customer.profile.sidebar.teams'), icon: Users },
@@ -112,7 +111,6 @@ export function ProfilePage() {
                     onUpdate={updateProfile}
                   />
                 )}
-                {activeTab === 'promotedRooms' && <UserPromotedRoomsTab />}
                 {activeTab === 'hostPartner' && <HostPartnerApplicationTab />}
                 {activeTab === 'security' && <SecurityTab />}
                 {activeTab === 'teams' && <TeamsTab />}

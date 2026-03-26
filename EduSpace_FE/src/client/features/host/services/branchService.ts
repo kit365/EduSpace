@@ -158,10 +158,23 @@ function normalizeText(s: string): string {
 
 export const branchService = {
     listAll: async (): Promise<HostBranch[]> => {
-        const res = await apiClient.get(ROOM_API.BRANCHES);
-        const list = unwrap<PropertyApiDto[]>(res);
-        if (!Array.isArray(list)) return [];
-        return list.map(mapPropertyToBranch);
+        try {
+            const res = await apiClient.get(ROOM_API.BRANCHES);
+            const list = unwrap<PropertyApiDto[]>(res);
+            if (!Array.isArray(list)) return [];
+            return list.map(mapPropertyToBranch);
+        } catch (error) {
+            const status = (error as { response?: { status?: number } })?.response?.status;
+            // Some manager tokens can be rejected on non-public route at gateway.
+            // Fallback to public properties to keep branch dropdown working.
+            if (status === 401 || status === 403) {
+                const res = await apiClient.get(ROOM_API.PUBLIC_PROPERTIES);
+                const list = unwrap<PropertyApiDto[]>(res);
+                if (!Array.isArray(list)) return [];
+                return list.map(mapPropertyToBranch);
+            }
+            throw error;
+        }
     },
 
     listByOwner: async (ownerId: string, ownerAliases: string[] = []): Promise<HostBranch[]> => {

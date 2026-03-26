@@ -24,7 +24,6 @@ const usedHostPermissionKeys = [
     hostMenuPermissions.staff,
     hostMenuPermissions.finance,
     hostMenuPermissions.messages,
-    hostMenuPermissions.ads,
     hostMenuPermissions.kyc,
 
     // Page-level checks (hasHostPermission in host pages)
@@ -48,8 +47,6 @@ const usedHostPermissionKeys = [
     hostPermissions.finance.payoutCreate,
 
     hostPermissions.messages.manage,
-
-    hostPermissions.ads.manage,
 ];
 
 export const partnerPortalPermissionKeysCanonical = new Set(

@@ -69,10 +69,6 @@ export const hostPermissions = {
         view: 'view_messages',
         manage: 'manage_messages',
     },
-    /** Quảng cáo Host (tách khỏi Lịch & giờ / branch.booking.manage) */
-    ads: {
-        manage: 'branch.ads.manage',
-    },
 } as const;
 
 export const hostMenuPermissions = {
@@ -85,7 +81,6 @@ export const hostMenuPermissions = {
     checkout: hostPermissions.operations.checkout,
     staff: hostPermissions.staff.view,
     finance: hostPermissions.finance.view,
-    ads: hostPermissions.ads.manage,
     kyc: 'branch.profile.manage',
     messages: hostPermissions.messages.view,
 } as const;

@@ -9,7 +9,7 @@ spring:
   datasource:
     # Luôn có URL mặc định kể cả khi IDE không bật profile `dev` (tránh lỗi "Failed to determine a suitable driver class").
     # 127.0.0.1: khớp docker-compose POSTGRES_BOOKING_HOST_PORT (thường 15433 trong .env).
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://127.0.0.1:${POSTGRES_BOOKING_HOST_PORT:15433}/eduspace_booking}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://127.0.0.1:${POSTGRES_BOOKING_HOST_PORT:5433}/eduspace_booking}
     username: ${SPRING_DATASOURCE_USERNAME:${POSTGRES_USER:eduspace}}
     password: ${SPRING_DATASOURCE_PASSWORD:${POSTGRES_PASSWORD:eduspace_dev_123}}
     driver-class-name: org.postgresql.Driver

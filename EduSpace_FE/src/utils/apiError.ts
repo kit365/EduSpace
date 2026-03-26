@@ -20,4 +20,10 @@ export function getApiErrorMessage(err: unknown, fallback: string): string {
 const BACKEND_ERROR_MESSAGE_MAP: Record<string, string> = {
   'host.application.pending-exists': 'Bạn đã có một đơn đăng ký chi nhánh đang chờ duyệt.',
   'host.application.already-partner': 'Tài khoản của bạn đã là đối tác. Bạn không cần gửi lại đơn đăng ký.',
+  'host.manager.already-linked': 'Tài khoản này đã là quản lý của chi nhánh hiện tại.',
+  'host.branch.not-found': 'Chi nhánh không tồn tại trong hệ thống.',
+  'host.branch.forbidden': 'Bạn chỉ có thể phân quản lý cho chi nhánh của chính bạn.',
+  'host.branch.validation-failed': 'Không thể xác minh chi nhánh lúc này. Vui lòng thử lại.',
+  'host.manager.invite-failed': 'Không thể mời tài khoản này làm quản lý chi nhánh.',
+  'host.manager.keycloak-sync-failed': 'Không thể đồng bộ quyền quản lý với hệ thống định danh.',
 };

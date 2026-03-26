@@ -1,7 +1,6 @@
 server:
   port: 8083
 
-# Cần discovery-server (8761) + đăng ký Eureka để FE qua gateway :8080 gọi được room-service.
 spring:
   datasource:
     # 127.0.0.1 tránh một số máy Windows resolve localhost → IPv6 (::1) trong khi Docker Desktop chỉ publish IPv4.

@@ -67,13 +67,6 @@ export function getPermissionDisplayName(permissionName: string, language?: stri
     if (n === 'branch.maintenance.manage') return isVi ? 'Bảo trì: Quản lý' : 'Maintenance: Manage';
     if (n === 'branch.cleaning.manage') return isVi ? 'Vệ sinh: Quản lý' : 'Cleaning: Manage';
 
-    if (n.startsWith('branch.ads.')) {
-        const action = n.replace('branch.ads.', '');
-        const t = mapAction(action);
-        if (action.toLowerCase() === 'manage') return isVi ? 'Quảng cáo: Quản lý' : 'Ads: Manage';
-        return isVi ? `Quảng cáo: ${t.vi}` : `Ads: ${t.en}`;
-    }
-
     if (n.startsWith('branch.booking.')) {
         const action = n.replace('branch.booking.', '');
         const t = mapAction(action);
@@ -150,7 +143,6 @@ export function getPermissionDisplayName(permissionName: string, language?: stri
     if (nLegacy === 'manage_reports') return isVi ? 'Báo cáo: Quản lý' : 'Reports: Manage';
 
     if (nLegacy === 'manage_kyc') return isVi ? 'Host & KYC: Quản lý KYC' : 'Host & KYC: Manage KYC';
-    if (nLegacy === 'manage_ads') return isVi ? 'Marketing: Quản lý quảng cáo' : 'Marketing: Manage ads';
 
     if (nLegacy === 'view_dashboard') return isVi ? 'Dashboard: Xem' : 'Dashboard: View';
     if (nLegacy === 'view_messages') return isVi ? 'Tin nhắn: Xem' : 'Messages: View';
@@ -190,10 +182,6 @@ export function getPermissionDisplayDescription(permissionName: string, descript
                 : 'Update booking status and related booking operations.';
     }
 
-    if (n === 'branch.ads.manage')
-        return isVi
-            ? 'Mục “Quảng cáo” trên Host Console (tách khỏi Đặt phòng / Lịch & giờ).'
-            : 'Host sidebar “Ads” (separate from Bookings / Schedule).';
 
     if (n === 'view_rooms') return isVi ? 'Duyệt danh sách phòng và xem các listing.' : 'Browse rooms and listings.';
     if (n === 'edit_rooms') return isVi ? 'Tạo và sửa các listing phòng.' : 'Create and edit room listings.';
@@ -271,7 +259,6 @@ export function getPermissionDisplayDescription(permissionName: string, descript
 
     if (n === 'view_dashboard') return isVi ? 'Xem tổng quan dashboard hệ thống.' : 'View system dashboard summary.';
     if (n === 'manage_kyc') return isVi ? 'Quản lý & duyệt KYC người dùng.' : 'Review and approve user KYC.';
-    if (n === 'manage_ads') return isVi ? 'Quản lý quảng cáo và các chiến dịch/khuyến mãi.' : 'Manage advertisements and promotions.';
     if (n === 'view_messages') return isVi ? 'Xem tin nhắn hỗ trợ và tin nhắn quản trị.' : 'View support and admin messages.';
     if (n === 'manage_messages') return isVi ? 'Quản lý và trả lời tin nhắn.' : 'Manage and reply to messages.';
 
@@ -309,7 +296,6 @@ export function getPermissionGroupDisplayName(groupName: string, language?: stri
     if (gl === 'branch.schedule') return isVi ? 'Đặt phòng' : 'Bookings';
     if (gl === 'branch.settings') return isVi ? 'Hồ sơ & KYC' : 'Profile & KYC';
     if (gl === 'branch.staff') return isVi ? 'Nhân viên' : 'Staff';
-    if (gl === 'branch.marketing') return isVi ? 'Quảng cáo' : 'Ads';
     if (gl === 'rbac') return isVi ? 'RBAC' : 'RBAC';
 
     if (gl === 'reviews') return isVi ? 'Đánh giá' : 'Reviews';
@@ -320,7 +306,6 @@ export function getPermissionGroupDisplayName(groupName: string, language?: stri
     if (gl === 'system') return isVi ? 'Hệ thống' : 'System';
     if (gl === 'loyalty') return isVi ? 'Điểm thưởng' : 'Loyalty';
     if (gl === 'facilities') return isVi ? 'Tiện ích' : 'Facilities';
-    if (gl === 'marketing') return isVi ? 'Tiếp thị' : 'Marketing';
     if (gl === 'content & classrooms') return isVi ? 'Nội dung & Lớp học' : 'Content & Classrooms';
     if (gl === 'finance & payouts') return isVi ? 'Tài chính & Thanh toán' : 'Finance & Payouts';
 

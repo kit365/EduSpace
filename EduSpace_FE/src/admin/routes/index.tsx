@@ -12,7 +12,6 @@ import { RoomManagementPage } from '../features/room-management';
 import { AdminRoomCategoryPage } from '../features/room-categories/pages/AdminRoomCategoryPage';
 import { BookingManagementPage } from '../features/bookings';
 import { ReviewManagementPage } from '../features/reviews';
-import { AdsManagementPage } from '../features/ads';
 import { FacilityManagementPage } from '../features/facilities';
 import { PointManagementPage } from '../features/points';
 import { AdminMessagesPage } from '../features/messages';
@@ -47,7 +46,6 @@ export const adminRoutes: RouteObject[] = [
 
             // ─── Platform ─────────────────────────────────────
             { path: 'facilities', element: <FacilityManagementPage /> },
-            { path: 'ads', element: <AdsManagementPage /> },
             { path: 'points', element: <PointManagementPage /> },
 
             // ─── System ───────────────────────────────────────
