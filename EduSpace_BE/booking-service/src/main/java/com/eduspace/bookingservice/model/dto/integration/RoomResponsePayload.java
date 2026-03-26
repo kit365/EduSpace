@@ -9,6 +9,8 @@ import lombok.Setter;
 @Setter
 public class RoomResponsePayload {
     private Integer id;
+    /** Từ room-service RoomResponse.name — dùng email / UI. */
+    private String name;
     private String status;
     private String approvalStatus;
     private Boolean isActive;
