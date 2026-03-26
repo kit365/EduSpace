@@ -25,6 +25,8 @@ export interface AuthState {
     isAuthenticated: boolean;
     /** Quyền host từ GET /accounts/me (DB); bổ sung khi JWT Keycloak không có claim permissions */
     hostPermissionsFromAccount: string[];
+    /** Đã đồng bộ /accounts/me ít nhất một lần trong phiên hiện tại */
+    hostPermissionsLoaded: boolean;
 }
 
 export interface AuthActions {
@@ -46,6 +48,7 @@ export const useAuthStore = create<AuthStore>()(
             expiresIn: null,
             isAuthenticated: false,
             hostPermissionsFromAccount: [],
+            hostPermissionsLoaded: false,
 
             // --- Actions ---
             setTokens: (tokens: AuthTokens) => {
@@ -74,6 +77,8 @@ export const useAuthStore = create<AuthStore>()(
                     refreshToken,
                     expiresIn,
                     isAuthenticated: true,
+                    hostPermissionsFromAccount: [],
+                    hostPermissionsLoaded: false,
                 });
                 try {
                     localStorage.removeItem(GUEST_ID_KEY);
@@ -86,6 +91,7 @@ export const useAuthStore = create<AuthStore>()(
                 set({
                     hostPermissionsFromAccount:
                         Array.isArray(permissions) && permissions.length > 0 ? [...permissions] : [],
+                    hostPermissionsLoaded: true,
                 }),
 
             clearTokens: () =>
@@ -95,6 +101,7 @@ export const useAuthStore = create<AuthStore>()(
                     expiresIn: null,
                     isAuthenticated: false,
                     hostPermissionsFromAccount: [],
+                    hostPermissionsLoaded: false,
                 }),
 
             getAccessToken: () => get().accessToken,

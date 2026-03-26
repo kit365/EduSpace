@@ -3,7 +3,7 @@ server:
 
 spring:
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/eduspace_booking}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:15433/eduspace_booking}
     username: ${SPRING_DATASOURCE_USERNAME:eduspace}
     password: ${SPRING_DATASOURCE_PASSWORD:eduspace_dev_123}
     driver-class-name: org.postgresql.Driver

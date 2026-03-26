@@ -33,8 +33,9 @@ import { roomApiService } from '@/client/features/room/services/roomApiService';
 import type { RoomDto } from '@/client/features/room/types';
 import { isRoomOpenForBooking } from '@/client/features/room/utils/roomOperationalStatus';
 import { useAuthStore } from '@/stores/authStore';
-import { hasHostPermission } from '@/utils/keycloakTokenRoles';
+import { getRealmRolesFromAccessToken, hasHostPermission, normalizeRoleName } from '@/utils/keycloakTokenRoles';
 import { hostPermissions } from '../permissions/hostPermissions';
+import { fetchMyManagerScope } from '../services/hostStaffService';
 
 const ROOM_TYPE_LABELS: Record<string, string> = {
     MEETING_ROOM: 'Phòng họp',
@@ -99,13 +100,28 @@ export function SpacesPage() {
     const canCreateRoom = hasHostPermission(accessToken, hostPermissions.room.create, hostPermissionsFromAccount);
     const canEditRoom = hasHostPermission(accessToken, hostPermissions.room.edit, hostPermissionsFromAccount);
     const canDeleteRoom = hasHostPermission(accessToken, hostPermissions.room.delete, hostPermissionsFromAccount);
+    const isManagerOnly = useMemo(() => {
+        const roles = getRealmRolesFromAccessToken(accessToken).map(normalizeRoleName);
+        return roles.includes('MANAGER') && !roles.includes('HOST');
+    }, [accessToken]);
 
     const loadRooms = useCallback(async () => {
-        if (!profile?.id) return;
         setLoadingRooms(true);
         try {
-            // Theo owner_id trên property — không phụ thuộc BranchContext (tránh rỗng khi context chưa tải / lệch API).
-            const list = await roomApiService.getAll({ ownerId: profile.id });
+            let list: RoomDto[] = [];
+            if (isManagerOnly) {
+                let branchId = selectedBranch?.id;
+                if (branchId == null) {
+                    const scope = await fetchMyManagerScope().catch(() => ({ managerScoped: true, branchPropertyId: null }));
+                    branchId = scope.managerScoped ? (scope.branchPropertyId ?? undefined) : undefined;
+                }
+                if (branchId != null) {
+                    list = await roomApiService.getAll({ propertyId: branchId });
+                }
+            } else if (profile?.id) {
+                // Host sees all rooms by owner.
+                list = await roomApiService.getAll({ ownerId: profile.id });
+            }
             setRooms(list);
         } catch {
             setRooms([]);
@@ -113,7 +129,7 @@ export function SpacesPage() {
         } finally {
             setLoadingRooms(false);
         }
-    }, [profile?.id]);
+    }, [isManagerOnly, profile?.id, selectedBranch?.id]);
 
     useEffect(() => {
         let cancelled = false;

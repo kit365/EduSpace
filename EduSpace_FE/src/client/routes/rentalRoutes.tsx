@@ -29,11 +29,13 @@ import { hostMenuPermissions } from "../features/host/permissions/hostPermission
 import { hostPermissions } from "../features/host/permissions/hostPermissions";
 
 const hostHomeCandidates = [
+    { path: '/rental/dashboard', permission: hostMenuPermissions.dashboard },
     { path: '/rental/spaces', permission: hostMenuPermissions.spaces },
     { path: '/rental/branches', permission: hostMenuPermissions.branches },
     { path: '/rental/messages', permission: hostMenuPermissions.messages },
+    { path: '/rental/utility-prices', permission: hostMenuPermissions.utility },
+    { path: '/rental/deposit-policy', permission: hostMenuPermissions.depositPolicy },
     { path: '/rental/finance', permission: hostMenuPermissions.finance },
-    { path: '/rental/dashboard', permission: hostMenuPermissions.dashboard },
 ] as const;
 
 function resolveHostHomePath(accessToken: string | null, hostPermissionsFromAccount?: string[] | null): string {
@@ -44,7 +46,7 @@ function resolveHostHomePath(accessToken: string | null, hostPermissionsFromAcco
     }
     const roles = getRealmRolesFromAccessToken(accessToken);
     if (canAccessHostConsole(roles)) {
-        return '/rental/profile';
+        return '/rental/dashboard';
     }
     return '/rental/register';
 }
@@ -182,7 +184,7 @@ export const rentalRoutes: RouteObject[] = [
                 path: 'utility-prices',
                 element: (
                     <HostConsoleGate
-                        element={<PermissionGate permission={hostMenuPermissions.finance} element={<UtilityPriceManagementPage />} />}
+                        element={<PermissionGate permission={hostMenuPermissions.utility} element={<UtilityPriceManagementPage />} />}
                     />
                 ),
             },
@@ -190,7 +192,7 @@ export const rentalRoutes: RouteObject[] = [
                 path: 'deposit-policy',
                 element: (
                     <HostConsoleGate
-                        element={<PermissionGate permission={hostMenuPermissions.finance} element={<DepositRefundPolicyManagementPage />} />}
+                        element={<PermissionGate permission={hostMenuPermissions.depositPolicy} element={<DepositRefundPolicyManagementPage />} />}
                     />
                 ),
             },

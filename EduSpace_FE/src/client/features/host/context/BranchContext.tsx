@@ -48,19 +48,22 @@ export function BranchProvider({ children }: { children: ReactNode }) {
     const refreshBranches = useCallback(async () => {
         setLoadingBranches(true);
         try {
-            const ownerAliases = await resolveOwnerAliases();
-            let list = ownerAliases.length > 0
-                ? await branchService.listByOwner(ownerAliases[0], ownerAliases.slice(1))
-                : [];
             const roles = getRealmRolesFromAccessToken(accessToken).map(normalizeRoleName);
             const isManager = roles.includes('MANAGER') && !roles.includes('HOST');
+            let list: HostBranch[] = [];
             if (isManager) {
                 const scope = await fetchMyManagerScope().catch(() => ({ managerScoped: true, branchPropertyId: null }));
                 if (scope.managerScoped && scope.branchPropertyId != null) {
-                    list = list.filter((b) => b.id === scope.branchPropertyId);
+                    const allBranches = await branchService.listAll();
+                    list = allBranches.filter((b) => b.id === scope.branchPropertyId);
                 } else {
                     list = [];
                 }
+            } else {
+                const ownerAliases = await resolveOwnerAliases();
+                list = ownerAliases.length > 0
+                    ? await branchService.listByOwner(ownerAliases[0], ownerAliases.slice(1))
+                    : [];
             }
             setBranches(list);
             setSelectedBranch((prev) => {
