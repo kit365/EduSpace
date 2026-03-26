@@ -10,6 +10,9 @@ public interface KeycloakUserService {
 
     void assignRole(String userId, String roleName);
 
+    /** Remove a realm role from a user (no-op if not assigned). */
+    void removeRealmRole(String userId, String roleName);
+
     void verifyEmail(String keycloakUserId);
 
     LoginResponse refreshToken(String refreshToken);

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CustomerLayout } from '../../../../layouts/CustomerLayout';
 import { 
     Send, Search, MoreVertical, Paperclip, Smile, Loader2, Headphones,
@@ -13,8 +13,17 @@ import { SUPPORT_PLACEHOLDER_USER_ID } from '../../../../../config/chat';
 import { useResolvedChatUserId } from '../../../../../hooks/useResolvedChatUserId';
 import { SUPPORT_CHAT_SYNC_EVENT, emitSupportChatSync } from '../supportChatSync';
 import { setStoredSupportConversationId } from '../supportConversationStorage';
+import { useAuthStore } from '@/stores/authStore';
+import { guestFeatureAllowed, guestPermissions } from '../../permissions/guestPermissions';
 
 export function MessagesPage() {
+    const accessToken = useAuthStore((s) => s.accessToken);
+    const hostPermissionsFromAccount = useAuthStore((s) => s.hostPermissionsFromAccount);
+    const canSendGuestMessages = useMemo(
+        () => guestFeatureAllowed(accessToken, guestPermissions.guestSendMessages, hostPermissionsFromAccount),
+        [accessToken, hostPermissionsFromAccount],
+    );
+
     const { conversations, loading, setConversations, refetch } = useConversations('user');
     const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
     const [messageInput, setMessageInput] = useState('');
@@ -214,6 +223,7 @@ export function MessagesPage() {
 
     const handleSendMessage = async () => {
         if (!messageInput.trim() || !selectedConversation) return;
+        if (!canSendGuestMessages) return;
 
         const tempText = messageInput;
         setMessageInput('');
@@ -290,6 +300,10 @@ export function MessagesPage() {
 
     const handleFilesSelected: React.ChangeEventHandler<HTMLInputElement> = async (event) => {
         if (!selectedConversation) return;
+        if (!canSendGuestMessages) {
+            event.target.value = '';
+            return;
+        }
         const files = Array.from(event.target.files ?? []);
         if (files.length === 0) return;
         try {
@@ -570,11 +584,17 @@ export function MessagesPage() {
 
                                 {/* 3. Chat Input area */}
                                 <div className="p-4 bg-white border-t border-slate-50">
+                                    {!canSendGuestMessages && hostPermissionsFromAccount.length > 0 && (
+                                        <p className="text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 mb-3">
+                                            Tài khoản của bạn không có quyền gửi tin nhắn. Liên hệ quản trị viên nếu cần.
+                                        </p>
+                                    )}
                                     <div className="flex items-center gap-4 bg-slate-50/50 p-3.5 rounded-[2rem] border border-slate-100 focus-within:border-blue-100 focus-within:bg-white focus-within:shadow-xl focus-within:shadow-blue-50/50 transition-all duration-500">
                                         <button
                                             type="button"
                                             onClick={handleUploadClick}
-                                            className="p-3 hover:bg-white hover:shadow-sm rounded-2xl transition-all text-slate-400 hover:text-blue-500"
+                                            disabled={!canSendGuestMessages}
+                                            className="p-3 hover:bg-white hover:shadow-sm rounded-2xl transition-all text-slate-400 hover:text-blue-500 disabled:opacity-40 disabled:pointer-events-none"
                                         >
                                             <Paperclip className="w-6 h-6" />
                                         </button>
@@ -597,15 +617,20 @@ export function MessagesPage() {
                                                 }
                                             }}
                                             placeholder="Write your message here..."
-                                            className="flex-1 bg-transparent outline-none text-[15px] font-semibold text-slate-700 placeholder:text-slate-300"
+                                            disabled={!canSendGuestMessages}
+                                            className="flex-1 bg-transparent outline-none text-[15px] font-semibold text-slate-700 placeholder:text-slate-300 disabled:opacity-50"
                                         />
-                                        <button className="p-3 hover:bg-white hover:shadow-sm rounded-2xl transition-all text-slate-400 hover:text-amber-500">
+                                        <button
+                                            type="button"
+                                            disabled={!canSendGuestMessages}
+                                            className="p-3 hover:bg-white hover:shadow-sm rounded-2xl transition-all text-slate-400 hover:text-amber-500 disabled:opacity-40 disabled:pointer-events-none"
+                                        >
                                             <Smile className="w-6 h-6" />
                                         </button>
                                         <button
                                             type="button"
                                             onClick={handleSendMessage}
-                                            disabled={!messageInput.trim()}
+                                            disabled={!messageInput.trim() || !canSendGuestMessages}
                                             className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white p-4 rounded-[1.2rem] shadow-lg shadow-blue-100 hover:shadow-blue-200 transition-all active:scale-90 disabled:grayscale disabled:opacity-50"
                                         >
                                             <Send className="w-6 h-6" />

@@ -18,7 +18,12 @@ export const useRoles = () => {
             .getRoles()
             .then((data) => {
                 if (cancelled) return;
-                setState({ roles: Array.isArray(data) ? data : [], loading: false });
+                const roles = Array.isArray(data) ? data : [];
+                // MANAGER là tenant-level role (nhân viên của Host), Platform Admin không quản lý => ẩn hẳn ở màn hình admin này.
+                setState({
+                    roles: roles.filter((r) => (r.name ?? '').toUpperCase() !== 'MANAGER'),
+                    loading: false,
+                });
             })
             .catch((error: any) => {
                 if (cancelled) return;

@@ -1,24 +1,37 @@
 import { useState } from 'react';
 import { useRoles } from '../hooks/useRoles';
 import { useUsers } from '../hooks/useUsers';
-import { userService, roleNameToFilterValue } from '../services/userService';
-import { Shield, Key, ChevronDown, ChevronUp, Users, X } from 'lucide-react';
+import { roleNameToFilterValue } from '../services/userService';
+import { Shield, Key, ChevronDown, ChevronUp, Users, X, Lock } from 'lucide-react';
 import { Role } from '@/types';
+import { partnerPortalPermissionKeysAll } from '../utils/hostConsolePermissionKeys';
+import { useTranslation } from 'react-i18next';
 
 interface RoleManagementViewProps {
     onViewDetail: (role: Role) => void;
 }
 
 export function RoleManagementView({ onViewDetail }: RoleManagementViewProps) {
+    const { i18n } = useTranslation();
+    const isVi = i18n.language?.toLowerCase().startsWith('vi');
     const { roles, loading } = useRoles();
     const [expandedRoleId, setExpandedRoleId] = useState<string | number | null>(null);
     const [membersRole, setMembersRole] = useState<Role | null>(null);
 
+    const isAdminRole = (role: Role) => (role.name ?? '').toUpperCase() === 'ADMIN';
+    const isManagerRole = (role: Role) => (role.name ?? '').toUpperCase() === 'MANAGER';
+
     const toggleExpand = (role: Role) => {
+        if (isAdminRole(role)) return; // ADMIN là quyền tối cao: không chỉnh sửa được
+        const visiblePermissions = (role.permissions ?? []).filter((perm) =>
+            partnerPortalPermissionKeysAll.has((perm.name ?? '').trim().toLowerCase()),
+        );
+        if (visiblePermissions.length === 0) return;
+
         setExpandedRoleId((prev) => (prev === role.id ? null : role.id));
     };
 
-    const isExpanded = (role: Role) => expandedRoleId === role.id;
+    const isExpanded = (role: Role) => expandedRoleId === role.id && !isAdminRole(role);
 
     return (
         <>
@@ -26,7 +39,9 @@ export function RoleManagementView({ onViewDetail }: RoleManagementViewProps) {
                 {loading ? (
                     <p className="text-gray-400 font-medium">Loading roles...</p>
                 ) : (
-                    (roles ?? []).map((role: Role) => (
+                    (roles ?? [])
+                        .filter((role: Role) => !isManagerRole(role)) // MANAGER là tenant-level: Platform Admin không quản lý
+                        .map((role: Role) => (
                         <div key={role.id} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg transition-all flex flex-col">
                             <div className="flex items-center justify-between mb-2">
                                 <span className="p-3 rounded-xl bg-slate-100">
@@ -44,7 +59,9 @@ export function RoleManagementView({ onViewDetail }: RoleManagementViewProps) {
 
                             {isExpanded(role) && (
                                 <div className="space-y-2 mb-4 flex-1 min-h-0">
-                                    {(role.permissions ?? []).map((perm) => (
+                                    {(role.permissions ?? [])
+                                        .filter((perm) => partnerPortalPermissionKeysAll.has((perm.name ?? '').trim().toLowerCase()))
+                                        .map((perm) => (
                                         <div key={perm.id} className="flex items-center gap-2 text-xs font-medium text-gray-500 bg-gray-50 px-3 py-2 rounded-lg">
                                             <Key className="w-3 h-3 text-gray-400 shrink-0" />
                                             {perm.name}
@@ -57,20 +74,30 @@ export function RoleManagementView({ onViewDetail }: RoleManagementViewProps) {
                                 <button
                                     type="button"
                                     onClick={() => toggleExpand(role)}
-                                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm border border-gray-200 text-gray-700 hover:bg-gray-50 transition-all active:scale-[0.98]"
+                                    disabled={isAdminRole(role)}
+                                    title={isAdminRole(role) ? 'Quyền tối cao không thể chỉnh sửa' : undefined}
+                                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm border border-gray-200 text-gray-700 hover:bg-gray-50 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
+                                    {isAdminRole(role) && <Lock className="w-4 h-4" />}
                                     {isExpanded(role) ? (
-                                        <>Thu gọn <ChevronUp className="w-4 h-4" /></>
+                                        <>
+                                            {isVi ? 'Thu gọn' : 'Collapse'} <ChevronUp className="w-4 h-4" />
+                                        </>
                                     ) : (
-                                        <>Xem quyền <ChevronDown className="w-4 h-4" /></>
+                                        <>
+                                            {isVi ? 'Xem quyền' : 'View permissions'} <ChevronDown className="w-4 h-4" />
+                                        </>
                                     )}
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => onViewDetail(role)}
-                                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all active:scale-[0.98]"
+                                    onClick={isAdminRole(role) ? undefined : () => onViewDetail(role)}
+                                    disabled={isAdminRole(role)}
+                                    title={isAdminRole(role) ? 'Quyền tối cao không thể chỉnh sửa' : undefined}
+                                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    Xem chi tiết
+                                    {isAdminRole(role) && <Lock className="w-4 h-4" />}
+                                    {isVi ? 'Xem chi tiết' : 'View details'}
                                 </button>
                             </div>
                         </div>
@@ -95,6 +122,8 @@ function MembersModal({ role, onClose }: { role: Role; onClose: () => void }) {
         size: 10,
         role: filterValue,
     });
+    const { i18n } = useTranslation();
+    const isVi = i18n.language?.toLowerCase().startsWith('vi');
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -103,7 +132,9 @@ function MembersModal({ role, onClose }: { role: Role; onClose: () => void }) {
                 <div className="flex items-center justify-between p-6 border-b border-gray-100">
                     <div className="flex items-center gap-2">
                         <Users className="w-5 h-5 text-gray-500" />
-                        <h3 className="text-lg font-bold text-gray-900">Thành viên · {role.name}</h3>
+                        <h3 className="text-lg font-bold text-gray-900">
+                            {isVi ? 'Thành viên' : 'Members'} · {role.name}
+                        </h3>
                     </div>
                     <button type="button" onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
                         <X className="w-5 h-5 text-gray-500" />
@@ -111,9 +142,9 @@ function MembersModal({ role, onClose }: { role: Role; onClose: () => void }) {
                 </div>
                 <div className="flex-1 overflow-y-auto p-6">
                     {loading ? (
-                        <p className="text-gray-400 text-sm">Đang tải...</p>
+                        <p className="text-gray-400 text-sm">{isVi ? 'Đang tải...' : 'Loading...'}</p>
                     ) : users.length === 0 ? (
-                        <p className="text-gray-500 text-sm">Chưa có thành viên nào.</p>
+                        <p className="text-gray-500 text-sm">{isVi ? 'Chưa có thành viên nào.' : 'No members found.'}</p>
                     ) : (
                         <ul className="space-y-2">
                             {users.map((u) => (
@@ -138,7 +169,7 @@ function MembersModal({ role, onClose }: { role: Role; onClose: () => void }) {
                             disabled={pagination.page === 0}
                             className="px-3 py-1 rounded-lg border border-gray-200 text-sm font-medium disabled:opacity-50"
                         >
-                            Trước
+                            {isVi ? 'Trước' : 'Previous'}
                         </button>
                         <span className="text-xs text-gray-500">
                             {pagination.page + 1} / {pagination.totalPages}
@@ -149,7 +180,7 @@ function MembersModal({ role, onClose }: { role: Role; onClose: () => void }) {
                             disabled={pagination.page >= pagination.totalPages - 1}
                             className="px-3 py-1 rounded-lg border border-gray-200 text-sm font-medium disabled:opacity-50"
                         >
-                            Sau
+                            {isVi ? 'Sau' : 'Next'}
                         </button>
                     </div>
                 )}

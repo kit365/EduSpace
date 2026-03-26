@@ -458,8 +458,10 @@ export const vi = {
             header: {
                 roles: {
                     renter: "Học sinh / Sinh viên",
+                    guest: "Khách",
                     host: "Hoster",
                     staff: "Nhân viên",
+                    manager: "Quản lý",
                     admin: "Admin"
                 },
                 memberSince: "Thành viên từ",
@@ -643,8 +645,10 @@ export const vi = {
             all: "Tất cả",
             super_admin: "Super Admin",
             admin: "Admin",
-            staff: "Nhân viên",
+            manager: "Quản lý",
             host: "Host",
+            guest: "Khách",
+            staff: "Nhân viên",
             renter: "Khách hàng"
         },
         status: {

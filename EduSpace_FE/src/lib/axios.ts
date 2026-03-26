@@ -16,6 +16,8 @@ const apiClient = axios.create({
     },
 });
 
+let refreshPromise: Promise<string | null> | null = null;
+
 /** POST login/refresh/register — never clear session on 401 */
 function isAuthEndpointUrl(url: string): boolean {
     return url.includes('/auth/') || url.includes('/login') || url.includes('/refresh');
@@ -90,23 +92,39 @@ apiClient.interceptors.response.use(
             originalRequest._retry = true;
 
             const refreshToken = useAuthStore.getState().refreshToken;
-            if (refreshToken) {
-                try {
-                    const { data } = await axios.post(`${API_BASE_URL}${AUTH_API.REFRESH}`, {
-                        refreshToken,
-                    });
+            if (!refreshToken) {
+                useAuthStore.getState().clearTokens();
+                return Promise.reject(error);
+            }
 
-                    const payload = data.data;
-                    if (data.success && payload) {
-                        useAuthStore.getState().setTokens(payload);
-                        const bearer = payload.access_token ?? payload.accessToken;
-                        if (typeof bearer === 'string') {
-                            originalRequest.headers.Authorization = `Bearer ${bearer}`;
+            if (!refreshPromise) {
+                refreshPromise = (async () => {
+                    try {
+                        const { data } = await axios.post(`${API_BASE_URL}${AUTH_API.REFRESH}`, {
+                            refreshToken,
+                        });
+                        const payload = data?.data;
+                        if (data?.success && payload) {
+                            useAuthStore.getState().setTokens(payload);
+                            return payload.access_token ?? payload.accessToken ?? null;
                         }
-                        return apiClient(originalRequest);
+                    } catch (refreshError) {
+                        console.error('Refresh token failed', refreshError);
+                    } finally {
+                        refreshPromise = null;
                     }
-                } catch (refreshError) {
-                    console.error('Refresh token failed', refreshError);
+                    useAuthStore.getState().clearTokens();
+                    return null;
+                })();
+            }
+
+            const bearer = await refreshPromise;
+            if (typeof bearer === 'string' && bearer.length > 0) {
+                try {
+                    originalRequest.headers.Authorization = `Bearer ${bearer}`;
+                    return apiClient(originalRequest);
+                } catch {
+                    useAuthStore.getState().clearTokens();
                 }
             }
 

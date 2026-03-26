@@ -57,6 +57,7 @@ public interface RoomMapper {
     @Mapping(target = "propertyId", source = "property.id")
     @Mapping(target = "category", source = "category")
     @Mapping(target = "schedules", ignore = true)
+    @Mapping(target = "timeslots", ignore = true)
     @Mapping(target = "scheduleBufferMinutes", ignore = true)
     @Mapping(target = "scheduleIsOverDay", ignore = true)
     @Mapping(target = "name", expression = "java(TranslationUtil.translate(entity.getNameVi(), entity.getNameEn()))")
