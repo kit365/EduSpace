@@ -94,7 +94,6 @@ const defaultHostPermissionsByRole: Record<string, string[]> = {
         'branch.cleaning.manage',
         'branch.booking.view',
         'branch.booking.manage',
-        'branch.ads.manage',
         'branch.profile.view',
         'branch.profile.manage',
         'branch.staff.view',
@@ -118,7 +117,6 @@ const defaultHostPermissionsByRole: Record<string, string[]> = {
         'branch.cleaning.manage',
         'branch.booking.view',
         'branch.booking.manage',
-        'branch.ads.manage',
         'branch.profile.view',
         'branch.staff.view',
         'rbac.permission.view',
@@ -148,11 +146,20 @@ export const legacyPermissionAliases: Record<string, string[]> = {
     view_dashboard: [],
     view_transactions: [hp?.finance?.view].filter((p): p is string => typeof p === 'string' && p.length > 0),
     manage_reports: [hp?.finance?.manage].filter((p): p is string => typeof p === 'string' && p.length > 0),
+    'branch.utility.manage': [
+        hp?.utility?.view,
+        hp?.utility?.create,
+        hp?.utility?.edit,
+        hp?.utility?.delete,
+    ].filter((p): p is string => typeof p === 'string' && p.length > 0),
+    'branch.deposit_policy.manage': [
+        hp?.depositPolicy?.view,
+        hp?.depositPolicy?.create,
+        hp?.depositPolicy?.edit,
+        hp?.depositPolicy?.delete,
+    ].filter((p): p is string => typeof p === 'string' && p.length > 0),
     manage_kyc: ['branch.profile.manage'],
     'manage-kyc': ['branch.profile.manage'],
-
-    // Marketing / ads (Host)
-    manage_ads: ['branch.ads.manage'],
 };
 
 const roleFallbackEnabled =
@@ -173,12 +180,27 @@ export function resolveHostPermissions(
     token: string | null | undefined,
     hostPermissionsFromAccount?: string[] | null,
 ): Set<string> {
-    const explicitPermissions = getPermissionsFromAccessToken(token);
     const accountPermissions = hostPermissionsFromAccount ?? useAuthStore.getState().hostPermissionsFromAccount;
+    const roles = getRealmRolesFromAccessToken(token).map(normalizeRoleName);
 
+    // Admin always keeps wildcard access for host console utilities.
+    if (roles.includes('ADMIN') || roles.includes('SUPER_ADMIN')) {
+        return new Set<string>(['*']);
+    }
+
+    // For host/manager/staff console, permissions from /accounts/me are source of truth.
+    // Important: even an empty array means "no permission", and must not be mixed with token claims.
+    if (Array.isArray(accountPermissions)) {
+        const expanded = new Set<string>();
+        accountPermissions
+            .filter(Boolean)
+            .forEach((permission) => expandLegacyPermissions(permission).forEach((resolved) => expanded.add(resolved)));
+        return expanded;
+    }
+
+    const explicitPermissions = getPermissionsFromAccessToken(token);
     const mergedRaw = [
         ...explicitPermissions,
-        ...(Array.isArray(accountPermissions) ? accountPermissions : []),
     ].filter(Boolean);
 
     if (mergedRaw.length > 0) {
@@ -192,7 +214,6 @@ export function resolveHostPermissions(
     // Transition mode only: keep role fallback when explicitly enabled via env flag.
     if (!roleFallbackEnabled) return new Set<string>();
 
-    const roles = getRealmRolesFromAccessToken(token).map(normalizeRoleName);
     const merged = new Set<string>();
     for (const role of roles) {
         (defaultHostPermissionsByRole[role] ?? []).forEach((permission) => merged.add(permission));

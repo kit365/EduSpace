@@ -11,6 +11,12 @@ spring:
   jpa:
     show-sql: true
 
+  flyway:
+    # Keep dev startup stable when local schema_history contains old removed versions.
+    # Dev-only: ignore missing and checksum drift from locally edited old migrations.
+    ignore-migration-patterns: "*:missing"
+    validate-on-migrate: false
+
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -39,3 +45,6 @@ keycloak:
   realm: ${KEYCLOAK_REALM:eduspace}
   client-id: ${KEYCLOAK_CLIENT_ID:eduspace-be}
   client-secret: ${KEYCLOAK_CLIENT_SECRET:eduspace-secret}
+
+app:
+  gateway-url: ${API_GATEWAY_URL:http://localhost:8080}

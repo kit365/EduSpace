@@ -1,7 +1,7 @@
 import {
   BookingRequest, DashboardStats, CalendarEvent, HostFinanceSummary,
   StaffMember, PricingConfig, OperatingHour, BlockedSlot,
-  RoomStatusInfo, AdsPackage, AdsSubscription, RoomType, UtilityPrice
+  RoomStatusInfo, RoomType, UtilityPrice
 } from '../types';
 
 // ─── DASHBOARD ────────────────────────────────────────────────
@@ -225,42 +225,6 @@ export const MOCK_HOST_SPACES = [
   { id: 6, name: 'Seminar Hall A', type: 'Event Hall', capacity: 100, price: '1.200.000đ/giờ', status: 'active', branchId: 2, image: 'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?w=400' },
   { id: 7, name: 'Workshop Studio B', type: 'Creative Studio', capacity: 40, price: '350.000đ/giờ', status: 'active', branchId: 2, image: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=400' },
   { id: 8, name: 'Conference Room VIP', type: 'Meeting Room', capacity: 25, price: '850.000đ/giờ', status: 'active', branchId: 2, image: 'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=400' },
-];
-
-// ─── FR-05: ADS PACKAGES ──────────────────────────────────────
-export const ADS_PACKAGES: AdsPackage[] = [
-  {
-    id: 'ADS-SILVER', name: 'Gói Bạc (Silver)', tier: 'silver',
-    price: 500_000, duration: 30,
-    features: [
-      'Gắn nhãn "Đề xuất" trên tin đăng',
-      'Ưu tiên hiển thị trong kết quả tìm kiếm',
-      'Hiển thị trên trang chủ (vị trí thấp)',
-      'Báo cáo lượt xem cơ bản',
-    ],
-    badge: '⭐ Silver', priorityBoost: 20
-  },
-  {
-    id: 'ADS-GOLD', name: 'Gói Vàng (Gold)', tier: 'gold',
-    price: 1_200_000, duration: 30,
-    features: [
-      'Gắn nhãn "Nổi bật" trên tin đăng',
-      'Vị trí hàng đầu trong kết quả tìm kiếm',
-      'Hiển thị trên trang chủ (banner nổi bật)',
-      'Báo cáo phân tích chi tiết (views, clicks, bookings)',
-      'Hỗ trợ chụp ảnh chuyên nghiệp (1 lần)',
-      'Badge Gold trên hồ sơ Host',
-    ],
-    badge: '👑 Gold', priorityBoost: 50
-  }
-];
-
-export const HOST_ADS_SUBSCRIPTIONS: AdsSubscription[] = [
-  {
-    id: 'SUB-001', packageId: 'ADS-SILVER', packageName: 'Gói Bạc', tier: 'silver',
-    spaceId: 1, spaceName: 'Studio A-12',
-    startDate: '2024-12-01', endDate: '2024-12-31', status: 'active'
-  }
 ];
 
 // ─── ROOM TYPES ────────────────────────────────────────────────

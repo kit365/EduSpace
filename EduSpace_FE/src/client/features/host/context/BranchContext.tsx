@@ -2,7 +2,9 @@ import { createContext, useContext, useState, ReactNode, useEffect, useCallback 
 import { branchService, HostBranch } from '../services/branchService';
 import apiClient from '@/lib/axios';
 import { ACCOUNT_API } from '@/config/api/account';
+import { fetchMyManagerScope } from '../services/hostStaffService';
 import { useAuthStore } from '@/stores/authStore';
+import { getRealmRolesFromAccessToken, normalizeRoleName } from '@/utils/keycloakTokenRoles';
 
 interface BranchContextType {
     selectedBranch: HostBranch | null;
@@ -26,6 +28,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
     const [selectedBranch, setSelectedBranch] = useState<HostBranch | null>(null);
     const [branches, setBranches] = useState<HostBranch[]>([]);
     const [loadingBranches, setLoadingBranches] = useState(false);
+    const accessToken = useAuthStore((s) => s.accessToken);
 
     async function resolveOwnerAliases(): Promise<string[]> {
         const token = useAuthStore.getState().accessToken;
@@ -45,19 +48,35 @@ export function BranchProvider({ children }: { children: ReactNode }) {
     const refreshBranches = useCallback(async () => {
         setLoadingBranches(true);
         try {
-            const ownerAliases = await resolveOwnerAliases();
-            const list = ownerAliases.length > 0
-                ? await branchService.listByOwner(ownerAliases[0], ownerAliases.slice(1))
-                : [];
+            const roles = getRealmRolesFromAccessToken(accessToken).map(normalizeRoleName);
+            const isManager = roles.includes('MANAGER') && !roles.includes('HOST');
+            let list: HostBranch[] = [];
+            if (isManager) {
+                const scope = await fetchMyManagerScope().catch(() => ({ managerScoped: true, branchPropertyId: null }));
+                if (scope.managerScoped && scope.branchPropertyId != null) {
+                    const allBranches = await branchService.listAll();
+                    list = allBranches.filter((b) => b.id === scope.branchPropertyId);
+                } else {
+                    list = [];
+                }
+            } else {
+                const ownerAliases = await resolveOwnerAliases();
+                list = ownerAliases.length > 0
+                    ? await branchService.listByOwner(ownerAliases[0], ownerAliases.slice(1))
+                    : [];
+            }
             setBranches(list);
-            setSelectedBranch((prev) => (prev ? list.find((b) => b.id === prev.id) ?? null : null));
+            setSelectedBranch((prev) => {
+                if (isManager) return list[0] ?? null;
+                return prev ? list.find((b) => b.id === prev.id) ?? null : null;
+            });
         } catch {
             setBranches([]);
             setSelectedBranch(null);
         } finally {
             setLoadingBranches(false);
         }
-    }, []);
+    }, [accessToken]);
 
     useEffect(() => {
         void refreshBranches();

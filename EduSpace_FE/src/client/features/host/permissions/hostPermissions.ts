@@ -46,6 +46,18 @@ export const hostPermissions = {
         export: 'branch.finance.export',
         payoutCreate: 'branch.finance.payout.create',
     },
+    utility: {
+        view: 'branch.utility.view',
+        create: 'branch.utility.create',
+        edit: 'branch.utility.edit',
+        delete: 'branch.utility.delete',
+    },
+    depositPolicy: {
+        view: 'branch.deposit_policy.view',
+        create: 'branch.deposit_policy.create',
+        edit: 'branch.deposit_policy.edit',
+        delete: 'branch.deposit_policy.delete',
+    },
     rbacTemplate: {
         view: 'rbac.template.view',
         manage: 'rbac.template.manage',
@@ -69,10 +81,6 @@ export const hostPermissions = {
         view: 'view_messages',
         manage: 'manage_messages',
     },
-    /** Quảng cáo Host (tách khỏi Lịch & giờ / branch.booking.manage) */
-    ads: {
-        manage: 'branch.ads.manage',
-    },
 } as const;
 
 export const hostMenuPermissions = {
@@ -85,7 +93,8 @@ export const hostMenuPermissions = {
     checkout: hostPermissions.operations.checkout,
     staff: hostPermissions.staff.view,
     finance: hostPermissions.finance.view,
-    ads: hostPermissions.ads.manage,
+    utility: hostPermissions.utility.view,
+    depositPolicy: hostPermissions.depositPolicy.view,
     kyc: 'branch.profile.manage',
     messages: hostPermissions.messages.view,
 } as const;

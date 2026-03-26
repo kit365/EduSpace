@@ -16,5 +16,6 @@ export const ACCOUNT_API = {
     ME_SUPPORT_PRESENCE: `${BASE_ACCOUNT}/me/support-presence`,
     /** Host Console — Level-2 STAFF RBAC (list/create/update permissions/remove). */
     HOST_STAFF: `${BASE_ACCOUNT}/host/staff`,
+  HOST_STAFF_ME_SCOPE: `${BASE_ACCOUNT}/host/staff/me/scope`,
   PUBLIC_SUPPORT_ONLINE_STAFF_COUNT: `${BASE_ACCOUNT}/public/support/online-staff-count`,
 } as const;

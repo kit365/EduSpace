@@ -46,9 +46,16 @@ INSERT INTO permissions (name, description, group_name) VALUES
 ('branch.cleaning.manage', 'Manage cleaning tasks and room housekeeping workflow.', 'branch.operations'),
 ('branch.booking.view', 'View booking list and booking details.', 'branch.schedule'),
 ('branch.booking.manage', 'Update booking status and booking-related operations.', 'branch.schedule'),
-('branch.ads.manage', 'Manage advertisements and promotions for the branch.', 'branch.marketing'),
 ('branch.finance.view', 'View finance reports and branch transactions.', 'branch.finance'),
 ('branch.finance.manage', 'Manage branch finance settings and sensitive finance operations.', 'branch.finance'),
+('branch.utility.view', 'View utility pricing/configuration for host console.', 'branch.utility'),
+('branch.utility.create', 'Create utility pricing/configuration for host console.', 'branch.utility'),
+('branch.utility.edit', 'Edit utility pricing/configuration for host console.', 'branch.utility'),
+('branch.utility.delete', 'Delete utility pricing/configuration for host console.', 'branch.utility'),
+('branch.deposit_policy.view', 'View booking deposit/refund policy for host console.', 'branch.deposit_policy'),
+('branch.deposit_policy.create', 'Create booking deposit/refund policy for host console.', 'branch.deposit_policy'),
+('branch.deposit_policy.edit', 'Edit booking deposit/refund policy for host console.', 'branch.deposit_policy'),
+('branch.deposit_policy.delete', 'Delete booking deposit/refund policy for host console.', 'branch.deposit_policy'),
 ('view_dashboard', 'View host dashboard summary.', 'Dashboard'),
 ('view_messages', 'View messages and conversations.', 'Messages'),
 ('manage_messages', 'Reply and manage messages.', 'Messages'),
@@ -100,11 +107,18 @@ JOIN permissions p ON p.name IN (
   'branch.cleaning.manage',
   'branch.booking.view',
   'branch.booking.manage',
-  'branch.ads.manage',
   'branch.finance.view',
   'branch.finance.manage',
   'branch.finance.export',
   'branch.finance.payout.create',
+  'branch.utility.view',
+  'branch.utility.create',
+  'branch.utility.edit',
+  'branch.utility.delete',
+  'branch.deposit_policy.view',
+  'branch.deposit_policy.create',
+  'branch.deposit_policy.edit',
+  'branch.deposit_policy.delete',
   'branch.profile.view',
   'branch.profile.manage',
   'branch.staff.view',
@@ -136,9 +150,16 @@ JOIN permissions p ON p.name IN (
   'branch.cleaning.manage',
   'branch.booking.view',
   'branch.booking.manage',
-  'branch.ads.manage',
   'branch.finance.view',
   'branch.finance.export',
+  'branch.utility.view',
+  'branch.utility.create',
+  'branch.utility.edit',
+  'branch.utility.delete',
+  'branch.deposit_policy.view',
+  'branch.deposit_policy.create',
+  'branch.deposit_policy.edit',
+  'branch.deposit_policy.delete',
   'branch.profile.view',
   'rbac.permission.view',
   'rbac.template.view'
@@ -220,13 +241,106 @@ JOIN permissions p_new
   )
 ON CONFLICT (role_id, permission_id) DO NOTHING;
 
--- Host ads: gán branch.ads.manage cho mọi role đã có branch.booking.manage (tách menu Quảng cáo khỏi Lịch & giờ).
+-- Remove ads permission grants from existing roles/templates.
+DELETE FROM permission_template_permissions ptp
+USING permissions p
+WHERE ptp.permission_id = p.id
+  AND p.name = 'branch.ads.manage';
+
+DELETE FROM roles_permissions rp
+USING permissions p
+WHERE rp.permission_id = p.id
+  AND p.name = 'branch.ads.manage';
+
+DELETE FROM permissions
+WHERE name = 'branch.ads.manage';
+
+-- Backfill existing role/template assignments from legacy `branch.utility.manage`
+-- to new granular utility permissions (view/create/edit/delete).
 INSERT INTO roles_permissions (role_id, permission_id)
 SELECT DISTINCT rp.role_id, p_new.id
 FROM roles_permissions rp
 JOIN permissions p_old
   ON p_old.id = rp.permission_id
- AND p_old.name = 'branch.booking.manage'
+ AND p_old.name = 'branch.utility.manage'
 JOIN permissions p_new
-  ON p_new.name = 'branch.ads.manage'
+  ON p_new.name IN (
+    'branch.utility.view',
+    'branch.utility.create',
+    'branch.utility.edit',
+    'branch.utility.delete'
+  )
 ON CONFLICT (role_id, permission_id) DO NOTHING;
+
+INSERT INTO permission_template_permissions (template_id, permission_id)
+SELECT DISTINCT ptp.template_id, p_new.id
+FROM permission_template_permissions ptp
+JOIN permissions p_old
+  ON p_old.id = ptp.permission_id
+ AND p_old.name = 'branch.utility.manage'
+JOIN permissions p_new
+  ON p_new.name IN (
+    'branch.utility.view',
+    'branch.utility.create',
+    'branch.utility.edit',
+    'branch.utility.delete'
+  )
+ON CONFLICT (template_id, permission_id) DO NOTHING;
+
+DELETE FROM roles_permissions rp
+USING permissions p
+WHERE rp.permission_id = p.id
+  AND p.name = 'branch.utility.manage';
+
+DELETE FROM permission_template_permissions ptp
+USING permissions p
+WHERE ptp.permission_id = p.id
+  AND p.name = 'branch.utility.manage';
+
+DELETE FROM permissions
+WHERE name = 'branch.utility.manage';
+
+-- Backfill existing role/template assignments from legacy `branch.deposit_policy.manage`
+-- to new granular deposit policy permissions (view/create/edit/delete).
+INSERT INTO roles_permissions (role_id, permission_id)
+SELECT DISTINCT rp.role_id, p_new.id
+FROM roles_permissions rp
+JOIN permissions p_old
+  ON p_old.id = rp.permission_id
+ AND p_old.name = 'branch.deposit_policy.manage'
+JOIN permissions p_new
+  ON p_new.name IN (
+    'branch.deposit_policy.view',
+    'branch.deposit_policy.create',
+    'branch.deposit_policy.edit',
+    'branch.deposit_policy.delete'
+  )
+ON CONFLICT (role_id, permission_id) DO NOTHING;
+
+INSERT INTO permission_template_permissions (template_id, permission_id)
+SELECT DISTINCT ptp.template_id, p_new.id
+FROM permission_template_permissions ptp
+JOIN permissions p_old
+  ON p_old.id = ptp.permission_id
+ AND p_old.name = 'branch.deposit_policy.manage'
+JOIN permissions p_new
+  ON p_new.name IN (
+    'branch.deposit_policy.view',
+    'branch.deposit_policy.create',
+    'branch.deposit_policy.edit',
+    'branch.deposit_policy.delete'
+  )
+ON CONFLICT (template_id, permission_id) DO NOTHING;
+
+DELETE FROM roles_permissions rp
+USING permissions p
+WHERE rp.permission_id = p.id
+  AND p.name = 'branch.deposit_policy.manage';
+
+DELETE FROM permission_template_permissions ptp
+USING permissions p
+WHERE ptp.permission_id = p.id
+  AND p.name = 'branch.deposit_policy.manage';
+
+DELETE FROM permissions
+WHERE name = 'branch.deposit_policy.manage';

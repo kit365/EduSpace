@@ -2,7 +2,8 @@ package com.eduspace.apigatewayservice.config;
 
 import java.net.ConnectException;
 import java.nio.charset.StandardCharsets;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpStatus;
@@ -16,10 +17,10 @@ import reactor.core.publisher.Mono;
  * Khi upstream (vd. conversation-service :8084) chưa chạy, Netty báo Connection refused.
  * Mặc định Gateway trả 500 + stack trace dài; handler này trả 503 gọn để dev không bị spam ERROR.
  */
-@Slf4j
 @Component
 @Order(-2)
 public class UpstreamConnectErrorWebExceptionHandler implements WebExceptionHandler {
+    private static final Logger log = LoggerFactory.getLogger(UpstreamConnectErrorWebExceptionHandler.class);
 
     private static final byte[] BODY_JSON = """
             {"success":false,"status":503,"code":"SERVICE_UNAVAILABLE","message":"Upstream service unavailable. For /ws or chat, start conversation-service (default port 8084)."}\

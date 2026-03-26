@@ -190,8 +190,25 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
             String errorBody = response.readEntity(String.class);
             response.close();
             log.info("User already exists in Keycloak for {} (409). Resolving id by email. Body: {}", email, errorBody);
-            return findUserIdByEmail(email).orElseThrow(() -> new RuntimeException(
+            String existingKeycloakId = findUserIdByEmail(email).orElseThrow(() -> new RuntimeException(
                     "User exists in Keycloak but id could not be resolved for email: " + email));
+
+            // Important: when local user isn't found but keycloak user already exists,
+            // we must update credentials so invited temporary password works.
+            try {
+                CredentialRepresentation resetCredential = new CredentialRepresentation();
+                resetCredential.setType(CredentialRepresentation.PASSWORD);
+                resetCredential.setValue(password);
+                resetCredential.setTemporary(false);
+                keycloak.realm(realm).users().get(existingKeycloakId).resetPassword(resetCredential);
+            } catch (Exception e) {
+                log.warn("Failed to reset password for existing Keycloak user {} (id={}): {}",
+                        email,
+                        existingKeycloakId,
+                        e.getMessage());
+            }
+
+            return existingKeycloakId;
         }
 
         String errorBody = response.readEntity(String.class);
@@ -373,6 +390,20 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
         } catch (Exception e) {
             log.error("Failed to update password for user: {}", email, e);
             throw new RuntimeException("PASSWORD_UPDATE_FAILED");
+        }
+    }
+
+    @Override
+    public void resetPassword(String keycloakUserId, String newPassword, boolean temporary) {
+        CredentialRepresentation credential = new CredentialRepresentation();
+        credential.setType(CredentialRepresentation.PASSWORD);
+        credential.setValue(newPassword);
+        credential.setTemporary(temporary);
+        try {
+            keycloak.realm(realm).users().get(keycloakUserId).resetPassword(credential);
+        } catch (Exception e) {
+            log.error("Failed to reset password for keycloak user {}", keycloakUserId, e);
+            throw e;
         }
     }
 }

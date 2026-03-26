@@ -60,19 +60,22 @@ export function getPermissionDisplayName(permissionName: string, language?: stri
             return isVi ? 'Tài chính: Tạo yêu cầu rút tiền' : 'Finance: Request withdrawal (payout)';
         return isVi ? `Tài chính: ${rest}` : `Finance: ${rest}`;
     }
+    if (n.startsWith('branch.utility.')) {
+        const action = n.replace('branch.utility.', '');
+        const t = mapAction(action);
+        return isVi ? `Tiện ích: ${t.vi}` : `Utilities: ${t.en}`;
+    }
+    if (n.startsWith('branch.deposit_policy.')) {
+        const action = n.replace('branch.deposit_policy.', '');
+        const t = mapAction(action);
+        return isVi ? `Chính sách đặt cọc: ${t.vi}` : `Deposit policy: ${t.en}`;
+    }
 
     if (n === 'branch.checkin.manage') return isVi ? 'Check-in: Quản lý' : 'Check-in: Manage';
     if (n === 'branch.checkout.manage') return isVi ? 'Check-out: Quản lý' : 'Check-out: Manage';
     if (n === 'branch.room_status.manage') return isVi ? 'Trạng thái phòng: Quản lý' : 'Room status: Manage';
     if (n === 'branch.maintenance.manage') return isVi ? 'Bảo trì: Quản lý' : 'Maintenance: Manage';
     if (n === 'branch.cleaning.manage') return isVi ? 'Vệ sinh: Quản lý' : 'Cleaning: Manage';
-
-    if (n.startsWith('branch.ads.')) {
-        const action = n.replace('branch.ads.', '');
-        const t = mapAction(action);
-        if (action.toLowerCase() === 'manage') return isVi ? 'Quảng cáo: Quản lý' : 'Ads: Manage';
-        return isVi ? `Quảng cáo: ${t.vi}` : `Ads: ${t.en}`;
-    }
 
     if (n.startsWith('branch.booking.')) {
         const action = n.replace('branch.booking.', '');
@@ -150,7 +153,6 @@ export function getPermissionDisplayName(permissionName: string, language?: stri
     if (nLegacy === 'manage_reports') return isVi ? 'Báo cáo: Quản lý' : 'Reports: Manage';
 
     if (nLegacy === 'manage_kyc') return isVi ? 'Host & KYC: Quản lý KYC' : 'Host & KYC: Manage KYC';
-    if (nLegacy === 'manage_ads') return isVi ? 'Marketing: Quản lý quảng cáo' : 'Marketing: Manage ads';
 
     if (nLegacy === 'view_dashboard') return isVi ? 'Dashboard: Xem' : 'Dashboard: View';
     if (nLegacy === 'view_messages') return isVi ? 'Tin nhắn: Xem' : 'Messages: View';
@@ -190,10 +192,6 @@ export function getPermissionDisplayDescription(permissionName: string, descript
                 : 'Update booking status and related booking operations.';
     }
 
-    if (n === 'branch.ads.manage')
-        return isVi
-            ? 'Mục “Quảng cáo” trên Host Console (tách khỏi Đặt phòng / Lịch & giờ).'
-            : 'Host sidebar “Ads” (separate from Bookings / Schedule).';
 
     if (n === 'view_rooms') return isVi ? 'Duyệt danh sách phòng và xem các listing.' : 'Browse rooms and listings.';
     if (n === 'edit_rooms') return isVi ? 'Tạo và sửa các listing phòng.' : 'Create and edit room listings.';
@@ -226,6 +224,36 @@ export function getPermissionDisplayDescription(permissionName: string, descript
             return isVi
                 ? 'Tạo yêu cầu rút tiền (payout) — tương ứng nút “Yêu cầu rút tiền” trên Host.'
                 : 'Create a withdrawal/payout request — same as the “Request withdrawal” action on Host.';
+    }
+    if (n.startsWith('branch.utility.')) {
+        const action = n.replace('branch.utility.', '');
+        if (action === 'view')
+            return isVi ? 'Xem danh sách/cấu hình tiện ích trên Host Console.' : 'View utility list/configuration on Host Console.';
+        if (action === 'create')
+            return isVi ? 'Tạo tiện ích mới cho chi nhánh/phòng trên Host Console.' : 'Create new utilities for branch/room on Host Console.';
+        if (action === 'edit')
+            return isVi ? 'Cập nhật thông tin và giá tiện ích trên Host Console.' : 'Update utility details and pricing on Host Console.';
+        if (action === 'delete')
+            return isVi ? 'Xóa tiện ích trên Host Console.' : 'Delete utilities on Host Console.';
+    }
+    if (n.startsWith('branch.deposit_policy.')) {
+        const action = n.replace('branch.deposit_policy.', '');
+        if (action === 'view')
+            return isVi
+                ? 'Xem danh sách chính sách đặt cọc/hoàn cọc trên Host Console.'
+                : 'View booking deposit/refund policy list on Host Console.';
+        if (action === 'create')
+            return isVi
+                ? 'Tạo chính sách đặt cọc/hoàn cọc trên Host Console.'
+                : 'Create booking deposit/refund policies on Host Console.';
+        if (action === 'edit')
+            return isVi
+                ? 'Cập nhật chính sách đặt cọc/hoàn cọc trên Host Console.'
+                : 'Update booking deposit/refund policies on Host Console.';
+        if (action === 'delete')
+            return isVi
+                ? 'Xóa chính sách đặt cọc/hoàn cọc trên Host Console.'
+                : 'Delete booking deposit/refund policies on Host Console.';
     }
 
     if (n === 'view_revenue') return isVi ? 'Truy cập dashboard tài chính và báo cáo.' : 'Access financial dashboard and reports.';
@@ -271,7 +299,6 @@ export function getPermissionDisplayDescription(permissionName: string, descript
 
     if (n === 'view_dashboard') return isVi ? 'Xem tổng quan dashboard hệ thống.' : 'View system dashboard summary.';
     if (n === 'manage_kyc') return isVi ? 'Quản lý & duyệt KYC người dùng.' : 'Review and approve user KYC.';
-    if (n === 'manage_ads') return isVi ? 'Quản lý quảng cáo và các chiến dịch/khuyến mãi.' : 'Manage advertisements and promotions.';
     if (n === 'view_messages') return isVi ? 'Xem tin nhắn hỗ trợ và tin nhắn quản trị.' : 'View support and admin messages.';
     if (n === 'manage_messages') return isVi ? 'Quản lý và trả lời tin nhắn.' : 'Manage and reply to messages.';
 
@@ -305,11 +332,12 @@ export function getPermissionGroupDisplayName(groupName: string, language?: stri
     if (gl === 'branch.room') return isVi ? 'Phòng' : 'Rooms';
     if (gl === 'branch.branch') return isVi ? 'Chi nhánh' : 'Branches';
     if (gl === 'branch.finance') return isVi ? 'Tài chính' : 'Finance';
+    if (gl === 'branch.utility') return isVi ? 'Tiện ích' : 'Utilities';
+    if (gl === 'branch.deposit_policy') return isVi ? 'Chính sách đặt cọc' : 'Deposit Policy';
     if (gl === 'branch.operations') return isVi ? 'Vận hành' : 'Operations';
     if (gl === 'branch.schedule') return isVi ? 'Đặt phòng' : 'Bookings';
     if (gl === 'branch.settings') return isVi ? 'Hồ sơ & KYC' : 'Profile & KYC';
     if (gl === 'branch.staff') return isVi ? 'Nhân viên' : 'Staff';
-    if (gl === 'branch.marketing') return isVi ? 'Quảng cáo' : 'Ads';
     if (gl === 'rbac') return isVi ? 'RBAC' : 'RBAC';
 
     if (gl === 'reviews') return isVi ? 'Đánh giá' : 'Reviews';
@@ -320,7 +348,6 @@ export function getPermissionGroupDisplayName(groupName: string, language?: stri
     if (gl === 'system') return isVi ? 'Hệ thống' : 'System';
     if (gl === 'loyalty') return isVi ? 'Điểm thưởng' : 'Loyalty';
     if (gl === 'facilities') return isVi ? 'Tiện ích' : 'Facilities';
-    if (gl === 'marketing') return isVi ? 'Tiếp thị' : 'Marketing';
     if (gl === 'content & classrooms') return isVi ? 'Nội dung & Lớp học' : 'Content & Classrooms';
     if (gl === 'finance & payouts') return isVi ? 'Tài chính & Thanh toán' : 'Finance & Payouts';
 

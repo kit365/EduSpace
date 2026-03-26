@@ -1,6 +1,7 @@
 package com.eduspace.apigatewayservice.filter;
 
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpHeaders;
@@ -15,10 +16,10 @@ import reactor.core.publisher.Mono;
  * Log chẩn đoán cho POST /api/v1/auth/login: chạy rất sớm (trước Spring Security trong chuỗi WebFilter).
  * Giúp phân biệt 401 do Gateway Security vs do upstream (account-service) qua log trước/sau request.
  */
-@Slf4j
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class AuthLoginDiagnosticWebFilter implements WebFilter {
+    private static final Logger log = LoggerFactory.getLogger(AuthLoginDiagnosticWebFilter.class);
 
     private static final String LOGIN_SUFFIX = "/api/v1/auth/login";
 

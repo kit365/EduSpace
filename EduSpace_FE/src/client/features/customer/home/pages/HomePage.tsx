@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { CustomerLayout } from '../../../../layouts/CustomerLayout';
-import { HeroSection, FeaturedCategories, HowItWorks, TopRatedSpaces, PromotedSpaces, BecomeHostCTA } from '../components';
+import { HeroSection, FeaturedCategories, HowItWorks, TopRatedSpaces, BecomeHostCTA } from '../components';
 import type { Space } from '@/types/space';
 import { ROUTES } from '@/config/constants';
 
@@ -17,7 +17,6 @@ export function HomePage() {
       <FeaturedCategories />
       <HowItWorks />
       <TopRatedSpaces onSpaceClick={handleSpaceClick} />
-      <PromotedSpaces onSpaceClick={handleSpaceClick} />
       <BecomeHostCTA />
     </CustomerLayout>
   );

@@ -131,4 +131,54 @@ public class EmailServiceImpl implements EmailService {
             throw new IllegalStateException("Failed to send booking confirmation email: " + e.getMessage(), e);
         }
     }
+
+    @Override
+    @Async
+    public void sendManagerAssignedEmail(String toEmail, String fullName, Long branchPropertyId) {
+        if (!StringUtils.hasText(mailUsername)) {
+            log.warn("Skip send manager-assigned email to {}: SMTP not configured", toEmail);
+            return;
+        }
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(fromEmail, displayName);
+            helper.setTo(toEmail);
+            helper.setSubject("EduSpace - Bạn đã được cấp quyền quản lý chi nhánh");
+            String content = String.format(
+                    "Xin chào %s,\n\nTài khoản của bạn đã được cấp quyền Manager cho chi nhánh #%d trên EduSpace Partner Portal.\nVui lòng đăng nhập để bắt đầu quản lý.\n\nTrân trọng,\nEduSpace",
+                    StringUtils.hasText(fullName) ? fullName : toEmail,
+                    branchPropertyId);
+            helper.setText(content, false);
+            mailSender.send(message);
+        } catch (Exception e) {
+            log.error("Failed to send manager-assigned email to {}", toEmail, e);
+        }
+    }
+
+    @Override
+    @Async
+    public void sendManagerInviteEmail(String toEmail, String fullName, Long branchPropertyId, String temporaryPassword) {
+        if (!StringUtils.hasText(mailUsername)) {
+            log.warn("Skip send manager-invite email to {}: SMTP not configured", toEmail);
+            return;
+        }
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(fromEmail, displayName);
+            helper.setTo(toEmail);
+            helper.setSubject("EduSpace - Thư mời quản lý chi nhánh");
+            String content = String.format(
+                    "Xin chào %s,\n\nBạn đã được mời làm Manager cho chi nhánh #%d trên EduSpace Partner Portal.\nMật khẩu tạm thời của bạn là: %s\nVui lòng đăng nhập và đổi mật khẩu ngay sau lần đăng nhập đầu tiên.\n\nTrang đăng nhập: %s\n\nTrân trọng,\nEduSpace",
+                    StringUtils.hasText(fullName) ? fullName : toEmail,
+                    branchPropertyId,
+                    temporaryPassword,
+                    frontendUrl);
+            helper.setText(content, false);
+            mailSender.send(message);
+        } catch (Exception e) {
+            log.error("Failed to send manager-invite email to {}", toEmail, e);
+        }
+    }
 }

@@ -49,8 +49,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuthStore } from '@/stores/authStore';
-import { hasHostPermission } from '@/utils/keycloakTokenRoles';
+import { getRealmRolesFromAccessToken, hasHostPermission, normalizeRoleName } from '@/utils/keycloakTokenRoles';
 import { hostPermissions } from '../permissions/hostPermissions';
+import { fetchMyManagerScope } from '../services/hostStaffService';
 
 const PROPERTY_TYPE_OPTIONS = [
     { value: 'COMMERCIAL_BUILDING', labelKey: 'common.propertyTypes.commercialBuilding' },
@@ -256,7 +257,17 @@ export function BranchesPage() {
                     : Promise.resolve([]),
                 hostPartnerApplicationService.getMyPendingBranchUpdates(),
             ]);
-            setBranches(list);
+            const roles = getRealmRolesFromAccessToken(accessToken).map(normalizeRoleName);
+            const isManager = roles.includes('MANAGER') && !roles.includes('HOST');
+            let scopedList = list;
+            if (isManager) {
+                const scope = await fetchMyManagerScope().catch(() => ({ managerScoped: true, branchPropertyId: null }));
+                scopedList =
+                    scope.managerScoped && scope.branchPropertyId != null
+                        ? list.filter((b) => b.id === scope.branchPropertyId)
+                        : [];
+            }
+            setBranches(scopedList);
             setPendingUpdatePropertyIds(new Set(pendingUpdates.map((item) => item.propertyId).filter((id) => Number.isFinite(id))));
         } catch (error) {
             setBranches([]);
@@ -265,7 +276,7 @@ export function BranchesPage() {
         } finally {
             setLoadingBranches(false);
         }
-    }, []);
+    }, [accessToken]);
 
     useEffect(() => {
         void loadBranches();

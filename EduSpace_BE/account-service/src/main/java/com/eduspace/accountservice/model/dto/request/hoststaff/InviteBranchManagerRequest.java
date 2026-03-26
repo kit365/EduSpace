@@ -22,4 +22,10 @@ public class InviteBranchManagerRequest {
     /** ID chi nhánh (property) thuộc host — khớp room-service. */
     @NotNull
     private Long branchPropertyId;
+
+    /** Optional: họ tên hiển thị khi tạo tài khoản mới. */
+    private String fullName;
+
+    /** Optional: mật khẩu tạm dùng cho lần đăng nhập đầu tiên. */
+    private String temporaryPassword;
 }

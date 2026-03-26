@@ -23,8 +23,9 @@ const usedHostPermissionKeys = [
     hostMenuPermissions.checkout,
     hostMenuPermissions.staff,
     hostMenuPermissions.finance,
+    hostMenuPermissions.utility,
+    hostMenuPermissions.depositPolicy,
     hostMenuPermissions.messages,
-    hostMenuPermissions.ads,
     hostMenuPermissions.kyc,
 
     // Page-level checks (hasHostPermission in host pages)
@@ -46,10 +47,16 @@ const usedHostPermissionKeys = [
     hostPermissions.finance.view,
     hostPermissions.finance.export,
     hostPermissions.finance.payoutCreate,
+    hostPermissions.utility.view,
+    hostPermissions.utility.create,
+    hostPermissions.utility.edit,
+    hostPermissions.utility.delete,
+    hostPermissions.depositPolicy.view,
+    hostPermissions.depositPolicy.create,
+    hostPermissions.depositPolicy.edit,
+    hostPermissions.depositPolicy.delete,
 
     hostPermissions.messages.manage,
-
-    hostPermissions.ads.manage,
 ];
 
 export const partnerPortalPermissionKeysCanonical = new Set(
