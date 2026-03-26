@@ -1,7 +1,7 @@
 import {
   BookingRequest, DashboardStats, CalendarEvent, HostFinanceSummary,
   StaffMember, PricingConfig, OperatingHour, BlockedSlot,
-  RoomStatusInfo, AdsPackage, AdsSubscription, RoomType
+  RoomStatusInfo, AdsPackage, AdsSubscription, RoomType, UtilityPrice
 } from '../types';
 
 // ─── DASHBOARD ────────────────────────────────────────────────
@@ -270,4 +270,12 @@ export const MOCK_ROOM_TYPES: RoomType[] = [
   { id: 'RT-003', name: 'Event Space', description: 'Không gian lớn cho hội thảo và sự kiện', icon: 'Mic', status: 'active', basePrice: 1_000_000 },
   { id: 'RT-004', name: 'Studio', description: 'Phòng quay/chụp ảnh/podcast có cách âm cơ bản', icon: 'Palette', status: 'active', basePrice: 450_000 },
   { id: 'RT-005', name: 'Coworking', description: 'Chỗ ngồi làm việc chung hoặc private office', icon: 'Monitor', status: 'active', basePrice: 220_000 },
+];
+
+// ─── UTILITY PRICES ────────────────────────────────────────────
+export const MOCK_UTILITY_PRICES: UtilityPrice[] = [
+  { id: 'UTL-001', name: 'Tiền điện', price: 4000, unit: 'kWh', description: 'Tính theo chỉ số công tơ điện thực tế tiêu thụ.', status: 'active' },
+  { id: 'UTL-002', name: 'Tiền nước', price: 15000, unit: 'm3', description: 'Tính theo khối lượng nước sử dụng.', status: 'active' },
+  { id: 'UTL-003', name: 'Phí vệ sinh', price: 50000, unit: 'lần', description: 'Chi phí dọn dẹp và khử khuẩn sau mỗi lượt khách.', status: 'active' },
+  { id: 'UTL-004', name: 'Nước suối ban đầu', price: 10000, unit: 'chai', description: 'Phí bổ sung nếu khách sử dụng thêm nước suối.', status: 'active' },
 ];

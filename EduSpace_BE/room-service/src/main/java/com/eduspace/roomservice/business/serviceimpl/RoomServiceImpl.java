@@ -147,6 +147,9 @@ public class RoomServiceImpl implements RoomService {
         PropertyEntity property = propertyRepository.findById(request.getPropertyId())
                 .orElseThrow(() -> new AppException(ErrorCode.PROPERTY_NOT_FOUND));
         RoomEntity room = roomMapper.toEntity(request);
+        // DB column `rooms.is_24_7` is NOT NULL. The scheduling logic now comes from
+        // `room_schedules` (per property), so we always keep it false.
+        room.setIs24_7(false);
         room.setProperty(property);
 
         RoomCategoryEntity category = categoryRepository.findBySlug(request.getCategorySlug())
@@ -183,8 +186,11 @@ public class RoomServiceImpl implements RoomService {
                     AmenityEntity amenity = amenityRepository.findById(amId)
                         .orElseThrow(() -> new AppException(ErrorCode.AMENITY_NOT_FOUND));
                     return RoomAmenityEntity.builder()
+                        .id(new RoomAmenityId(null, amenity.getId()))
                         .room(room)
                         .amenity(amenity)
+                        // Group for UI: POLICY vs TIỆN ÍCH & TRANG THIẾT BỊ
+                        .type(amenity.getType() != null && "POLICY".equalsIgnoreCase(amenity.getType()) ? "POLICY" : "AMENITY")
                         .quantity(1)
                         .build();
                 })
@@ -206,6 +212,8 @@ public class RoomServiceImpl implements RoomService {
         RoomEntity existing = roomRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.ROOM_NOT_FOUND));
 
+        // Keep stable non-null value; UI/business no longer depends on this flag.
+        existing.setIs24_7(false);
         roomMapper.updateEntity(request, existing);
 
         if (request.getCategorySlug() != null) {
@@ -235,8 +243,11 @@ public class RoomServiceImpl implements RoomService {
                     AmenityEntity amenity = amenityRepository.findById(amId)
                         .orElseThrow(() -> new AppException(ErrorCode.AMENITY_NOT_FOUND));
                     return RoomAmenityEntity.builder()
+                        .id(new RoomAmenityId(existing.getId(), amenity.getId()))
                         .room(existing)
                         .amenity(amenity)
+                        // Group for UI: POLICY vs TIỆN ÍCH & TRANG THIẾT BỊ
+                        .type(amenity.getType() != null && "POLICY".equalsIgnoreCase(amenity.getType()) ? "POLICY" : "AMENITY")
                         .quantity(1)
                         .build();
                 })
@@ -280,6 +291,8 @@ public class RoomServiceImpl implements RoomService {
         } catch (IllegalArgumentException ex) {
             throw new AppException(ErrorCode.INVALID_KEY);
         }
+        // Keep stable non-null value; UI/business no longer depends on this flag.
+        room.setIs24_7(false);
         toStore.setApprovalStatus(null);
         toStore.setRejectionNote(null);
         if (toStore.getBookingType() == null) {

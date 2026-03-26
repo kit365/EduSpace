@@ -43,7 +43,14 @@ public class RoomBlockServiceImpl implements RoomBlockService {
         if (room.getProperty() == null) {
             throw new AppException(ErrorCode.PROPERTY_NOT_FOUND);
         }
-        return getByPropertyId(room.getProperty().getId());
+        Integer propertyId = room.getProperty().getId();
+        // Nếu block theo "cơ sở" thì room_id = null → vẫn áp dụng cho mọi phòng.
+        // Nếu block theo "phòng" thì chỉ áp dụng đúng phòng đó.
+        return roomBlockMapper.toResponseList(
+                roomBlockRepository.findByProperty_Id(propertyId).stream()
+                        .filter(b -> b.getRoom() == null || (b.getRoom() != null && b.getRoom().getId().equals(roomId)))
+                        .toList()
+        );
     }
 
     @Override
@@ -59,6 +66,20 @@ public class RoomBlockServiceImpl implements RoomBlockService {
         RoomBlockEntity entity = roomBlockMapper.toEntity(request);
         PropertyEntity property = resolveProperty(request);
         entity.setProperty(property);
+        if (request.getRoomId() != null) {
+            RoomEntity room = roomRepository.findByIdAndDeletedAtIsNull(request.getRoomId())
+                    .orElseThrow(() -> new AppException(ErrorCode.ROOM_NOT_FOUND));
+            if (room.getProperty() == null) {
+                throw new AppException(ErrorCode.PROPERTY_NOT_FOUND);
+            }
+            // Nếu FE gửi propertyId + roomId, đảm bảo khớp về cùng cơ sở.
+            if (request.getPropertyId() != null && !room.getProperty().getId().equals(property.getId())) {
+                throw new AppException(ErrorCode.INVALID_KEY);
+            }
+            entity.setRoom(room);
+        } else {
+            entity.setRoom(null);
+        }
         return roomBlockMapper.toResponse(roomBlockRepository.save(entity));
     }
 
@@ -70,6 +91,20 @@ public class RoomBlockServiceImpl implements RoomBlockService {
         roomBlockMapper.updateEntity(request, existing);
         if (request.getPropertyId() != null || request.getRoomId() != null) {
             existing.setProperty(resolveProperty(request));
+        }
+        if (request.getRoomId() != null) {
+            RoomEntity room = roomRepository.findByIdAndDeletedAtIsNull(request.getRoomId())
+                    .orElseThrow(() -> new AppException(ErrorCode.ROOM_NOT_FOUND));
+            if (room.getProperty() == null) {
+                throw new AppException(ErrorCode.PROPERTY_NOT_FOUND);
+            }
+            if (request.getPropertyId() != null && !room.getProperty().getId().equals(existing.getProperty().getId())) {
+                throw new AppException(ErrorCode.INVALID_KEY);
+            }
+            existing.setRoom(room);
+        } else if (request.getRoomId() == null) {
+            // Cho phép FE tắt room scope (set room_id = null) khi cập nhật.
+            existing.setRoom(null);
         }
         return roomBlockMapper.toResponse(roomBlockRepository.save(existing));
     }

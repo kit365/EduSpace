@@ -20,4 +20,5 @@ public class RoomAmenityResponse {
     String amenityIcon;
     Integer quantity;
     String notes;
+    String type;
 }

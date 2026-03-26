@@ -15,6 +15,16 @@ export function CheckoutPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
+  
+  const formatTimeVi = (hhmm?: string) => {
+    if (!hhmm) return '--:--';
+    const [h, m] = hhmm.split(':').map(Number);
+    if (!Number.isFinite(h) || !Number.isFinite(m)) return hhmm;
+    const suffix = h >= 12 ? 'CH' : 'SA';
+    const hour12 = h % 12 || 12;
+    return `${hour12.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')} ${suffix}`;
+  };
+
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const bookingDetails = (location.state as any)?.bookingDetails;
 
@@ -50,13 +60,16 @@ export function CheckoutPage() {
     dailyBreakdown: [
       { date: 'Th 7, 20/1', hours: 3, basePrice: 500000, appliedPrice: 650000, isWeekend: true }
     ],
-    totalRoomPrice: 1950000,
-    cleaningFee: 50000,
-    serviceFee: 100000,
+    totalRoomPrice: bookingDetails?.roomCost ?? 1950000,
+    cleaningFee: bookingDetails?.cleaningFee ?? 50000,
+    serviceFee: bookingDetails?.serviceFee ?? 100000,
     extraCharges: [],
-    grandTotal: 2100000,
+    grandTotal: (bookingDetails?.total ?? 2100000),
     currency: 'VNĐ'
   });
+
+  const equipmentAddOnTotal = bookingDetails?.equipmentAddOnTotal ?? 0;
+  const selectedEquipmentAmenities = bookingDetails?.selectedEquipmentAmenities ?? [];
 
   const [holdTimer, setHoldTimer] = useState(600); // 10 mins
   const [paymentTimer, setPaymentTimer] = useState(900); // 15 mins
@@ -125,7 +138,13 @@ export function CheckoutPage() {
     }
     setStep((prev) => (prev < 4 ? prev + 1 : prev) as any);
   };
-  const prevStep = () => setStep(prev => (prev > 1 ? prev - 1 : prev) as any);
+  const prevStep = () => {
+    if (step === 1) {
+      navigate(-1);
+    } else {
+      setStep(prev => (prev > 1 ? prev - 1 : prev) as any);
+    }
+  };
 
   useEffect(() => {
     if (
@@ -156,10 +175,10 @@ export function CheckoutPage() {
             },
           ],
           totalRoomPrice: quote.total,
-          cleaningFee: 50000,
-          serviceFee: 100000,
+          cleaningFee: bookingDetails?.cleaningFee ?? 50000,
+          serviceFee: bookingDetails?.serviceFee ?? 100000,
           extraCharges: [],
-          grandTotal: quote.total + 150000,
+          grandTotal: quote.total + 150000 + equipmentAddOnTotal,
           currency: 'VNĐ',
         });
       })
@@ -257,21 +276,15 @@ export function CheckoutPage() {
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t('customer.checkout.schedule.startTime')}</label>
-                      <input
-                        type="time"
-                        value={bookingDetails?.startTime || ''}
-                        readOnly
-                        className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-100 transition-all"
-                      />
+                      <div className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-black text-gray-900 shadow-sm">
+                        {formatTimeVi(bookingDetails?.startTime)}
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t('customer.checkout.schedule.endTime')}</label>
-                      <input
-                        type="time"
-                        value={bookingDetails?.endTime || ''}
-                        readOnly
-                        className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-100 transition-all"
-                      />
+                      <div className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-black text-gray-900 shadow-sm">
+                        {formatTimeVi(bookingDetails?.endTime)}
+                      </div>
                     </div>
                   </div>
 
@@ -333,6 +346,12 @@ export function CheckoutPage() {
                       <span className="font-bold text-gray-400">{t('customer.checkout.pricing.serviceFee')}</span>
                       <span className="font-black text-gray-900">{formatCurrency(pricing.serviceFee)}</span>
                     </div>
+                    {equipmentAddOnTotal > 0 && (
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="font-bold text-gray-400">Tiện ích thêm</span>
+                        <span className="font-black text-gray-900">{formatCurrency(equipmentAddOnTotal)}</span>
+                      </div>
+                    )}
                     <div className="h-px bg-gray-100 my-4" />
                     <div className="flex justify-between items-center">
                       <span className="text-xl font-black text-gray-900">{t('customer.checkout.pricing.grandTotal')}</span>
@@ -453,10 +472,9 @@ export function CheckoutPage() {
                 <div className="flex items-center justify-between pt-6">
                   <button
                     onClick={prevStep}
-                    disabled={step === 1}
-                    className={`px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all ${step === 1 ? 'text-gray-200' : 'text-gray-400 hover:text-gray-900'}`}
+                    className="px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all text-gray-400 hover:text-gray-900 flex items-center gap-2 group"
                   >
-                    ← {t('common.goBack')}
+                    <span className="group-hover:-translate-x-1 transition-transform">←</span> {t('common.goBack')}
                   </button>
                   <button
                     onClick={() => {
@@ -519,6 +537,19 @@ export function CheckoutPage() {
                       <span className="text-gray-400">{t('customer.checkout.pricing.serviceFee')}</span>
                       <span className="text-gray-900">{formatCurrency(pricing.serviceFee)}</span>
                     </div>
+
+                    {selectedEquipmentAmenities.length > 0 && (
+                      <div className="pt-3 border-t border-gray-50 space-y-2">
+                        <div className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-2">Tiện ích thêm</div>
+                        {selectedEquipmentAmenities.map((amn: any, idx: number) => (
+                          <div key={idx} className="flex justify-between text-[11px] font-bold">
+                            <span className="text-gray-400">{amn.name}</span>
+                            <span className="text-gray-900">{amn.price > 0 ? formatCurrency(amn.price) : 'Miễn phí'}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
                     <div className="h-px bg-gray-50 my-2" />
                     <div className="flex justify-between items-end">
                       <span className="text-sm font-black text-gray-900">Total</span>

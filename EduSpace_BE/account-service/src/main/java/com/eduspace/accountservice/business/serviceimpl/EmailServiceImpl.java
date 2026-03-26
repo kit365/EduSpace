@@ -5,7 +5,6 @@ import jakarta.mail.internet.MimeMessage;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -88,7 +87,6 @@ public class EmailServiceImpl implements EmailService {
     }
 
     @Override
-    @Async
     public void sendBookingConfirmationEmail(
             String toEmail,
             String recipientName,
@@ -98,21 +96,23 @@ public class EmailServiceImpl implements EmailService {
             LocalDateTime startDateTime,
             LocalDateTime endDateTime) {
         if (!StringUtils.hasText(mailUsername)) {
-            log.warn("Skip booking confirmation email to {}: SMTP not configured (spring.mail.username empty)", toEmail);
-            return;
+            throw new IllegalStateException("SMTP not configured (spring.mail.username empty)");
+        }
+        if (!StringUtils.hasText(toEmail)) {
+            throw new IllegalArgumentException("toEmail is required");
         }
         try {
-            DateTimeFormatter dateFmt = DateTimeFormatter.ofPattern("dd/MM/yyyy").withLocale(Locale.forLanguageTag("vi"));
-            DateTimeFormatter dtFmt =
-                    DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm").withLocale(Locale.forLanguageTag("vi"));
-
             Context context = new Context();
             context.setVariable("recipientName", StringUtils.hasText(recipientName) ? recipientName : "Khách");
             context.setVariable("bookingCode", bookingCode);
-            context.setVariable("roomTitle", StringUtils.hasText(roomTitle) ? roomTitle : "—");
-            context.setVariable("bookingDate", bookingDate != null ? bookingDate.format(dateFmt) : "—");
-            context.setVariable("startDateTime", startDateTime != null ? startDateTime.format(dtFmt) : "—");
-            context.setVariable("endDateTime", endDateTime != null ? endDateTime.format(dtFmt) : "—");
+            context.setVariable("roomTitle", StringUtils.hasText(roomTitle) ? roomTitle : "Phòng");
+            context.setVariable("bookingDate", bookingDate != null ? bookingDate.format(DateTimeFormatter.ISO_LOCAL_DATE) : "");
+            context.setVariable(
+                    "startDateTime",
+                    startDateTime != null ? startDateTime.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) : "");
+            context.setVariable(
+                    "endDateTime",
+                    endDateTime != null ? endDateTime.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) : "");
 
             String htmlContent = templateEngine.process("email/booking-confirmation", context);
 
@@ -125,14 +125,10 @@ public class EmailServiceImpl implements EmailService {
             helper.setText(htmlContent, true);
 
             mailSender.send(message);
-            log.info("[Mail] SUCCESS booking confirmation sent to {}", toEmail);
+            log.info("[Mail] Booking confirmation sent to {}", toEmail);
         } catch (Exception e) {
-            log.error(
-                    "[Mail] FAILED booking confirmation to {} — {} ({})",
-                    toEmail,
-                    e.getMessage(),
-                    e.getClass().getSimpleName(),
-                    e);
+            log.error("[Mail] FAILED booking confirmation to {}: {}", toEmail, e.getMessage(), e);
+            throw new IllegalStateException("Failed to send booking confirmation email: " + e.getMessage(), e);
         }
     }
 }

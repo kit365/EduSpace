@@ -13,6 +13,7 @@ public interface RoomBlockMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "property", ignore = true)
+    @Mapping(target = "room", ignore = true)
     @Mapping(target = "blockType", expression = "java(toBlockTypeString(request.getBlockType()))")
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
@@ -21,6 +22,7 @@ public interface RoomBlockMapper {
     RoomBlockEntity toEntity(RoomBlockRequest request);
 
     @Mapping(target = "propertyId", expression = "java(entity.getProperty() != null ? entity.getProperty().getId() : null)")
+    @Mapping(target = "roomId", expression = "java(entity.getRoom() != null ? entity.getRoom().getId() : null)")
     @Mapping(target = "blockType", expression = "java(toBlockType(entity.getBlockType()))")
     RoomBlockResponse toResponse(RoomBlockEntity entity);
 
@@ -28,6 +30,7 @@ public interface RoomBlockMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "property", ignore = true)
+    @Mapping(target = "room", ignore = true)
     @Mapping(target = "blockType", expression = "java(toBlockTypeString(request.getBlockType()))")
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)

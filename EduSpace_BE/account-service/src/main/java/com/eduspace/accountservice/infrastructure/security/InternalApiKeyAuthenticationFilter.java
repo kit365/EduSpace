@@ -22,6 +22,31 @@ public class InternalApiKeyAuthenticationFilter extends OncePerRequestFilter {
     @Value("${app.internal.api-key:}")
     private String expectedKey;
 
+    /**
+     * Bean này được Spring Boot đăng ký như servlet filter cho mọi URL. Không override thì login và
+     * toàn bộ API trả 401 vì thiếu {@value #HEADER} — chỉ áp dụng cho {@code /api/v1/internal/**}.
+     */
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        return !isInternalApiPath(request);
+    }
+
+    private static boolean isInternalApiPath(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        if (uri == null) {
+            return false;
+        }
+        int q = uri.indexOf('?');
+        if (q >= 0) {
+            uri = uri.substring(0, q);
+        }
+        String contextPath = request.getContextPath();
+        if (StringUtils.hasText(contextPath) && uri.startsWith(contextPath)) {
+            uri = uri.substring(contextPath.length());
+        }
+        return uri.startsWith("/api/v1/internal/");
+    }
+
     @Override
     protected void doFilterInternal(
             HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)

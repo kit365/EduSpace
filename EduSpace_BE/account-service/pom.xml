@@ -29,7 +29,7 @@
     <properties>
         <java.version>21</java.version>
         <spring-cloud.version>2024.0.0</spring-cloud.version>
-        <!-- Override when running: mvn flyway:repair -Dflyway.password=... -->
+        <!-- Defaults for flyway:repair / flyway:migrate; override with -Dflyway.url=... -->
         <flyway.url>jdbc:postgresql://localhost:5432/eduspace_account</flyway.url>
         <flyway.user>eduspace</flyway.user>
         <flyway.password>eduspace_dev_123</flyway.password>
@@ -204,18 +204,6 @@
                 </configuration>
             </plugin>
             <plugin>
-                <groupId>org.flywaydb</groupId>
-                <artifactId>flyway-maven-plugin</artifactId>
-                <configuration>
-                    <url>${flyway.url}</url>
-                    <user>${flyway.user}</user>
-                    <password>${flyway.password}</password>
-                    <locations>
-                        <location>filesystem:${project.basedir}/src/main/resources/db/migration</location>
-                    </locations>
-                </configuration>
-            </plugin>
-            <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>0.8.11</version>
@@ -246,6 +234,19 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+            <!-- One-off: mvn flyway:repair -pl account-service (checksum mismatch after editing applied migrations) -->
+            <plugin>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-maven-plugin</artifactId>
+                <configuration>
+                    <url>${flyway.url}</url>
+                    <user>${flyway.user}</user>
+                    <password>${flyway.password}</password>
+                    <locations>
+                        <location>classpath:db/migration</location>
+                    </locations>
+                </configuration>
             </plugin>
         </plugins>
     </build>

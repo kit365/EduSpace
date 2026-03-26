@@ -62,6 +62,7 @@ public class RoomScheduleServiceImpl implements RoomScheduleService {
                 .toList();
         return PropertyScheduleBundleResponse.builder()
                 .bufferMinutes(p.getScheduleBufferMinutes() != null ? p.getScheduleBufferMinutes() : 0)
+                .bufferTime(p.getScheduleBufferMinutes() != null ? p.getScheduleBufferMinutes() : 0)
                 .isOverDay(Boolean.TRUE.equals(p.getScheduleIsOverDay()))
                 .schedules(schedules)
                 .build();
@@ -108,7 +109,9 @@ public class RoomScheduleServiceImpl implements RoomScheduleService {
         validateScheduleItems(request.getSchedules());
         PropertyEntity property = propertyRepository.findById(propertyId)
                 .orElseThrow(() -> new AppException(ErrorCode.PROPERTY_NOT_FOUND));
-        int bm = request.getBufferMinutes();
+        Integer bm = request.getBufferMinutes();
+        if (bm == null) bm = request.getBufferTime();
+        if (bm == null) bm = 0;
         if (bm < 0 || bm > 24 * 60) {
             throw new AppException(ErrorCode.INVALID_KEY);
         }
@@ -158,35 +161,22 @@ public class RoomScheduleServiceImpl implements RoomScheduleService {
         if (roomScheduleRepository.existsByProperty_Id(propertyId)) {
             return;
         }
-        boolean is247 = Boolean.TRUE.equals(room.getIs24_7());
         PropertyEntity property = propertyRepository.findById(propertyId)
                 .orElseThrow(() -> new AppException(ErrorCode.PROPERTY_NOT_FOUND));
         List<RoomScheduleEntity> rows = new ArrayList<>();
         LocalTime o = LocalTime.of(7, 0);
         LocalTime c = LocalTime.of(22, 0);
-        LocalTime o247 = LocalTime.MIDNIGHT;
-        LocalTime c247 = LocalTime.of(23, 59);
         for (int d = 2; d <= 8; d++) {
-            if (is247) {
-                rows.add(RoomScheduleEntity.builder()
-                        .property(property)
-                        .dayOfWeek(d)
-                        .isOpen(true)
-                        .isOverDay(false)
-                        .openTime(o247)
-                        .closeTime(c247)
-                        .build());
-            } else {
-                boolean open = d <= 7;
-                rows.add(RoomScheduleEntity.builder()
-                        .property(property)
-                        .dayOfWeek(d)
-                        .isOpen(open)
-                        .isOverDay(false)
-                        .openTime(open ? o : null)
-                        .closeTime(open ? c : null)
-                        .build());
-            }
+            // Mặc định: mở từ Thứ 2 đến Thứ 7 (d <= 7), Chủ nhật đóng.
+            boolean open = d <= 7;
+            rows.add(RoomScheduleEntity.builder()
+                    .property(property)
+                    .dayOfWeek(d)
+                    .isOpen(open)
+                    .isOverDay(false)
+                    .openTime(open ? o : null)
+                    .closeTime(open ? c : null)
+                    .build());
         }
         roomScheduleRepository.saveAll(rows);
     }

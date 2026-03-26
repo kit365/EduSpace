@@ -86,6 +86,20 @@ function parseImages(images: string | null): string[] {
   }
 }
 
+function buildGallery(mainImageUrl: string | null | undefined, images: string | null): string[] {
+  const main = (mainImageUrl ?? '').trim();
+  const parsed = parseImages(images);
+  const out: string[] = [];
+  if (main) out.push(main);
+  for (const img of parsed) {
+    const u = (img ?? '').trim();
+    if (!u) continue;
+    if (main && u === main) continue;
+    out.push(u);
+  }
+  return out;
+}
+
 function pickPrimaryRoom(rooms: RoomDto[]): RoomDto | null {
   const active = rooms.filter(
     (r) => isRoomOpenForBooking(r.status) && r.approvalStatus === 'APPROVED' && r.isActive !== false,
@@ -102,18 +116,21 @@ function pickPrimaryRoom(rooms: RoomDto[]): RoomDto | null {
 
 export function propertyToSpace(property: PropertyDto, rooms: RoomDto[] = []): Space {
   const primary = pickPrimaryRoom(rooms);
-  const imgs = primary ? parseImages(primary.images) : [];
-  const logo = property.logo?.trim() || imgs[0] || '/placeholder-space.jpg';
+  const imgs = primary ? buildGallery(primary.mainImageUrl, primary.images) : [];
+  const mainImg = primary?.mainImageUrl?.trim() || '';
+  const logo = mainImg || property.logo?.trim() || imgs[0] || '/placeholder-space.jpg';
 
   return {
     id: property.id,
     slug: primary?.slug,
     name: property.name,
+    facilityName: property.name,
     location: property.addressDetail,
     address: property.addressDetail,
     roomLocationHint: primary?.roomLocationHint ?? undefined,
     capacity: primary?.capacity ?? 0,
     size: primary?.area != null ? Number(primary.area) : undefined,
+    floorNumber: primary?.floorNumber ?? undefined,
     price: roomPricePerHour(primary),
     rating: primary?.avgRating != null ? Number(primary.avgRating) : 0,
     reviewCount: primary?.reviewCount ?? 0,
@@ -128,9 +145,13 @@ export function propertyToSpace(property: PropertyDto, rooms: RoomDto[] = []): S
     rejectionReason: property.rejectionNote ?? undefined,
     submittedAt: property.submittedAt ?? undefined,
     approvedAt: property.approvedAt ?? undefined,
-    is24_7: primary?.is24_7 ?? undefined,
     minDuration: primary?.minDuration ?? undefined,
     stepUnit: primary?.stepUnit ?? undefined,
+    weekendSurchargeEnabled: primary?.weekendSurchargeEnabled ?? false,
+    weekendSurchargePercent: primary?.weekendSurchargePercent ?? undefined,
+    weekendApplySaturday: primary?.weekendApplySaturday ?? false,
+    weekendApplySunday: primary?.weekendApplySunday ?? false,
+    priceRules: primary?.priceRules || [],
   };
 }
 
@@ -147,24 +168,26 @@ export function propertyToSpaceDetails(
     availableSlots: undefined,
     schedules: rooms[0]?.schedules || [], // Simplification for property level
     timeslots: rooms[0]?.timeslots || [],
-    is24_7: rooms[0]?.is24_7 ?? false,
     roomId: rooms[0]?.id,
   };
 }
 
 /** Một phòng + property → card listing (id = room.id, slug cho URL). */
 export function roomToSpaceCard(room: RoomDto, property: PropertyDto): Space {
-  const imgs = parseImages(room.images);
-  const image = imgs[0] || property.logo?.trim() || '';
+  const imgs = buildGallery(room.mainImageUrl, room.images);
+  const mainImg = room.mainImageUrl?.trim() || '';
+  const image = mainImg || imgs[0] || property.logo?.trim() || '';
   return {
     id: room.id,
     slug: room.slug || undefined,
     name: room.name,
+    facilityName: property.name,
     location: room.location || property.addressDetail,
     roomLocationHint: room.roomLocationHint ?? undefined,
     address: property.addressDetail,
     capacity: room.capacity,
     size: room.area != null ? Number(room.area) : undefined,
+    floorNumber: room.floorNumber ?? undefined,
     price: roomPricePerHour(room),
     rating: room.avgRating != null ? Number(room.avgRating) : 0,
     reviewCount: room.reviewCount ?? 0,
@@ -172,15 +195,21 @@ export function roomToSpaceCard(room: RoomDto, property: PropertyDto): Space {
     images: imgs.length ? imgs : image ? [image] : [],
     verified: property.status === 'VERIFIED',
     type: mapRoomType(room.roomType),
-    amenities: room.amenities?.map(a => a.amenityName) ?? [],
+    amenities: (room.amenities ?? [])
+      .filter((a) => (a.type ?? '').toUpperCase() !== 'POLICY')
+      .map((a) => a.amenityName),
     categoryName: room.category?.name,
     categorySlug: room.category?.slug,
     description: room.description ?? property.description ?? undefined,
     hostId: property.ownerId,
     approvalStatus: mapPropertyStatus(property.status),
-    is24_7: room.is24_7 ?? undefined,
     minDuration: room.minDuration ?? undefined,
     stepUnit: room.stepUnit ?? undefined,
+    weekendSurchargeEnabled: room.weekendSurchargeEnabled ?? false,
+    weekendSurchargePercent: room.weekendSurchargePercent ?? undefined,
+    weekendApplySaturday: room.weekendApplySaturday ?? false,
+    weekendApplySunday: room.weekendApplySunday ?? false,
+    priceRules: room.priceRules || [],
   };
 }
 
@@ -190,12 +219,40 @@ export function roomAndPropertyToSpaceDetails(
   property: PropertyDto,
 ): SpaceDetails {
   const card = roomToSpaceCard(room, property);
-  const imgs = parseImages(room.images);
+  const imgs = buildGallery(room.mainImageUrl, room.images);
   
-  const amenitiesDetailed: SpaceAmenity[] = (room.amenities || []).map(a => ({
-    name: a.amenityName,
-    icon: AMENITY_ICON_MAP[a.amenityIcon.toLowerCase()] || Building2
-  }));
+  const amenitiesDetailed: SpaceAmenity[] = (room.amenities || [])
+    .filter((a) => (a.type ?? '').toUpperCase() !== 'POLICY')
+    .map((a) => ({
+      id: a.amenityId,
+      name: a.amenityName,
+      icon: AMENITY_ICON_MAP[a.amenityIcon.toLowerCase()] || Building2,
+    }));
+
+
+  // "Chính sách cho phòng" is stored as room_amenities with type=POLICY (new flow),
+  // but we keep backward compatibility with existing room_policies rows.
+  const policiesFromRoomPolicies =
+    (room.policies || []).map((p) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      icon: p.logo ?? undefined,
+    }));
+
+  const policiesFromRoomAmenities =
+    (room.amenities || [])
+      .filter((a) => (a.type ?? '').toUpperCase() === 'POLICY')
+      .map((a) => ({
+        id: a.amenityId,
+        name: a.amenityName,
+        description: a.amenityName,
+        icon: undefined as string | undefined,
+      }));
+
+  const policies = Array.from(
+    new Map([...policiesFromRoomPolicies, ...policiesFromRoomAmenities].map((p) => [p.id, p])).values(),
+  );
 
   return {
     ...card,
@@ -205,15 +262,9 @@ export function roomAndPropertyToSpaceDetails(
     additionalInfo: property.description ?? '',
     amenitiesDetailed,
     reviews: [],
-    policies: (room.policies || []).map(p => ({
-      id: p.id,
-      name: p.name,
-      description: p.description,
-      icon: p.logo ?? undefined
-    })),
+    policies,
     schedules: room.schedules || [],
     timeslots: room.timeslots || [],
-    is24_7: room.is24_7 ?? false,
     roomId: room.id,
   };
 }

@@ -1,9 +1,14 @@
 package com.eduspace.bookingservice.business.service;
 
-import com.eduspace.bookingservice.model.entity.TimeSlotEntity;
+import com.eduspace.bookingservice.model.dto.integration.RoomResponsePayload;
 import java.time.LocalDate;
-import java.util.List;
+import java.time.LocalDateTime;
 
 public interface RoomValidationService {
-    void validateRoomBookable(Long roomId, LocalDate bookingDate, List<TimeSlotEntity> requestedSlots);
+
+    /**
+     * Kiểm tra phòng có thể đặt trong khung giờ; trả về payload phòng (dùng cho mail / hiển thị).
+     */
+    RoomResponsePayload validateRoomBookableAndGetRoom(
+            Long roomId, LocalDate bookingDate, LocalDateTime startDateTime, LocalDateTime endDateTime);
 }

@@ -37,21 +37,17 @@ export function AuthPage() {
           if (code === 'REQUIRE_2FA') {
             setShowOtp(true);
             setLoginData(data);
-            toast.info('Please enter your 2FA code');
+            toast.info('Vui lòng nhập mã xác thực 2 bước của bạn.');
           } else if (code === 'INVALID_2FA_CODE') {
-            toast.error('Invalid 2FA code. Please try again.');
+            toast.error('Mã xác thực không đúng. Vui lòng thử lại.');
           } else if (code === 'EMAIL_NOT_VERIFIED') {
-            toast.error(
-              err.response?.data?.message ||
-                'Vui lòng xác thực email trước khi đăng nhập (kiểm tra hộp thư).',
-            );
+            toast.error('Email chưa được xác thực. Vui lòng kiểm tra hộp thư và xác thực email trước khi đăng nhập.');
           } else if (code === 'KEYCLOAK_UNAVAILABLE') {
-            toast.error(
-              err.response?.data?.message ||
-                'Không kết nối được Keycloak. Chạy Keycloak (docker compose) và kiểm tra KEYCLOAK_SERVER_URL / cổng.',
-            );
+            toast.error('Hệ thống xác thực đang không khả dụng. Vui lòng thử lại sau.');
+          } else if (code === 'UNAUTHORIZED' || err.response?.status === 401) {
+            toast.error('Email hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại.');
           } else {
-            toast.error(err.response?.data?.message || err.message || 'Login failed');
+            toast.error(err.response?.data?.message || err.message || 'Đăng nhập thất bại. Vui lòng thử lại.');
           }
         },
       }

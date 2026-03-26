@@ -1,5 +1,8 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { branchService, HostBranch } from '../services/branchService';
+import apiClient from '@/lib/axios';
+import { ACCOUNT_API } from '@/config/api/account';
+import { useAuthStore } from '@/stores/authStore';
 
 interface BranchContextType {
     selectedBranch: HostBranch | null;
@@ -24,10 +27,28 @@ export function BranchProvider({ children }: { children: ReactNode }) {
     const [branches, setBranches] = useState<HostBranch[]>([]);
     const [loadingBranches, setLoadingBranches] = useState(false);
 
+    async function resolveOwnerAliases(): Promise<string[]> {
+        const token = useAuthStore.getState().accessToken;
+        if (!token) return [];
+        try {
+            const me = await apiClient.get(ACCOUNT_API.ME);
+            const payload = (me as any)?.data ?? (me as any) ?? {};
+            const ownerIds = [payload.id, payload.keycloakId]
+                .map((v) => (typeof v === 'string' ? v.trim() : ''))
+                .filter((v) => v.length > 0);
+            return Array.from(new Set(ownerIds));
+        } catch {
+            return [];
+        }
+    }
+
     const refreshBranches = useCallback(async () => {
         setLoadingBranches(true);
         try {
-            const list = await branchService.listAll();
+            const ownerAliases = await resolveOwnerAliases();
+            const list = ownerAliases.length > 0
+                ? await branchService.listByOwner(ownerAliases[0], ownerAliases.slice(1))
+                : [];
             setBranches(list);
             setSelectedBranch((prev) => (prev ? list.find((b) => b.id === prev.id) ?? null : null));
         } catch {

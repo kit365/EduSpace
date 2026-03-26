@@ -1,4 +1,4 @@
--- Khôi phục mô hình đặt phòng theo slot (bảng + cột) sau V4 — code hiện tại vẫn map BookingTimeSlotEntity / TimeSlotEntity / BookingEntity.slot_id.
+-- Khôi phục bảng/cột slot sau V4 (lịch sử DB). V13 loại bỏ lại; ứng dụng đặt theo start_datetime / end_datetime.
 ALTER TABLE bookings
     ADD COLUMN IF NOT EXISTS slot_id BIGINT;
 

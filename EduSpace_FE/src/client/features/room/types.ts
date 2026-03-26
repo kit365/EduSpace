@@ -107,8 +107,6 @@ export interface RoomCreateRequest {
   area?: number | null;
   roomNumber?: string | null;
   floorNumber?: string | null;
-  /** JSON key khớp field Java `is24_7` */
-  is24_7?: boolean;
   pricePerHour?: number | null;
   pricePerDay?: number | null;
   /** Legacy from BE, kept for compatibility only. */
@@ -124,6 +122,8 @@ export interface RoomCreateRequest {
   mainImageUrl?: string | null;
   descriptionVi?: string | null;
   descriptionEn?: string | null;
+  /** Selected amenities for room_amenities (includes both TIEN ÍCH & TRANG THIẾT BỊ and CHÍNH SÁCH as items with amenities.type='POLICY'). */
+  amenityIds?: number[] | null;
   status?: RoomStatus;
   approvalStatus?: RoomApprovalStatus;
   isActive?: boolean;
@@ -188,8 +188,6 @@ export interface RoomDto {
   roomLocationHint?: string | null;
   roomNumber?: string | null;
   floorNumber?: string | null;
-  /** JSON key khớp BE `is24_7` */
-  is24_7?: boolean | null;
   /** Từ property: phút nghỉ giữa các slot (turnover). */
   scheduleBufferMinutes?: number | null;
   /** Từ property: cho phép sinh slot trên toàn ngày. */
@@ -275,8 +273,7 @@ export interface AmenityDto {
   icon: string;
   type: 'EQUIPMENT' | 'SERVICE' | 'FEATURE' | string;
   position: number;
-  /** VNĐ — cột price (V21) */
-  price?: number | null;
+  price: number | null;
 }
 
 export interface AmenityCreateRequest {
@@ -285,6 +282,7 @@ export interface AmenityCreateRequest {
   icon: string;
   type: 'BASIC' | 'EQUIPMENT' | 'SERVICE' | 'FEATURE' | 'POLICY';
   position?: number | null;
+  price?: number | null;
 }
 
 export interface RoomAmenityDto {
@@ -294,6 +292,8 @@ export interface RoomAmenityDto {
   amenityIcon: string;
   quantity: number;
   notes?: string | null;
+  /** Grouping type from BE: POLICY vs AMENITY */
+  type?: string;
 }
 
 export interface RoomPolicyDto {

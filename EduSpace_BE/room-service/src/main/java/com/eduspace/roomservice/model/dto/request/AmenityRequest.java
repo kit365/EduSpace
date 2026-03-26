@@ -21,6 +21,5 @@ public class AmenityRequest {
     AmenityType type;
     Integer position;
 
-    /** VNĐ — tiện ích tính phí (V21). */
     Long price;
 }

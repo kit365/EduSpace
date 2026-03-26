@@ -19,13 +19,11 @@ public class BookingResponse {
     private LocalDate checkInDate;
     private LocalDate checkOutDate;
     private LocalDate bookingDate;
-    private Long slotId;
     private Integer durationValue;
     private DurationUnit durationUnit;
     private LocalDateTime startDateTime;
     private LocalDateTime endDateTime;
     private java.math.BigDecimal totalPrice;
-    private List<TimeSlotSummaryResponse> slots;
     private List<BookingExtraAmenityResponse> extraAmenities;
     private BookingStatus status;
     private LocalDateTime createdAt;

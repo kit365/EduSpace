@@ -3,6 +3,7 @@ package com.eduspace.accountservice.business.serviceimpl;
 import com.eduspace.accountservice.business.service.AuthService;
 import com.eduspace.accountservice.business.service.EmailService;
 import com.eduspace.accountservice.business.service.KeycloakUserService;
+import com.eduspace.accountservice.common.enums.PartnerAppStatus;
 import com.eduspace.accountservice.common.enums.Role;
 import com.eduspace.accountservice.exception.AppException;
 import com.eduspace.accountservice.exception.ErrorCode;
@@ -23,6 +24,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import jakarta.ws.rs.NotFoundException;
+import org.springframework.util.StringUtils;
 
 import java.util.Set;
 import java.util.UUID;
@@ -51,6 +54,8 @@ public class AuthServiceImpl implements AuthService {
         UserEntity user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
+        recoverHostRoleIfApproved(user);
+
         if (Boolean.FALSE.equals(user.getIsEmailVerified())) {
             throw new AppException(ErrorCode.EMAIL_NOT_VERIFIED);
         }
@@ -72,6 +77,50 @@ public class AuthServiceImpl implements AuthService {
         }
 
         return keycloakUserService.authenticate(request.getEmail(), request.getPassword(), null);
+    }
+
+    /**
+     * Self-heal legacy inconsistency: approved host application but account still missing HOST role.
+     */
+    private void recoverHostRoleIfApproved(UserEntity user) {
+        if (user == null) {
+            return;
+        }
+        boolean hasHost = user.getRoles().stream()
+                .anyMatch(r -> Role.HOST.getName().equalsIgnoreCase(r.getName()));
+        if (hasHost) {
+            return;
+        }
+
+        var approved = hostPartnerApplicationRepository.findByUserIdAndStatus(user.getId(), PartnerAppStatus.APPROVED);
+        if (approved.isEmpty()) {
+            return;
+        }
+
+        String applicantType = approved.get().getApplicantType();
+        if ("BRANCH".equalsIgnoreCase(StringUtils.trimWhitespace(applicantType))) {
+            return;
+        }
+
+        RoleEntity hostRole = roleRepository.findByName(Role.HOST.getName())
+                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND));
+        user.getRoles().add(hostRole);
+        user.setVerificationStatus("VERIFIED");
+        userRepository.save(user);
+
+        try {
+            keycloakUserService.assignRole(user.getKeycloakId(), Role.HOST.getName());
+        } catch (NotFoundException ex) {
+            String resolvedKeycloakId = keycloakUserService.findUserIdByEmail(user.getEmail())
+                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+            if (!resolvedKeycloakId.equals(user.getKeycloakId())) {
+                user.setKeycloakId(resolvedKeycloakId);
+                userRepository.save(user);
+            }
+            keycloakUserService.assignRole(resolvedKeycloakId, Role.HOST.getName());
+        } catch (Exception ex) {
+            log.warn("HOST role recovery failed for {}: {}", user.getEmail(), ex.getMessage());
+        }
     }
 
     @Override
@@ -178,12 +227,28 @@ public class AuthServiceImpl implements AuthService {
             throw new AppException(ErrorCode.VERIFICATION_TOKEN_INVALID);
         }
 
-        // Verify user in Keycloak
-        keycloakUserService.verifyEmail(keycloakId);
-
-        // Update isEmailVerified in Local DB
         UserEntity user = userRepository.findByKeycloakId(keycloakId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        // Verify user in Keycloak. If local keycloakId is stale (e.g. realm re-imported),
+        // recover by email and sync keycloakId instead of returning 500.
+        try {
+            keycloakUserService.verifyEmail(keycloakId);
+        } catch (NotFoundException ex) {
+            log.warn("Keycloak user not found by id={} during verify-email. Trying recovery by email={}",
+                    keycloakId, user.getEmail());
+            String resolvedKeycloakId = keycloakUserService.findUserIdByEmail(user.getEmail())
+                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+            if (!resolvedKeycloakId.equals(user.getKeycloakId())) {
+                user.setKeycloakId(resolvedKeycloakId);
+                userRepository.save(user);
+                log.info("Synced local keycloakId for {} from {} -> {}",
+                        user.getEmail(), keycloakId, resolvedKeycloakId);
+            }
+            keycloakUserService.verifyEmail(resolvedKeycloakId);
+        }
+
+        // Update isEmailVerified in Local DB
         user.setIsEmailVerified(true);
         userRepository.save(user);
 

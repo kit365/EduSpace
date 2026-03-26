@@ -24,20 +24,18 @@ public class CreateBookingRequest {
     @FutureOrPresent
     private LocalDate bookingDate;
 
-    private List<Long> slotIds;
+    @NotBlank
+    private String guestEmail;
 
-    private Long slotId;
+    @NotNull
+    private LocalDateTime startDateTime;
+
+    @NotNull
+    private LocalDateTime endDateTime;
 
     private Integer durationValue;
 
     private DurationUnit durationUnit;
-
-    /** Liên hệ / xác nhận (bắt buộc ở DB; có thể bỏ trống khi đặt theo slot → dùng fallback ở service). */
-    private String guestEmail;
-
-    /** Khoảng thời gian tuyệt đối (luồng đặt theo giờ / orchestration). */
-    private LocalDateTime startDateTime;
-    private LocalDateTime endDateTime;
 
     private List<BookingExtraAmenityRequest> extraAmenities;
 }

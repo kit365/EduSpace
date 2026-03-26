@@ -36,7 +36,6 @@ public class RoomRequest {
     BigDecimal area;
     String roomNumber;
     String floorNumber;
-    Boolean is24_7;
     BigDecimal pricePerHour;
     BigDecimal pricePerDay;
     @Deprecated

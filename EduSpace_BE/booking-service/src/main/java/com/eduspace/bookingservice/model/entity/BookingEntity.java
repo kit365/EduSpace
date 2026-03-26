@@ -45,9 +45,6 @@ public class BookingEntity {
     @Column(name = "check_out_date", nullable = false)
     private LocalDate checkOutDate;
 
-    @Column(name = "slot_id")
-    private Long slotId;
-
     @Column(name = "booking_date")
     private LocalDate bookingDate;
 
