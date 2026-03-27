@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { User, Lock, Bell, CreditCard, Loader2, FileText, Users, UserPlus, Download, Trash2, ClipboardList } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CustomerLayout } from '../../../../layouts/CustomerLayout';
 import { PersonalInfoTab, SecurityTab, NotificationsTab, PaymentMethodsTab, HostPartnerApplicationTab } from '../components';
@@ -8,19 +8,44 @@ import { TeamsTab, TeamMemberTab, DataExportTab, DeleteAccountTab } from '../com
 import { NOTIFICATION_SETTINGS, PAYMENT_METHODS } from '../data/mockData';
 import { NotificationSettings } from '../types';
 import { useProfile } from '../hooks/useProfile';
+import { useAuthStore } from '@/stores/authStore';
+import { canAccessHostConsole, getRealmRolesFromAccessToken } from '@/utils/keycloakTokenRoles';
 
 export function ProfilePage() {
   const { t } = useTranslation();
   const { profile, loading, updateProfile } = useProfile();
   const navigate = useNavigate();
+  const accessToken = useAuthStore((s) => s.accessToken);
   const [activeTab, setActiveTab] = useState('personal');
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(NOTIFICATION_SETTINGS);
+  const isHostConsoleUser = canAccessHostConsole(getRealmRolesFromAccessToken(accessToken));
 
-  if (loading || !profile) {
+  if (isHostConsoleUser) {
+    return <Navigate to="/rental/profile" replace />;
+  }
+
+  if (loading) {
     return (
       <CustomerLayout>
         <div className="min-h-[70vh] flex items-center justify-center">
           <Loader2 className="w-12 h-12 text-red-500 animate-spin" />
+        </div>
+      </CustomerLayout>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <CustomerLayout>
+        <div className="min-h-[70vh] flex flex-col items-center justify-center gap-3 text-center">
+          <p className="text-sm font-semibold text-slate-600">Không tải được thông tin hồ sơ.</p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold"
+          >
+            Tải lại trang
+          </button>
         </div>
       </CustomerLayout>
     );
