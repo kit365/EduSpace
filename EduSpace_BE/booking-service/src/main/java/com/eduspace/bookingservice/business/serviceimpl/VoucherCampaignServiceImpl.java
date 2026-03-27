@@ -5,6 +5,8 @@ import com.eduspace.bookingservice.model.dto.request.CreateVoucherCampaignReques
 import com.eduspace.bookingservice.model.dto.response.VoucherCampaignResponse;
 import com.eduspace.bookingservice.model.entity.VoucherCampaignEntity;
 import com.eduspace.bookingservice.persistence.repository.VoucherCampaignRepository;
+import com.eduspace.bookingservice.persistence.repository.VoucherRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -19,6 +21,7 @@ import java.util.List;
 public class VoucherCampaignServiceImpl implements VoucherCampaignService {
 
     private final VoucherCampaignRepository campaignRepository;
+    private final VoucherRepository voucherRepository;
 
     @Override
     public VoucherCampaignResponse create(CreateVoucherCampaignRequest request) {
@@ -71,10 +74,18 @@ public class VoucherCampaignServiceImpl implements VoucherCampaignService {
     }
 
     @Override
+    @Transactional
     public VoucherCampaignResponse toggleActive(Long id) {
         VoucherCampaignEntity entity = findOrThrow(id);
-        entity.setIsActive(!entity.getIsActive());
-        return toResponse(campaignRepository.save(entity));
+        boolean newStatus = !entity.getIsActive();
+        entity.setIsActive(newStatus);
+        VoucherCampaignEntity saved = campaignRepository.save(entity);
+
+        // Cascade: bật/tắt toàn bộ voucher thuộc campaign này
+        voucherRepository.updateIsActiveByCampaignId(id, newStatus);
+        log.info("Toggled campaign id={} → isActive={}, cascaded to all vouchers", id, newStatus);
+
+        return toResponse(saved);
     }
 
     @Override
