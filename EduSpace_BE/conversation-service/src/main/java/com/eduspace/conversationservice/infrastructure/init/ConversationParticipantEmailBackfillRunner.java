@@ -1,7 +1,7 @@
 package com.eduspace.conversationservice.infrastructure.init;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -15,11 +15,14 @@ import org.springframework.stereotype.Component;
 @Component
 @ConditionalOnProperty(name = "app.chat.backfill-email-participants-on-startup", havingValue = "true")
 @Order(100)
-@RequiredArgsConstructor
-@Slf4j
 public class ConversationParticipantEmailBackfillRunner implements ApplicationRunner {
+    private static final Logger log = LoggerFactory.getLogger(ConversationParticipantEmailBackfillRunner.class);
 
     private final ConversationParticipantEmailBackfillService backfillService;
+
+    public ConversationParticipantEmailBackfillRunner(ConversationParticipantEmailBackfillService backfillService) {
+        this.backfillService = backfillService;
+    }
 
     @Override
     public void run(ApplicationArguments args) {

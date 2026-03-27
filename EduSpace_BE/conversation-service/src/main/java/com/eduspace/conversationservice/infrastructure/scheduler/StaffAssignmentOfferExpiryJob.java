@@ -4,8 +4,8 @@ import com.eduspace.conversationservice.business.service.ChatService;
 import com.eduspace.conversationservice.business.service.SagaService;
 import com.eduspace.conversationservice.model.entity.StaffAssignmentOfferEntity;
 import com.eduspace.conversationservice.persistence.repository.StaffAssignmentOfferRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,13 +14,21 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Component
-@RequiredArgsConstructor
-@Slf4j
 public class StaffAssignmentOfferExpiryJob {
+    private static final Logger log = LoggerFactory.getLogger(StaffAssignmentOfferExpiryJob.class);
 
     private final StaffAssignmentOfferRepository offerRepository;
     private final SagaService sagaService;
     private final ChatService chatService;
+
+    public StaffAssignmentOfferExpiryJob(
+            StaffAssignmentOfferRepository offerRepository,
+            SagaService sagaService,
+            ChatService chatService) {
+        this.offerRepository = offerRepository;
+        this.sagaService = sagaService;
+        this.chatService = chatService;
+    }
 
     @Scheduled(fixedDelayString = "${app.support.offer-expiry-check-ms:5000}")
     @Transactional

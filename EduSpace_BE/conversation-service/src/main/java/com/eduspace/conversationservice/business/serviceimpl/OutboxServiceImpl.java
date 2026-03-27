@@ -5,16 +5,19 @@ import com.eduspace.conversationservice.model.entity.OutboxEventEntity;
 import com.eduspace.conversationservice.persistence.repository.OutboxEventRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@RequiredArgsConstructor
 public class OutboxServiceImpl implements OutboxService {
 
     private final OutboxEventRepository outboxEventRepository;
     private final ObjectMapper objectMapper;
+
+    public OutboxServiceImpl(OutboxEventRepository outboxEventRepository, ObjectMapper objectMapper) {
+        this.outboxEventRepository = outboxEventRepository;
+        this.objectMapper = objectMapper;
+    }
 
     @Override
     @Transactional
@@ -32,14 +35,13 @@ public class OutboxServiceImpl implements OutboxService {
             throw new IllegalStateException("Failed to serialize outbox payload", e);
         }
 
-        OutboxEventEntity event = OutboxEventEntity.builder()
-                .aggregateType(aggregateType)
-                .aggregateId(aggregateId)
-                .eventType(eventType)
-                .payload(json)
-                .status(OutboxEventEntity.Status.PENDING)
-                .targetUserId(targetUserId)
-                .build();
+        OutboxEventEntity event = new OutboxEventEntity();
+        event.setAggregateType(aggregateType);
+        event.setAggregateId(aggregateId);
+        event.setEventType(eventType);
+        event.setPayload(json);
+        event.setStatus(OutboxEventEntity.Status.PENDING);
+        event.setTargetUserId(targetUserId);
         outboxEventRepository.save(event);
     }
 }

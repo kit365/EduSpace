@@ -1,9 +1,9 @@
-import apiClient from '../../../../lib/axios';
+import apiClient from '@/lib/axios';
 
-export type CheckinRefundMode = 'FOLLOW_DEPOSIT_REFUND_POLICY' | 'ZERO_DEPOSIT_REFUND';
 export type LateWithinGraceUsageMode = 'DEDUCT_LATE_TIME' | 'KEEP_ORIGINAL_SLOT';
+export type CheckinRefundMode = 'FOLLOW_DEPOSIT_REFUND_POLICY' | 'ZERO_DEPOSIT_REFUND';
 
-export interface CheckinPolicyScenarioDto {
+export interface BookingCheckinPolicyScenarioDto {
   situation: string;
   systemAction: string;
   refund: string;
@@ -21,7 +21,7 @@ export interface BookingCheckinPolicyDto {
   lateOverGraceRefundMode: CheckinRefundMode;
   noShowRefundMode: CheckinRefundMode;
   isActive: boolean;
-  scenarios?: CheckinPolicyScenarioDto[];
+  scenarios: BookingCheckinPolicyScenarioDto[];
 }
 
 export interface UpsertCheckinPolicyPayload {
@@ -43,24 +43,22 @@ function unwrap<T>(res: unknown): T {
   return res as T;
 }
 
-const BASE = '/api/v1/host/checkin-policies';
+const HOST_CHECKIN_POLICY_API = '/api/v1/host/checkin-policies';
 
 export const checkinPolicyService = {
   async listByPropertyId(propertyId: number): Promise<BookingCheckinPolicyDto[]> {
-    const res = await apiClient.get(`${BASE}/property/${propertyId}`);
-    const data = unwrap<BookingCheckinPolicyDto[]>(res);
+    const res = await apiClient.get(HOST_CHECKIN_POLICY_API, { params: { propertyId } });
+    const data = unwrap<BookingCheckinPolicyDto[] | null | undefined>(res);
     return Array.isArray(data) ? data : [];
   },
 
-  async upsertByPropertyId(
-    propertyId: number,
-    payload: UpsertCheckinPolicyPayload,
-  ): Promise<BookingCheckinPolicyDto> {
-    const res = await apiClient.put(`${BASE}/property/${propertyId}`, payload);
+  async upsertByPropertyId(propertyId: number, payload: UpsertCheckinPolicyPayload): Promise<BookingCheckinPolicyDto> {
+    const res = await apiClient.put(`${HOST_CHECKIN_POLICY_API}/${propertyId}`, payload);
     return unwrap<BookingCheckinPolicyDto>(res);
   },
 
   async deleteById(id: number): Promise<void> {
-    await apiClient.delete(`${BASE}/${id}`);
+    await apiClient.delete(`${HOST_CHECKIN_POLICY_API}/${id}`);
   },
 };
+

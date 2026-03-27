@@ -50,5 +50,33 @@ public class SagaInstanceEntity {
         if (startedAt == null) startedAt = LocalDateTime.now();
         if (status == null) status = Status.STARTED;
     }
+
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    public void setSagaType(String sagaType) {
+        this.sagaType = sagaType;
+    }
+
+    public void setStatus(Status status) {
+        this.status = status;
+    }
+
+    public void setCurrentStep(String currentStep) {
+        this.currentStep = currentStep;
+    }
+
+    public void setPayload(String payload) {
+        this.payload = payload;
+    }
+
+    public void setCompletedAt(LocalDateTime completedAt) {
+        this.completedAt = completedAt;
+    }
 }
 

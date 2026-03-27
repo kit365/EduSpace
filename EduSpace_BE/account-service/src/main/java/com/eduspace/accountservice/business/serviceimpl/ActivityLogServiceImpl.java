@@ -10,6 +10,7 @@ import com.eduspace.accountservice.persistence.repository.ActivityLogRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -52,7 +53,11 @@ public class ActivityLogServiceImpl implements ActivityLogService {
     public PageResponse<ActivityLogResponse> getAdminLogs(Pageable pageable, String eventType, String status, String search) {
         Pageable sorted = pageable.getSort().isSorted()
                 ? pageable
-                : Pageable.ofSize(pageable.getPageSize()).withPage(pageable.getPageNumber()).withSort(Sort.by(Sort.Direction.DESC, "createdAt"));
+                : PageRequest.of(
+                        pageable.getPageNumber(),
+                        pageable.getPageSize(),
+                        Sort.by(Sort.Direction.DESC, "createdAt")
+                );
 
         Specification<ActivityLogEntity> spec = Specification.where(withEventType(eventType))
                 .and(withStatus(status))

@@ -12,5 +12,13 @@ import lombok.experimental.FieldDefaults;
 public class AddReactionRequest {
     @NotBlank
     String emoji;
+
+    public String getEmoji() {
+        return emoji;
+    }
+
+    public void setEmoji(String emoji) {
+        this.emoji = emoji;
+    }
 }
 

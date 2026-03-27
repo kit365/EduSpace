@@ -89,5 +89,25 @@ public class VideoCallEntity {
         }
         isSuccessful = true;
     }
+
+    public String getId() { return id; }
+    public String getCallSessionId() { return callSessionId; }
+    public ConversationEntity getConversation() { return conversation; }
+    public String getCallerId() { return callerId; }
+    public String getReceiverId() { return receiverId; }
+    public CallStatus getCallStatus() { return callStatus; }
+    public LocalDateTime getStartedAt() { return startedAt; }
+    public LocalDateTime getEndedAt() { return endedAt; }
+    public Integer getDurationMinutes() { return durationMinutes; }
+    public String getEndReason() { return endReason; }
+    public Boolean getIsSuccessful() { return isSuccessful; }
+
+    public void setCallSessionId(String callSessionId) { this.callSessionId = callSessionId; }
+    public void setConversation(ConversationEntity conversation) { this.conversation = conversation; }
+    public void setCallerId(String callerId) { this.callerId = callerId; }
+    public void setReceiverId(String receiverId) { this.receiverId = receiverId; }
+    public void setCallStatus(CallStatus callStatus) { this.callStatus = callStatus; }
+    public void setEndedAt(LocalDateTime endedAt) { this.endedAt = endedAt; }
+    public void setEndReason(String endReason) { this.endReason = endReason; }
 }
 

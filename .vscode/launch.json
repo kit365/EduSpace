@@ -3,6 +3,13 @@
   "configurations": [
     {
       "type": "java",
+      "name": "ConversationServiceApplication",
+      "request": "launch",
+      "mainClass": "com.eduspace.conversationservice.ConversationServiceApplication",
+      "projectName": ""
+    },
+    {
+      "type": "java",
       "name": "booking-service (dev)",
       "request": "launch",
       "mainClass": "com.eduspace.bookingservice.BookingServiceApplication",

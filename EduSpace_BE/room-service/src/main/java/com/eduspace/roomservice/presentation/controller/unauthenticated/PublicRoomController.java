@@ -29,6 +29,8 @@ public class PublicRoomController {
             @RequestParam(required = false) BigDecimal maxPrice,
             @RequestParam(required = false) List<Integer> amenityIds,
             @RequestParam(required = false) String districtCode,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortDir,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
 
@@ -45,6 +47,9 @@ public class PublicRoomController {
                     .build());
         }
 
+        String effectiveSortBy = (sortBy != null && !sortBy.isBlank()) ? sortBy : "capacity";
+        String effectiveSortDir = (sortDir != null && !sortDir.isBlank()) ? sortDir : "asc";
+
         RoomSearchRequest request = RoomSearchRequest.builder()
                 .categorySlug(category)
                 .keyword(keyword)
@@ -53,6 +58,8 @@ public class PublicRoomController {
                 .maxPrice(maxPrice)
                 .amenityIds(amenityIds)
                 .districtCode(districtCode)
+                .sortBy(effectiveSortBy)
+                .sortDir(effectiveSortDir)
                 .page(page)
                 .size(size)
                 .build();

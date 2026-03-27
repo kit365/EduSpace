@@ -75,5 +75,16 @@ public class OutboxEventEntity {
     public String getEventType() { return eventType; }
     public String getPayload() { return payload; }
     public Status getStatus() { return status; }
+    public Integer getAttempts() { return attempts; }
+
+    public void setAggregateType(String aggregateType) { this.aggregateType = aggregateType; }
+    public void setAggregateId(String aggregateId) { this.aggregateId = aggregateId; }
+    public void setEventType(String eventType) { this.eventType = eventType; }
+    public void setPayload(String payload) { this.payload = payload; }
+    public void setStatus(Status status) { this.status = status; }
+    public void setTargetUserId(String targetUserId) { this.targetUserId = targetUserId; }
+    public void setSentAt(LocalDateTime sentAt) { this.sentAt = sentAt; }
+    public void setAttempts(Integer attempts) { this.attempts = attempts; }
+    public void setLastError(String lastError) { this.lastError = lastError; }
 }
 

@@ -7,8 +7,8 @@ import com.eduspace.conversationservice.model.event.BaseEvent;
 import com.eduspace.conversationservice.model.event.SagaEventConstants;
 import com.eduspace.conversationservice.persistence.repository.ConversationRepository;
 import com.eduspace.conversationservice.persistence.repository.StaffAssignmentOfferRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,10 +18,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-@Slf4j
 @Component
-@RequiredArgsConstructor
 public class StaffAssignmentSagaHandler {
+    private static final Logger log = LoggerFactory.getLogger(StaffAssignmentSagaHandler.class);
 
     /** Short waits before re-querying if the result arrived before commit (defense in depth). */
     private static final int[] RETRY_DELAYS_MS = { 50, 100, 150, 200 };
@@ -32,6 +31,21 @@ public class StaffAssignmentSagaHandler {
     private final SagaService sagaService;
     private final com.eduspace.conversationservice.business.service.OutboxService outboxService;
     private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
+
+    public StaffAssignmentSagaHandler(
+            ConversationRepository conversationRepository,
+            StaffAssignmentOfferRepository offerRepository,
+            ChatService chatService,
+            SagaService sagaService,
+            com.eduspace.conversationservice.business.service.OutboxService outboxService,
+            org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate) {
+        this.conversationRepository = conversationRepository;
+        this.offerRepository = offerRepository;
+        this.chatService = chatService;
+        this.sagaService = sagaService;
+        this.outboxService = outboxService;
+        this.messagingTemplate = messagingTemplate;
+    }
 
     @Transactional
     public void handleAssignmentResult(BaseEvent<String> event) {
@@ -98,14 +112,13 @@ public class StaffAssignmentSagaHandler {
             return;
         }
         LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(offered.ttlSeconds());
-        StaffAssignmentOfferEntity offer = StaffAssignmentOfferEntity.builder()
-                .id(offered.offerId())
-                .conversationId(conversation.getId())
-                .sagaId(sagaId)
-                .staffId(offered.staffId())
-                .status(StaffAssignmentOfferEntity.Status.PENDING)
-                .expiresAt(expiresAt)
-                .build();
+        StaffAssignmentOfferEntity offer = new StaffAssignmentOfferEntity();
+        offer.setId(offered.offerId());
+        offer.setConversationId(conversation.getId());
+        offer.setSagaId(sagaId);
+        offer.setStaffId(offered.staffId());
+        offer.setStatus(StaffAssignmentOfferEntity.Status.PENDING);
+        offer.setExpiresAt(expiresAt);
         offerRepository.save(offer);
 
         Map<String, Object> eventPayload = new HashMap<>();

@@ -18,22 +18,22 @@ public class ConversationMapper {
         if (entity == null) {
             return null;
         }
-        return ConversationResponse.builder()
-                .conversationId(entity.getId())
-                .conversationName(entity.getConversationName())
-                .isActive(entity.getIsActive())
-                .isAdminConversation(entity.getIsAdminConversation())
-                .videoCallEnabled(entity.getVideoCallEnabled())
-                .totalMessageCount(entity.getTotalMessageCount() != null ? entity.getTotalMessageCount() : 0)
-                .callHistoryCount(entity.getCallHistoryCount() != null ? entity.getCallHistoryCount() : 0)
-                .lastActivity(entity.getLastActivity())
-                .createdAt(entity.getCreatedAt())
-                .otherUser(otherUser)
-                .unreadCount(unreadCount)
-                .lastMessage(lastMessagePreview)
-                .isBlocked(entity.isBlocked())
-                .isBlockedByMe(entity.isBlockedBy(currentUserId))
-                .build();
+        ConversationResponse response = new ConversationResponse();
+        response.setConversationId(entity.getId());
+        response.setConversationName(entity.getConversationName());
+        response.setIsActive(entity.getIsActive());
+        response.setIsAdminConversation(entity.getIsAdminConversation());
+        response.setVideoCallEnabled(entity.getVideoCallEnabled());
+        response.setTotalMessageCount(entity.getTotalMessageCount() != null ? entity.getTotalMessageCount() : 0);
+        response.setCallHistoryCount(entity.getCallHistoryCount() != null ? entity.getCallHistoryCount() : 0);
+        response.setLastActivity(entity.getLastActivity());
+        response.setCreatedAt(entity.getCreatedAt());
+        response.setOtherUser(otherUser);
+        response.setUnreadCount(unreadCount);
+        response.setLastMessage(lastMessagePreview);
+        response.setIsBlocked(entity.isBlocked());
+        response.setIsBlockedByMe(entity.isBlockedBy(currentUserId));
+        return response;
     }
 
     public ConversationEntity toEntity(String user1Id,
@@ -42,37 +42,37 @@ public class ConversationMapper {
                                        boolean isAdminConversation,
                                        boolean isActive,
                                        String sagaId) {
-        return ConversationEntity.builder()
-                .user1Id(user1Id)
-                .user2Id(user2Id)
-                .conversationName(conversationName)
-                .isAdminConversation(isAdminConversation)
-                .isActive(isActive)
-                .videoCallEnabled(true)
-                .totalMessageCount(0)
-                .callHistoryCount(0)
-                .lastActivity(LocalDateTime.now())
-                .sagaId(sagaId)
-                .blockedByUser1(false)
-                .blockedByUser2(false)
-                .build();
+        ConversationEntity entity = new ConversationEntity();
+        entity.setUser1Id(user1Id);
+        entity.setUser2Id(user2Id);
+        entity.setConversationName(conversationName);
+        entity.setIsAdminConversation(isAdminConversation);
+        entity.setIsActive(isActive);
+        entity.setVideoCallEnabled(true);
+        entity.setTotalMessageCount(0);
+        entity.setCallHistoryCount(0);
+        entity.setLastActivity(LocalDateTime.now());
+        entity.setSagaId(sagaId);
+        entity.setBlockedByUser1(false);
+        entity.setBlockedByUser2(false);
+        return entity;
     }
 
     public ConversationResponse.OtherUser mapOtherUser(AccountClient.PublicUserProfile profile, boolean isAdminConversation, String supportAdminKeycloakId) {
         if (profile != null) {
-            return ConversationResponse.OtherUser.builder()
-                    .userId(profile.keycloakId())
-                    .fullName(profile.fullName())
-                    .email(profile.email())
-                    .avatarUrl(profile.avatarUrl())
-                    .build();
+            ConversationResponse.OtherUser otherUser = new ConversationResponse.OtherUser();
+            otherUser.setUserId(profile.keycloakId());
+            otherUser.setFullName(profile.fullName());
+            otherUser.setEmail(profile.email());
+            otherUser.setAvatarUrl(profile.avatarUrl());
+            return otherUser;
         } else if (isAdminConversation) {
-            return ConversationResponse.OtherUser.builder()
-                    .userId(supportAdminKeycloakId)
-                    .fullName("EduSpace Support")
-                    .email(null)
-                    .avatarUrl(null)
-                    .build();
+            ConversationResponse.OtherUser otherUser = new ConversationResponse.OtherUser();
+            otherUser.setUserId(supportAdminKeycloakId);
+            otherUser.setFullName("EduSpace Support");
+            otherUser.setEmail(null);
+            otherUser.setAvatarUrl(null);
+            return otherUser;
         }
         return null;
     }

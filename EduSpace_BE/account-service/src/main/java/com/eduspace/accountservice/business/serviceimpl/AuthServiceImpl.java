@@ -116,7 +116,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         String applicantType = approved.get().getApplicantType();
-        if ("BRANCH".equalsIgnoreCase(StringUtils.trimWhitespace(applicantType))) {
+        if (StringUtils.hasText(applicantType) && "BRANCH".equalsIgnoreCase(applicantType.trim())) {
             return;
         }
 

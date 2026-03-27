@@ -1,4 +1,4 @@
-import { RouteObject } from 'react-router-dom';
+import { Navigate, RouteObject } from 'react-router-dom';
 
 // ─── Feature Imports (Feature-Based Architecture) ─────────────────────
 import { DashboardPage } from '../features/dashboard';
@@ -6,7 +6,6 @@ import { UserManagementPage, RoleManagementPage } from '../features/user-managem
 import { HostManagementPage } from '../features/host-management';
 import { VerificationPage } from '../features/host-approvals';
 import { FinancePayoutsPage, TransactionManagementPage } from '../features/finance';
-import { DisputesPage } from '../features/disputes';
 import { SystemSettingsPage, SystemLogsPage } from '../features/system';
 import { RoomManagementPage } from '../features/room-management';
 import { AdminRoomCategoryPage } from '../features/room-categories/pages/AdminRoomCategoryPage';
@@ -35,7 +34,7 @@ export const adminRoutes: RouteObject[] = [
             { path: 'transactions', element: <TransactionManagementPage /> },
 
             // ─── Operations ───────────────────────────────────
-            { path: 'disputes', element: <DisputesPage /> },
+            { path: 'disputes', element: <Navigate to="/admin" replace /> },
             { path: 'bookings', element: <BookingManagementPage /> },
             { path: 'rooms', element: <RoomManagementPage /> },
             { path: 'room-categories', element: <AdminRoomCategoryPage /> },

@@ -72,13 +72,18 @@ export const useAuthStore = create<AuthStore>()(
                     const n = Number(expiresRaw);
                     if (Number.isFinite(n)) expiresIn = n;
                 }
+                const prev = get();
+                const isSilentRefresh = prev.accessToken != null && prev.refreshToken != null;
                 set({
                     accessToken,
                     refreshToken,
                     expiresIn,
                     isAuthenticated: true,
-                    hostPermissionsFromAccount: [],
-                    hostPermissionsLoaded: false,
+                    // Refresh JWT không xóa quyền — tránh PermissionGate / sidebar “nhảy” hoặc redirect nhầm.
+                    hostPermissionsFromAccount: isSilentRefresh
+                        ? prev.hostPermissionsFromAccount
+                        : [],
+                    hostPermissionsLoaded: isSilentRefresh ? prev.hostPermissionsLoaded : false,
                 });
                 try {
                     localStorage.removeItem(GUEST_ID_KEY);

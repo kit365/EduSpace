@@ -14,6 +14,10 @@ public enum SagaType {
         this.value = value;
     }
 
+    public String getValue() {
+        return value;
+    }
+
     public static SagaType fromValue(String value) {
         for (SagaType type : values()) {
             if (type.value.equals(value)) {

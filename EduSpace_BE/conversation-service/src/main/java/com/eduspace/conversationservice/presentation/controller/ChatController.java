@@ -15,8 +15,8 @@ import com.eduspace.conversationservice.model.enums.MessageType;
 import com.eduspace.conversationservice.presentation.constants.ConversationPaths;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
@@ -34,15 +34,27 @@ import java.util.Map;
 
 @RestController
 @RequestMapping(ConversationPaths.BASE_PATH)
-@RequiredArgsConstructor
-@Slf4j
 public class ChatController {
+    private static final Logger log = LoggerFactory.getLogger(ChatController.class);
 
     private final ChatService chatService;
     private final MediaStorageService mediaStorageService;
     private final ObjectMapper objectMapper;
     private final HttpServletRequest httpServletRequest;
     private final JwtConversationUserIdResolver jwtUserIdResolver;
+
+    public ChatController(
+            ChatService chatService,
+            MediaStorageService mediaStorageService,
+            ObjectMapper objectMapper,
+            HttpServletRequest httpServletRequest,
+            JwtConversationUserIdResolver jwtUserIdResolver) {
+        this.chatService = chatService;
+        this.mediaStorageService = mediaStorageService;
+        this.objectMapper = objectMapper;
+        this.httpServletRequest = httpServletRequest;
+        this.jwtUserIdResolver = jwtUserIdResolver;
+    }
 
     private String currentUserId(org.springframework.security.core.Authentication authentication) {
         if (authentication != null) {

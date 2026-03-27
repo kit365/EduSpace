@@ -3,7 +3,6 @@ package com.eduspace.conversationservice.business.serviceimpl;
 import com.eduspace.conversationservice.business.service.VideoCallNotificationService;
 import com.eduspace.conversationservice.model.entity.VideoCallEntity;
 import com.eduspace.conversationservice.infrastructure.constants.WebSocketTopics;
-import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
@@ -11,10 +10,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Service
-@RequiredArgsConstructor
 public class VideoCallNotificationServiceImpl implements VideoCallNotificationService {
 
     private final SimpMessagingTemplate messagingTemplate;
+
+    public VideoCallNotificationServiceImpl(SimpMessagingTemplate messagingTemplate) {
+        this.messagingTemplate = messagingTemplate;
+    }
 
     @Override
     public void sendIncomingCall(VideoCallEntity call) {

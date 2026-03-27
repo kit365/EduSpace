@@ -15,5 +15,21 @@ public class SendMessageRequest {
 
     @Builder.Default
     String messageType = "TEXT";
+
+    public String getContent() {
+        return content;
+    }
+
+    public void setContent(String content) {
+        this.content = content;
+    }
+
+    public String getMessageType() {
+        return messageType;
+    }
+
+    public void setMessageType(String messageType) {
+        this.messageType = messageType;
+    }
 }
 

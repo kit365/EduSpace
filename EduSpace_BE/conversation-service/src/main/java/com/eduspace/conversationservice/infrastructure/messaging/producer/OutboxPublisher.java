@@ -3,8 +3,8 @@ package com.eduspace.conversationservice.infrastructure.messaging.producer;
 import com.eduspace.conversationservice.model.entity.OutboxEventEntity;
 import com.eduspace.conversationservice.persistence.repository.OutboxEventRepository;
 import com.eduspace.conversationservice.infrastructure.config.messaging_kafka.KafkaProperties;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -19,15 +19,23 @@ import java.util.List;
 @Component
 @EnableScheduling
 @ConditionalOnProperty(name = "app.outbox.enabled", havingValue = "true", matchIfMissing = true)
-@RequiredArgsConstructor
-@Slf4j
 public class OutboxPublisher {
+    private static final Logger log = LoggerFactory.getLogger(OutboxPublisher.class);
 
     private static final int BATCH_SIZE = 50;
 
     private final OutboxEventRepository outboxEventRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final KafkaProperties kafkaProperties;
+
+    public OutboxPublisher(
+            OutboxEventRepository outboxEventRepository,
+            KafkaTemplate<String, String> kafkaTemplate,
+            KafkaProperties kafkaProperties) {
+        this.outboxEventRepository = outboxEventRepository;
+        this.kafkaTemplate = kafkaTemplate;
+        this.kafkaProperties = kafkaProperties;
+    }
 
     @Scheduled(fixedDelayString = "${app.outbox.publisher-delay-ms:2000}")
     @Transactional

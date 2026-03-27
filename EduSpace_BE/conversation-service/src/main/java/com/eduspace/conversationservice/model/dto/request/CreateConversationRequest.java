@@ -21,4 +21,20 @@ public class CreateConversationRequest {
     @Builder.Default
     @JsonProperty("isAdminConversation")
     boolean adminConversation = false;
+
+    public String getOtherUserId() {
+        return otherUserId;
+    }
+
+    public void setOtherUserId(String otherUserId) {
+        this.otherUserId = otherUserId;
+    }
+
+    public boolean isAdminConversation() {
+        return adminConversation;
+    }
+
+    public void setAdminConversation(boolean adminConversation) {
+        this.adminConversation = adminConversation;
+    }
 }

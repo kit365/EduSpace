@@ -18,6 +18,8 @@ export const vi = {
         reupload: "Tải lại",
         save: "Lưu",
         book: "Đặt ngay",
+        addToFavorites: "Thêm vào yêu thích",
+        removeFromFavorites: "Bỏ khỏi yêu thích",
         seats: "chỗ",
         perHour: "/ giờ",
         propertyTypes: {
@@ -371,6 +373,16 @@ export const vi = {
                 coworking: "Coworking / Văn phòng riêng"
             }
         },
+        favoritesPage: {
+            title: "Danh sách yêu thích",
+            subtitle: "Những không gian bạn đã lưu để xem sau.",
+            savedBadge_one: "{{count}} không gian đã lưu",
+            savedBadge_other: "{{count}} không gian đã lưu",
+            emptyTitle: "Danh sách yêu thích của bạn đang trống",
+            emptyDesc:
+                "Khám phá các không gian giáo dục tuyệt vời và lưu vào yêu thích để so sánh sau.",
+            browseSpaces: "Tìm không gian"
+        },
         ekyc: {
             title: "Xác thực danh tính (eKYC)",
             description: "Để đảm bảo an toàn cho cộng đồng EduSpace, vui lòng xác thực danh tính bằng CMND/CCCD.",
@@ -601,7 +613,6 @@ export const vi = {
         messages: "Tin nhắn",
         finance: "Tài chính & Thanh toán",
         approvals: "Duyệt & KYC",
-        disputes: "Tranh chấp & Báo cáo",
         hosts: "Quản lý Host",
         users: "Quản lý Người dùng",
         roles: "Vai trò & Quyền",

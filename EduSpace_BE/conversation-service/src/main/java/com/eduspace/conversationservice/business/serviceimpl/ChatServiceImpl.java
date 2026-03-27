@@ -20,7 +20,6 @@ import com.eduspace.conversationservice.persistence.repository.ChatMessageReposi
 import com.eduspace.conversationservice.persistence.repository.ConversationRepository;
 import com.eduspace.conversationservice.persistence.repository.StaffAssignmentOfferRepository;
 import com.eduspace.conversationservice.persistence.repository.VideoCallRepository;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -34,17 +33,17 @@ import com.eduspace.conversationservice.infrastructure.mapper.ConversationMapper
 import com.eduspace.conversationservice.infrastructure.mapper.ChatMessageMapper;
 import com.eduspace.conversationservice.model.event.DomainEventConstants;
 import com.eduspace.conversationservice.infrastructure.constants.WebSocketTopics;
-import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
-@Slf4j
 @Transactional
-@RequiredArgsConstructor
 public class ChatServiceImpl implements ChatService {
+    private static final Logger log = LoggerFactory.getLogger(ChatServiceImpl.class);
 
     private final ConversationRepository conversationRepository;
     private final ChatMessageRepository chatMessageRepository;
@@ -58,6 +57,31 @@ public class ChatServiceImpl implements ChatService {
     private final ConversationMapper conversationMapper;
     private final ChatMessageMapper chatMessageMapper;
     private final StaffAssignmentOfferRepository offerRepository;
+
+    public ChatServiceImpl(
+            ConversationRepository conversationRepository,
+            ChatMessageRepository chatMessageRepository,
+            VideoCallRepository videoCallRepository,
+            AccountClient accountClient,
+            SimpMessagingTemplate messagingTemplate,
+            OutboxService outboxService,
+            SagaService sagaService,
+            ChatEventProducer chatEventProducer,
+            ConversationMapper conversationMapper,
+            ChatMessageMapper chatMessageMapper,
+            StaffAssignmentOfferRepository offerRepository) {
+        this.conversationRepository = conversationRepository;
+        this.chatMessageRepository = chatMessageRepository;
+        this.videoCallRepository = videoCallRepository;
+        this.accountClient = accountClient;
+        this.messagingTemplate = messagingTemplate;
+        this.outboxService = outboxService;
+        this.sagaService = sagaService;
+        this.chatEventProducer = chatEventProducer;
+        this.conversationMapper = conversationMapper;
+        this.chatMessageMapper = chatMessageMapper;
+        this.offerRepository = offerRepository;
+    }
 
     @Value("${app.support.admin-keycloak-id:none}")
     private String supportAdminKeycloakId;
@@ -373,7 +397,7 @@ public class ChatServiceImpl implements ChatService {
                     .forEach(c -> byId.put(c.getId(), toConversationResponse(c, currentUserId)));
         }
         return byId.values().stream()
-                .sorted(Comparator.comparing(ConversationResponse::getLastActivity, Comparator.nullsLast(Comparator.reverseOrder())))
+                .sorted(Comparator.comparing(ConversationResponse::getLastActivityCompat, Comparator.nullsLast(Comparator.reverseOrder())))
                 .toList();
     }
 
@@ -461,14 +485,13 @@ public class ChatServiceImpl implements ChatService {
                 Map.of("conversationId", conversationId, "senderUserId", senderUserId, "messageType", messageType.name()));
 
         try {
-            ChatMessageEntity message = ChatMessageEntity.builder()
-                    .conversation(conversation)
-                    .senderId(senderUserId)
-                    .content(content)
-                    .messageType(messageType)
-                    .isRead(false)
-                    .isDeleted(false)
-                    .build();
+            ChatMessageEntity message = new ChatMessageEntity();
+            message.setConversation(conversation);
+            message.setSenderId(senderUserId);
+            message.setContent(content);
+            message.setMessageType(messageType);
+            message.setIsRead(false);
+            message.setIsDeleted(false);
 
             ChatMessageEntity saved = chatMessageRepository.save(message);
             conversation.incrementMessageCount();
@@ -496,16 +519,15 @@ public class ChatServiceImpl implements ChatService {
         if (conversation.isBlocked()) throw new AppException(ErrorCode.CONVERSATION_BLOCKED);
         if (!canSendMessage(conversation, senderUserId)) throw new AppException(ErrorCode.ACCESS_DENIED);
 
-        ChatMessageEntity message = ChatMessageEntity.builder()
-                .conversation(conversation)
-                .senderId(senderUserId)
-                .content("")
-                .messageType(messageType)
-                .mediaUrl(mediaUrl)
-                .mediaType(mediaType)
-                .isRead(false)
-                .isDeleted(false)
-                .build();
+        ChatMessageEntity message = new ChatMessageEntity();
+        message.setConversation(conversation);
+        message.setSenderId(senderUserId);
+        message.setContent("");
+        message.setMessageType(messageType);
+        message.setMediaUrl(mediaUrl);
+        message.setMediaType(mediaType);
+        message.setIsRead(false);
+        message.setIsDeleted(false);
 
         ChatMessageEntity saved = chatMessageRepository.save(message);
         conversation.incrementMessageCount();
@@ -555,14 +577,13 @@ public class ChatServiceImpl implements ChatService {
         if (failureDetail != null && !failureDetail.isBlank()) {
             msg = msg + " (" + failureDetail + ")";
         }
-        ChatMessageEntity systemMessage = ChatMessageEntity.builder()
-                .conversation(conversation)
-                .senderId(conversation.getUser1Id())
-                .content(msg)
-                .messageType(MessageType.SYSTEM)
-                .isRead(true)
-                .isDeleted(false)
-                .build();
+        ChatMessageEntity systemMessage = new ChatMessageEntity();
+        systemMessage.setConversation(conversation);
+        systemMessage.setSenderId(conversation.getUser1Id());
+        systemMessage.setContent(msg);
+        systemMessage.setMessageType(MessageType.SYSTEM);
+        systemMessage.setIsRead(true);
+        systemMessage.setIsDeleted(false);
         ChatMessageEntity saved = chatMessageRepository.save(systemMessage);
         conversation.incrementMessageCount();
         conversationRepository.save(conversation);
@@ -822,13 +843,12 @@ public class ChatServiceImpl implements ChatService {
 
     private void sendSystemMessage(ConversationEntity conversation, String actorUserId, String actionText) {
         String content = actorUserId + " " + actionText;
-        ChatMessageEntity systemMessage = ChatMessageEntity.builder()
-                .conversation(conversation)
-                .senderId(actorUserId)
-                .content(content)
-                .messageType(MessageType.SYSTEM)
-                .isRead(true)
-                .build();
+        ChatMessageEntity systemMessage = new ChatMessageEntity();
+        systemMessage.setConversation(conversation);
+        systemMessage.setSenderId(actorUserId);
+        systemMessage.setContent(content);
+        systemMessage.setMessageType(MessageType.SYSTEM);
+        systemMessage.setIsRead(true);
         ChatMessageEntity saved = chatMessageRepository.save(systemMessage);
         sendRealTimeMessage(saved);
     }

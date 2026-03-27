@@ -8,7 +8,6 @@ import com.eduspace.conversationservice.exception.ErrorCode;
 import com.eduspace.conversationservice.model.dto.response.ApiResponse;
 import com.eduspace.conversationservice.model.dto.response.VideoCallResponse;
 import com.eduspace.conversationservice.model.entity.VideoCallEntity;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,12 +17,20 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/azure-communication")
-@RequiredArgsConstructor
 public class AzureCommunicationController {
 
     private final AzureCommunicationService azureCommunicationService;
     private final VideoCallService videoCallService;
     private final JwtConversationUserIdResolver jwtUserIdResolver;
+
+    public AzureCommunicationController(
+            AzureCommunicationService azureCommunicationService,
+            VideoCallService videoCallService,
+            JwtConversationUserIdResolver jwtUserIdResolver) {
+        this.azureCommunicationService = azureCommunicationService;
+        this.videoCallService = videoCallService;
+        this.jwtUserIdResolver = jwtUserIdResolver;
+    }
 
     @GetMapping("/status")
     public ApiResponse<Map<String, Object>> status() {
@@ -168,19 +175,19 @@ public class AzureCommunicationController {
     }
 
     private VideoCallResponse toResponse(VideoCallEntity call) {
-        return VideoCallResponse.builder()
-                .callId(call.getId())
-                .callSessionId(call.getCallSessionId())
-                .callStatus(call.getCallStatus().name())
-                .startedAt(call.getStartedAt())
-                .endedAt(call.getEndedAt())
-                .durationMinutes(call.getDurationMinutes())
-                .endReason(call.getEndReason())
-                .isSuccessful(call.getIsSuccessful())
-                .callerUserId(call.getCallerId())
-                .receiverUserId(call.getReceiverId())
-                .conversationId(call.getConversation().getId())
-                .build();
+        VideoCallResponse response = new VideoCallResponse();
+        response.setCallId(call.getId());
+        response.setCallSessionId(call.getCallSessionId());
+        response.setCallStatus(call.getCallStatus().name());
+        response.setStartedAt(call.getStartedAt());
+        response.setEndedAt(call.getEndedAt());
+        response.setDurationMinutes(call.getDurationMinutes());
+        response.setEndReason(call.getEndReason());
+        response.setIsSuccessful(call.getIsSuccessful());
+        response.setCallerUserId(call.getCallerId());
+        response.setReceiverUserId(call.getReceiverId());
+        response.setConversationId(call.getConversation().getId());
+        return response;
     }
 }
 

@@ -21,4 +21,16 @@ public enum SuccessCode {
         this.code = code;
         this.messageKey = messageKey;
     }
+
+    public HttpStatus getHttpStatus() {
+        return httpStatus;
+    }
+
+    public String getCode() {
+        return code;
+    }
+
+    public String getMessageKey() {
+        return messageKey;
+    }
 }

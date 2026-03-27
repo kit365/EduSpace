@@ -17,13 +17,18 @@ export function SearchPage() {
 
   // Prefer category from URL path, fallback to query param
   const category = categorySlug || searchParams.get('category') || undefined;
+  const bookingDate = searchParams.get('date') || undefined;
 
   const [priceRange, setPriceRange] = useState<[number, number]>([PRICE_RANGE.MIN, PRICE_RANGE.MAX]);
-  const [selectedCapacity, setSelectedCapacity] = useState<string>('');
+  const [selectedCapacity, setSelectedCapacity] = useState<string>(
+    () => searchParams.get('capacity') ?? '',
+  );
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<string>('capacity');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
-  const [selectedDistrict, setSelectedDistrict] = useState<string>('all');
+  const [selectedDistrict, setSelectedDistrict] = useState<string>(
+    () => searchParams.get('district') ?? 'all',
+  );
   const [selectedTimeStart, setSelectedTimeStart] = useState<string>('');
   const [selectedTimeEnd, setSelectedTimeEnd] = useState<string>('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -35,6 +40,11 @@ export function SearchPage() {
     spaceService.getAvailableDistricts().then(setAvailableDistricts);
   }, []);
 
+  useEffect(() => {
+    setSelectedDistrict(searchParams.get('district') ?? 'all');
+    setSelectedCapacity(searchParams.get('capacity') ?? '');
+  }, [searchParams]);
+
   const { data: spaces, loading } = useSearchSpaces({
     priceRange,
     capacity: selectedCapacity,
@@ -43,6 +53,7 @@ export function SearchPage() {
     district: selectedDistrict,
     timeStart: selectedTimeStart,
     timeEnd: selectedTimeEnd,
+    bookingDate,
     q: searchParams.get('q') || '',
     page: currentPage,
     size: pageSize,
@@ -53,7 +64,19 @@ export function SearchPage() {
   // Reset to page 1 when any filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [priceRange, selectedCapacity, selectedAmenities, category, selectedDistrict, searchParams.get('q'), sortBy, sortDir]);
+  }, [
+    priceRange,
+    selectedCapacity,
+    selectedAmenities,
+    category,
+    selectedDistrict,
+    searchParams.get('q'),
+    bookingDate,
+    selectedTimeStart,
+    selectedTimeEnd,
+    sortBy,
+    sortDir,
+  ]);
 
   const handleSpaceClick = (slug: string) => {
     navigate(`${ROUTES.SPACE_DETAIL}/${slug}`);

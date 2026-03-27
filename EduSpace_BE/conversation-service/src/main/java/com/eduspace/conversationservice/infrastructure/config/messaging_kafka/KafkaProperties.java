@@ -17,4 +17,24 @@ public class KafkaProperties {
     public String getConversationEvents() {
         return conversationEvents;
     }
+
+    public String getAssignStaffRequest() {
+        return assignStaffRequest;
+    }
+
+    public String getAssignStaffResult() {
+        return assignStaffResult;
+    }
+
+    public void setConversationEvents(String conversationEvents) {
+        this.conversationEvents = conversationEvents;
+    }
+
+    public void setAssignStaffRequest(String assignStaffRequest) {
+        this.assignStaffRequest = assignStaffRequest;
+    }
+
+    public void setAssignStaffResult(String assignStaffResult) {
+        this.assignStaffResult = assignStaffResult;
+    }
 }
