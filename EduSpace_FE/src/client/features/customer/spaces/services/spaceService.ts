@@ -21,8 +21,30 @@ function parseSpaceRef(param: string): { kind: 'id'; id: number } | { kind: 'slu
   return { kind: 'slug', slug: decoded };
 }
 import { SPACE_DETAILS_DATA } from '../data/mockData';
-import { SEARCH_RESULTS } from '../../search/data/mockData';
 import { DEMO_SPACE_BY_SLUG, DEMO_TOP_SPACES } from '../data/demoBySlug';
+
+/** Slug (URL / FE) ↔ administrative district code — must stay inverse-consistent. */
+const DISTRICT_SLUG_TO_CODE: Record<string, string> = {
+  'quan-1': '760',
+  'quan-3': '770',
+  'quan-7': '778',
+  'binh-thanh': '771',
+  'phu-nhuan': '776',
+  'thu-duc': '769',
+  'tan-binh': '774',
+  'go-vap': '764',
+};
+
+const CODE_TO_DISTRICT_SLUG: Record<string, string> = Object.fromEntries(
+  Object.entries(DISTRICT_SLUG_TO_CODE).map(([slug, code]) => [code, slug]),
+);
+
+/** Backend dayOfWeek: Mon=2 … Sun=8 (see room schedules). */
+function dayOfWeekFromIsoDate(iso?: string): number {
+  const d = iso ? new Date(`${iso}T12:00:00`) : new Date();
+  const jsDay = d.getDay();
+  return jsDay === 0 ? 8 : jsDay + 1;
+}
 
 async function roomsToSpaces(rooms: RoomDto[]): Promise<Space[]> {
   const propCache = new Map<number, PropertyDto>();
@@ -122,6 +144,8 @@ class SpaceService {
     district?: string;
     timeStart?: string;
     timeEnd?: string;
+    /** yyyy-MM-dd — used for schedule day matching (hero + URL `date`). */
+    bookingDate?: string;
     page?: number;
     size?: number;
     sortBy?: string;
@@ -158,21 +182,6 @@ class SpaceService {
       }
     }
 
-    // Mapping district labels to codes (HCMC focused)
-    const districtToCode: Record<string, string> = {
-      'quan-1': '760',
-      'quan-3': '770',
-      'quan-7': '778',
-      'binh-thanh': '771',
-      'phu-nhuan': '776',
-      'thu-duc': '769',
-      'tan-binh': '774',
-      'go-vap': '764',
-    };
-
-    // HCMC Province Code is '79'
-    const HCMC_PROVINCE_CODE = '79';
-
     try {
       // Use getPublicRooms with all parameters
       const resp = await roomApiService.getPublicRooms({
@@ -182,7 +191,10 @@ class SpaceService {
         minPrice: query.priceRange?.[0],
         maxPrice: query.priceRange?.[1],
         amenityIds,
-        districtCode: query.district ? (districtToCode[query.district] || (query.district === 'all' ? undefined : query.district)) : undefined,
+        districtCode: query.district
+          ? DISTRICT_SLUG_TO_CODE[query.district] ||
+            (query.district === 'all' ? undefined : query.district)
+          : undefined,
         page: query.page ?? 1,
         size: query.size ?? 12,
         sortBy: query.sortBy,
@@ -199,17 +211,13 @@ class SpaceService {
         (r: RoomDto) => r.approvalStatus === 'APPROVED' && isRoomOpenForBooking(r.status),
       );
 
-      // Enforce HCMC scope if no specific district is selected (or even if it is)
-      // Note: In a real app, the backend should handle this, but as requested:
-      // list = list.filter(r => r.property?.provinceCode === HCMC_PROVINCE_CODE);
+      const clientTimeFiltered = Boolean(query.timeStart && query.timeEnd);
+      const clientDateOnlyFiltered = Boolean(query.bookingDate && !clientTimeFiltered);
 
-      // Time-based filtering (Frontend)
-      if (query.timeStart && query.timeEnd) {
-        const jsDay = new Date().getDay();
-        const userDay = jsDay === 0 ? 8 : jsDay + 1;
-        
-        list = list.filter(r => {
-          const schedule = r.schedules?.find(s => s.dayOfWeek === userDay);
+      if (clientTimeFiltered) {
+        const userDay = dayOfWeekFromIsoDate(query.bookingDate);
+        list = list.filter((r) => {
+          const schedule = r.schedules?.find((s) => s.dayOfWeek === userDay);
           if (!schedule || !schedule.isOpen) return false;
           if (!schedule.openTime || !schedule.closeTime) return true;
 
@@ -217,13 +225,22 @@ class SpaceService {
           const close = schedule.closeTime.substring(0, 5);
           return query.timeStart! >= open && query.timeEnd! <= close;
         });
+      } else if (clientDateOnlyFiltered) {
+        const userDay = dayOfWeekFromIsoDate(query.bookingDate);
+        list = list.filter((r) => {
+          const schedule = r.schedules?.find((s) => s.dayOfWeek === userDay);
+          return Boolean(schedule?.isOpen);
+        });
       }
 
+      const clientFiltered = clientTimeFiltered || clientDateOnlyFiltered;
       const spaces = await roomsToSpaces(list);
       return {
         ...pageData,
         content: spaces,
-        totalElements: list.length, // Update count after FE filtering
+        totalElements: clientFiltered ? list.length : pageData.totalElements,
+        totalPages: clientFiltered ? 1 : pageData.totalPages,
+        last: clientFiltered ? true : pageData.last,
       };
     } catch (error) {
       console.error('Search failed', error);
@@ -282,14 +299,14 @@ class SpaceService {
     return roomApiService.updateCategory(id, body);
   }
   async getAvailableDistricts(): Promise<{ value: string; labelKey: string }[]> {
-    const codeToDistrict: Record<string, string> = {
-      '760': 'thu-duc',
-    };
-    
     try {
       const properties = await propertyApiService.getAll();
-      const availableCodes = new Set(properties.map(p => p.districtCode).filter(Boolean));
-      const availableValues = new Set(Array.from(availableCodes).map(code => codeToDistrict[code!]).filter(Boolean));
+      const availableCodes = new Set(properties.map((p) => p.districtCode).filter(Boolean));
+      const availableValues = new Set(
+        Array.from(availableCodes)
+          .map((code) => CODE_TO_DISTRICT_SLUG[code!])
+          .filter(Boolean),
+      );
       
       if (availableValues.size === 0) return [...DISTRICT_OPTIONS];
 

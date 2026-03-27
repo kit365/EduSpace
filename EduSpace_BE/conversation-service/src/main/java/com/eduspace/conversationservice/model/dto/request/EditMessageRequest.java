@@ -12,5 +12,13 @@ import lombok.experimental.FieldDefaults;
 public class EditMessageRequest {
     @NotBlank
     String content;
+
+    public String getContent() {
+        return content;
+    }
+
+    public void setContent(String content) {
+        this.content = content;
+    }
 }
 

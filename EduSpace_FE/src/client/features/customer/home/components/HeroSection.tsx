@@ -6,14 +6,22 @@ import { Popover, PopoverContent, PopoverTrigger } from '../../../../../componen
 import { Calendar } from '../../../../../components/ui/calendar';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
+import { parseHeroCapacityInput } from '@/client/utils/searchQuery';
+
+export interface HeroSearchFilters {
+  district?: string;
+  date?: string;
+  capacity?: string;
+}
 
 interface HeroSectionProps {
-  onSearch: () => void;
+  onSearch: (filters: HeroSearchFilters) => void;
 }
 
 export function HeroSection({ onSearch }: HeroSectionProps) {
   const { t } = useTranslation();
   const [location, setLocation] = useState<string>('');
+  const [capacityInput, setCapacityInput] = useState('');
   const [date, setDate] = useState<Date>();
   const [dateOpen, setDateOpen] = useState(false);
   const [locationOpen, setLocationOpen] = useState(false);
@@ -108,12 +116,20 @@ export function HeroSection({ onSearch }: HeroSectionProps) {
                   <input
                     type="number"
                     min="1"
+                    value={capacityInput}
+                    onChange={(e) => setCapacityInput(e.target.value)}
                     placeholder={t('customer.home.hero.capacity')}
                     className="flex-1 w-full outline-none text-gray-900 bg-transparent font-bold text-sm placeholder:text-gray-400 placeholder:font-bold"
                   />
                 </div>
                 <button
-                  onClick={onSearch}
+                  onClick={() =>
+                    onSearch({
+                      district: location && location !== 'all' ? location : undefined,
+                      date: date ? format(date, 'yyyy-MM-dd') : undefined,
+                      capacity: parseHeroCapacityInput(capacityInput),
+                    })
+                  }
                   className="bg-red-500 text-white px-8 py-3 rounded-full hover:bg-red-600 hover:shadow-lg hover:shadow-red-200 transition-all flex items-center justify-center gap-2 font-black tracking-wide shrink-0 whitespace-nowrap"
                 >
                   <Search className="w-5 h-5" />

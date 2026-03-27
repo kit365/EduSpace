@@ -10,17 +10,20 @@ import com.eduspace.conversationservice.model.dto.request.EditMessageRequest;
 import com.eduspace.conversationservice.model.dto.response.ApiResponse;
 import com.eduspace.conversationservice.presentation.constants.ConversationPaths;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping(ConversationPaths.Message.BASE_PATH)
-@RequiredArgsConstructor
 public class MessageController {
 
     private final ChatService chatService;
     private final JwtConversationUserIdResolver jwtUserIdResolver;
+
+    public MessageController(ChatService chatService, JwtConversationUserIdResolver jwtUserIdResolver) {
+        this.chatService = chatService;
+        this.jwtUserIdResolver = jwtUserIdResolver;
+    }
 
     @DeleteMapping(ConversationPaths.Message.BY_ID)
     public ApiResponse<Void> deleteMessage(@PathVariable String messageId,

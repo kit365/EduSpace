@@ -6,8 +6,8 @@ import com.eduspace.conversationservice.model.entity.ChatMessageEntity;
 import com.eduspace.conversationservice.model.entity.ConversationEntity;
 import com.eduspace.conversationservice.persistence.repository.ChatMessageRepository;
 import com.eduspace.conversationservice.persistence.repository.ConversationRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,13 +25,21 @@ import java.util.Set;
  * Keycloak id (account DB is separate; resolution is via account-service batch API).
  */
 @Service
-@RequiredArgsConstructor
-@Slf4j
 public class ConversationParticipantEmailBackfillService {
+    private static final Logger log = LoggerFactory.getLogger(ConversationParticipantEmailBackfillService.class);
 
     private final ConversationRepository conversationRepository;
     private final ChatMessageRepository chatMessageRepository;
     private final AccountClient accountClient;
+
+    public ConversationParticipantEmailBackfillService(
+            ConversationRepository conversationRepository,
+            ChatMessageRepository chatMessageRepository,
+            AccountClient accountClient) {
+        this.conversationRepository = conversationRepository;
+        this.chatMessageRepository = chatMessageRepository;
+        this.accountClient = accountClient;
+    }
 
     @Transactional
     public int runBackfill() {

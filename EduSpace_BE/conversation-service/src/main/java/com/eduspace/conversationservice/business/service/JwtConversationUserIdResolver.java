@@ -2,17 +2,20 @@ package com.eduspace.conversationservice.business.service;
 
 import com.eduspace.conversationservice.infrastructure.client.AccountClient;
 import com.eduspace.conversationservice.model.dto.response.ApiResponse;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 @Service
-@RequiredArgsConstructor
-@Slf4j
 public class JwtConversationUserIdResolver {
+    private static final Logger log = LoggerFactory.getLogger(JwtConversationUserIdResolver.class);
 
     private final AccountClient accountClient;
+
+    public JwtConversationUserIdResolver(AccountClient accountClient) {
+        this.accountClient = accountClient;
+    }
 
     public String resolveUserId(Jwt jwt) {
         if (jwt == null) {

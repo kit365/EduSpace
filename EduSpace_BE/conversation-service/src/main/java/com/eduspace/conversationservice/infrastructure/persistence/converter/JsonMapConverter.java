@@ -4,16 +4,17 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@Slf4j
 @Converter
 public class JsonMapConverter implements AttributeConverter<Map<String, List<String>>, String> {
+    private static final Logger log = LoggerFactory.getLogger(JsonMapConverter.class);
 
     private final static ObjectMapper objectMapper = new ObjectMapper();
 

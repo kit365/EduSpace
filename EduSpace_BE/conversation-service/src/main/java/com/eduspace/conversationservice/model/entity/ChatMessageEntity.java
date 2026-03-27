@@ -91,5 +91,97 @@ public class ChatMessageEntity {
         content = newContent;
         editedAt = LocalDateTime.now();
     }
+
+    public String getId() {
+        return id;
+    }
+
+    public ConversationEntity getConversation() {
+        return conversation;
+    }
+
+    public String getSenderId() {
+        return senderId;
+    }
+
+    public String getContent() {
+        return content;
+    }
+
+    public MessageType getMessageType() {
+        return messageType;
+    }
+
+    public LocalDateTime getSentAt() {
+        return sentAt;
+    }
+
+    public String getMediaUrl() {
+        return mediaUrl;
+    }
+
+    public String getMediaType() {
+        return mediaType;
+    }
+
+    public Boolean getIsRead() {
+        return isRead;
+    }
+
+    public LocalDateTime getReadAt() {
+        return readAt;
+    }
+
+    public Boolean getIsDeleted() {
+        return isDeleted;
+    }
+
+    public LocalDateTime getEditedAt() {
+        return editedAt;
+    }
+
+    public Map<String, List<String>> getReactions() {
+        return reactions;
+    }
+
+    public String getReplyToMessageId() {
+        return replyToMessageId;
+    }
+
+    public void setReactions(Map<String, List<String>> reactions) {
+        this.reactions = reactions;
+    }
+
+    public void setConversation(ConversationEntity conversation) {
+        this.conversation = conversation;
+    }
+
+    public void setSenderId(String senderId) {
+        this.senderId = senderId;
+    }
+
+    public void setContent(String content) {
+        this.content = content;
+    }
+
+    public void setMessageType(MessageType messageType) {
+        this.messageType = messageType;
+    }
+
+    public void setMediaUrl(String mediaUrl) {
+        this.mediaUrl = mediaUrl;
+    }
+
+    public void setMediaType(String mediaType) {
+        this.mediaType = mediaType;
+    }
+
+    public void setIsRead(Boolean isRead) {
+        this.isRead = isRead;
+    }
+
+    public void setIsDeleted(Boolean isDeleted) {
+        this.isDeleted = isDeleted;
+    }
 }
 

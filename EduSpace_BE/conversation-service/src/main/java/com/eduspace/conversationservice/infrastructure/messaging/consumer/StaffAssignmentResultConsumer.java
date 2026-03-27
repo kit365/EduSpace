@@ -4,18 +4,22 @@ import com.eduspace.conversationservice.business.saga.handler.StaffAssignmentSag
 import com.eduspace.conversationservice.model.event.BaseEvent;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
-@Slf4j
 @Component
-@RequiredArgsConstructor
 public class StaffAssignmentResultConsumer {
+    private static final Logger log = LoggerFactory.getLogger(StaffAssignmentResultConsumer.class);
 
     private final StaffAssignmentSagaHandler sagaHandler;
     private final ObjectMapper objectMapper;
+
+    public StaffAssignmentResultConsumer(StaffAssignmentSagaHandler sagaHandler, ObjectMapper objectMapper) {
+        this.sagaHandler = sagaHandler;
+        this.objectMapper = objectMapper;
+    }
 
     @KafkaListener(
             topics = "${app.kafka.topics.assign-staff-result}",

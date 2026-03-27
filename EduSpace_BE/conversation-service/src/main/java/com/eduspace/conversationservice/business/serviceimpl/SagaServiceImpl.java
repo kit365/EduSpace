@@ -5,18 +5,21 @@ import com.eduspace.conversationservice.model.entity.SagaInstanceEntity;
 import com.eduspace.conversationservice.persistence.repository.SagaInstanceRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
 @Service
-@RequiredArgsConstructor
 public class SagaServiceImpl implements SagaService {
 
     private final SagaInstanceRepository sagaInstanceRepository;
     private final ObjectMapper objectMapper;
+
+    public SagaServiceImpl(SagaInstanceRepository sagaInstanceRepository, ObjectMapper objectMapper) {
+        this.sagaInstanceRepository = sagaInstanceRepository;
+        this.objectMapper = objectMapper;
+    }
 
     @Override
     @Transactional
@@ -36,13 +39,12 @@ public class SagaServiceImpl implements SagaService {
             }
         }
 
-        SagaInstanceEntity saga = SagaInstanceEntity.builder()
-                .id(sagaId)
-                .sagaType(sagaType)
-                .status(SagaInstanceEntity.Status.STARTED)
-                .currentStep(currentStep)
-                .payload(json)
-                .build();
+        SagaInstanceEntity saga = new SagaInstanceEntity();
+        saga.setId(sagaId);
+        saga.setSagaType(sagaType);
+        saga.setStatus(SagaInstanceEntity.Status.STARTED);
+        saga.setCurrentStep(currentStep);
+        saga.setPayload(json);
         return sagaInstanceRepository.save(saga);
     }
 

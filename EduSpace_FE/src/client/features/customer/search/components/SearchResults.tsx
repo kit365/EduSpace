@@ -1,7 +1,8 @@
 import { useTranslation } from 'react-i18next';
-import { Star, Users, Heart, Grid3x3, List } from 'lucide-react';
+import { Star, Users, Heart } from 'lucide-react';
 import { Space } from '../../../../../types/space';
 import { formatCurrency } from '../../../../../utils';
+import { useFavoriteSpaceHeart } from '../../favorites/hooks/useFavoriteSpaceHeart';
 
 interface SearchResultsProps {
   spaces: Space[];
@@ -38,6 +39,7 @@ interface SpaceCardProps {
 
 function SpaceCard({ space, viewMode, onClick }: SpaceCardProps) {
   const { t } = useTranslation();
+  const { isFavorite, toggle } = useFavoriteSpaceHeart(space);
 
   return (
     <div
@@ -58,8 +60,14 @@ function SpaceCard({ space, viewMode, onClick }: SpaceCardProps) {
             INSTANT BOOK
           </div>
         )}
-        <button className="absolute top-3 right-3 w-9 h-9 bg-white rounded-full flex items-center justify-center hover:bg-gray-100">
-          <Heart className="w-5 h-5 text-gray-600" />
+        <button
+          type="button"
+          onClick={toggle}
+          title={isFavorite ? t('common.removeFromFavorites') : t('common.addToFavorites')}
+          aria-pressed={isFavorite}
+          className={`absolute top-3 right-3 w-9 h-9 bg-white rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors ${isFavorite ? 'text-red-500' : 'text-gray-600'}`}
+        >
+          <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
         </button>
       </div>
 

@@ -31,11 +31,12 @@ function RentalLayoutInner({ children, title }: { children: ReactNode; title?: s
         [normalizedRoles],
     );
     const allowedModes = useMemo((): UserRole[] => {
-        const modes: UserRole[] = ['user'];
-        if (isAuthenticated && canAccessHostConsole(realmRoles)) {
+        const isAdmin = isAuthenticated && canAccessAdminPortal(realmRoles);
+        const modes: UserRole[] = isAdmin ? [] : ['user'];
+        if (isAuthenticated && canAccessHostConsole(realmRoles) && !isAdmin) {
             modes.push('host');
         }
-        if (isAuthenticated && canAccessAdminPortal(realmRoles)) {
+        if (isAdmin) {
             modes.push('admin');
         }
         return modes;

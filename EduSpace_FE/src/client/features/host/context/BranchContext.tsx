@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
 import { branchService, HostBranch } from '../services/branchService';
 import apiClient from '@/lib/axios';
 import { ACCOUNT_API } from '@/config/api/account';
@@ -29,6 +29,10 @@ export function BranchProvider({ children }: { children: ReactNode }) {
     const [branches, setBranches] = useState<HostBranch[]>([]);
     const [loadingBranches, setLoadingBranches] = useState(false);
     const accessToken = useAuthStore((s) => s.accessToken);
+    const branchesRef = useRef<HostBranch[]>([]);
+    useEffect(() => {
+        branchesRef.current = branches;
+    }, [branches]);
 
     async function resolveOwnerAliases(): Promise<string[]> {
         const token = useAuthStore.getState().accessToken;
@@ -46,7 +50,10 @@ export function BranchProvider({ children }: { children: ReactNode }) {
     }
 
     const refreshBranches = useCallback(async () => {
-        setLoadingBranches(true);
+        // Chỉ hiện spinner khi chưa có danh sách (tránh “giật” UI mỗi lần đồng bộ nền).
+        if (branchesRef.current.length === 0) {
+            setLoadingBranches(true);
+        }
         try {
             const roles = getRealmRolesFromAccessToken(accessToken).map(normalizeRoleName);
             const isManager = roles.includes('MANAGER') && !roles.includes('HOST');
@@ -83,18 +90,30 @@ export function BranchProvider({ children }: { children: ReactNode }) {
     }, [refreshBranches]);
 
     useEffect(() => {
-        const intervalId = window.setInterval(() => {
-            void refreshBranches();
-        }, 15000);
+        let focusTimeout: ReturnType<typeof setTimeout> | null = null;
 
-        const onFocus = () => {
-            void refreshBranches();
+        const scheduleRefresh = () => {
+            if (document.visibilityState !== 'visible') return;
+            if (focusTimeout != null) clearTimeout(focusTimeout);
+            focusTimeout = window.setTimeout(() => {
+                focusTimeout = null;
+                void refreshBranches();
+            }, 400);
         };
-        window.addEventListener('focus', onFocus);
+
+        const onVisibility = () => {
+            if (document.visibilityState === 'visible') {
+                scheduleRefresh();
+            }
+        };
+
+        window.addEventListener('focus', scheduleRefresh);
+        document.addEventListener('visibilitychange', onVisibility);
 
         return () => {
-            window.clearInterval(intervalId);
-            window.removeEventListener('focus', onFocus);
+            if (focusTimeout != null) clearTimeout(focusTimeout);
+            window.removeEventListener('focus', scheduleRefresh);
+            document.removeEventListener('visibilitychange', onVisibility);
         };
     }, [refreshBranches]);
 

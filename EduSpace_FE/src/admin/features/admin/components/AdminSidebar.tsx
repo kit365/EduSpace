@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { User, Shield, Activity, Settings, LogOut, DollarSign, FileCheck, MessageSquareWarning, Building2, Gift, MessageSquare, Ticket, ClipboardList } from "lucide-react";
+import { User, Shield, Activity, Settings, LogOut, DollarSign, FileCheck, Building2, Gift, MessageSquare, Ticket, ClipboardList } from "lucide-react";
 import { useChatInboxStore } from "../../../../stores/chatInboxStore";
 
 export function AdminSidebar() {
@@ -15,7 +15,6 @@ export function AdminSidebar() {
         { nameKey: 'admin_sidebar.messages', icon: MessageSquare, path: '/admin/messages' },
         { nameKey: 'admin_sidebar.finance', icon: DollarSign, path: '/admin/finance' },
         { nameKey: 'admin_sidebar.approvals', icon: FileCheck, path: '/admin/verification' },
-        { nameKey: 'admin_sidebar.disputes', icon: MessageSquareWarning, path: '/admin/disputes' },
         { nameKey: 'admin_sidebar.hosts', icon: Building2, path: '/admin/hosts' },
         { nameKey: 'admin_sidebar.users', icon: User, path: '/admin/users' },
         { nameKey: 'admin_sidebar.roles', icon: Shield, path: '/admin/roles' },

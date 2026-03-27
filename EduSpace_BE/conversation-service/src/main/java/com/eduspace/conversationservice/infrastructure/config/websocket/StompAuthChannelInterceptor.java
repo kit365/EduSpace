@@ -1,7 +1,7 @@
 package com.eduspace.conversationservice.infrastructure.config.websocket;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.stomp.StompCommand;
@@ -15,12 +15,16 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.stereotype.Component;
 
 @Component
-@RequiredArgsConstructor
-@Slf4j
 public class StompAuthChannelInterceptor implements ChannelInterceptor {
+    private static final Logger log = LoggerFactory.getLogger(StompAuthChannelInterceptor.class);
 
     private final JwtDecoder jwtDecoder;
     private final JwtAuthenticationConverter keycloakJwtConverter;
+
+    public StompAuthChannelInterceptor(JwtDecoder jwtDecoder, JwtAuthenticationConverter keycloakJwtConverter) {
+        this.jwtDecoder = jwtDecoder;
+        this.keycloakJwtConverter = keycloakJwtConverter;
+    }
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {

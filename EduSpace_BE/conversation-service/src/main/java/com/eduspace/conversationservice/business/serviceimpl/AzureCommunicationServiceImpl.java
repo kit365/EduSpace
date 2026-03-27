@@ -8,7 +8,8 @@ import com.azure.communication.identity.models.CommunicationUserIdentifierAndTok
 import com.azure.core.credential.AccessToken;
 import com.azure.core.credential.AzureKeyCredential;
 import com.eduspace.conversationservice.business.service.AzureCommunicationService;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -17,8 +18,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Service
-@Slf4j
 public class AzureCommunicationServiceImpl implements AzureCommunicationService {
+    private static final Logger log = LoggerFactory.getLogger(AzureCommunicationServiceImpl.class);
 
     private final CommunicationIdentityClient identityClient;
     private final String connectionString;

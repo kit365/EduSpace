@@ -18,6 +18,8 @@ export const en = {
         reupload: "Reupload",
         save: "Save",
         book: "Book",
+        addToFavorites: "Add to favorites",
+        removeFromFavorites: "Remove from favorites",
         seats: "seats",
         perHour: "/ hr",
         propertyTypes: {
@@ -368,6 +370,16 @@ export const en = {
                 coworking: "Coworking / Private Office"
             }
         },
+        favoritesPage: {
+            title: "My Favorites",
+            subtitle: "Spaces you've saved for later.",
+            savedBadge_one: "{{count}} space saved",
+            savedBadge_other: "{{count}} spaces saved",
+            emptyTitle: "Your wishlist is empty",
+            emptyDesc:
+                "Explore amazing educational spaces and save your favorites to compare later.",
+            browseSpaces: "Browse Spaces"
+        },
         ekyc: {
             title: "Identity Verification (eKYC)",
             description: "To ensure safety for the EduSpace community, please verify your identity with ID/Passport.",
@@ -598,7 +610,6 @@ export const en = {
         messages: "Messages",
         finance: "Finance & Payouts",
         approvals: "Approvals & KYC",
-        disputes: "Disputes & Reports",
         hosts: "Host Management",
         users: "User Management",
         roles: "Role & Perms",

@@ -29,6 +29,8 @@ export function VerifyEmailPage() {
             setMessage('Email đã được xác thực thành công.');
             return;
         }
+        // Tránh gọi trùng trong cùng một lần mount; cleanup xóa token khi unmount (StrictMode dev)
+        // để lần mount sau không bị chặn vĩnh viễn khi request trước bị hủy.
         if (verifyingTokens.has(token)) {
             return;
         }
@@ -48,6 +50,10 @@ export function VerifyEmailPage() {
                 verifyingTokens.delete(token);
             },
         });
+
+        return () => {
+            verifyingTokens.delete(token);
+        };
     }, [token, verifyEmail]);
 
     useEffect(() => {

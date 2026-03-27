@@ -123,5 +123,98 @@ public class ConversationEntity {
         callHistoryCount = (callHistoryCount == null ? 0 : callHistoryCount) + 1;
         lastActivity = LocalDateTime.now();
     }
+
+    // Explicit accessors for robustness when Lombok processing is unavailable.
+    public String getId() {
+        return id;
+    }
+
+    public String getUser1Id() {
+        return user1Id;
+    }
+
+    public String getUser2Id() {
+        return user2Id;
+    }
+
+    public void setUser2Id(String user2Id) {
+        this.user2Id = user2Id;
+    }
+
+    public void setIsActive(Boolean active) {
+        this.isActive = active;
+    }
+
+    public Boolean getIsAdminConversation() {
+        return isAdminConversation;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setSagaId(String sagaId) {
+        this.sagaId = sagaId;
+    }
+
+    public String getConversationName() {
+        return conversationName;
+    }
+
+    public Boolean getIsActive() {
+        return isActive;
+    }
+
+    public Boolean getVideoCallEnabled() {
+        return videoCallEnabled;
+    }
+
+    public Integer getTotalMessageCount() {
+        return totalMessageCount;
+    }
+
+    public Integer getCallHistoryCount() {
+        return callHistoryCount;
+    }
+
+    public LocalDateTime getLastActivity() {
+        return lastActivity;
+    }
+
+    public void setUser1Id(String user1Id) {
+        this.user1Id = user1Id;
+    }
+
+    public void setConversationName(String conversationName) {
+        this.conversationName = conversationName;
+    }
+
+    public void setIsAdminConversation(Boolean isAdminConversation) {
+        this.isAdminConversation = isAdminConversation;
+    }
+
+    public void setVideoCallEnabled(Boolean videoCallEnabled) {
+        this.videoCallEnabled = videoCallEnabled;
+    }
+
+    public void setTotalMessageCount(Integer totalMessageCount) {
+        this.totalMessageCount = totalMessageCount;
+    }
+
+    public void setCallHistoryCount(Integer callHistoryCount) {
+        this.callHistoryCount = callHistoryCount;
+    }
+
+    public void setLastActivity(LocalDateTime lastActivity) {
+        this.lastActivity = lastActivity;
+    }
+
+    public void setBlockedByUser1(Boolean blockedByUser1) {
+        this.blockedByUser1 = blockedByUser1;
+    }
+
+    public void setBlockedByUser2(Boolean blockedByUser2) {
+        this.blockedByUser2 = blockedByUser2;
+    }
 }
 

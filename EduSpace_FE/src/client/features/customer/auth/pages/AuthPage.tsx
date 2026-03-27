@@ -6,10 +6,18 @@ import { LoginForm, SignupForm } from '../components';
 import { LoginFormData, SignupFormData } from '../types';
 import { useLogin, useRegister } from '../hooks/useAuth';
 import { CustomerLayout } from '../../../../layouts/CustomerLayout';
+import { canAccessAdminPortal, getRealmRolesFromAccessToken } from '@/utils/keycloakTokenRoles';
 
 export function AuthPage() {
   const navigate = useNavigate();
-  const onAuthSuccess = () => navigate('/');
+  const onAuthSuccess = (accessToken?: string) => {
+    const roles = getRealmRolesFromAccessToken(accessToken);
+    if (canAccessAdminPortal(roles)) {
+      navigate('/admin');
+      return;
+    }
+    navigate('/');
+  };
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [showOtp, setShowOtp] = useState(false);
   const [loginData, setLoginData] = useState<LoginFormData | null>(null);
@@ -30,7 +38,7 @@ export function AuthPage() {
       {
         onSuccess: (res) => {
           toast.success(res.message || 'Login successful!');
-          onAuthSuccess();
+          onAuthSuccess(res?.data?.access_token);
         },
         onError: (err: any) => {
           const code = err.response?.data?.code;

@@ -19,3 +19,13 @@ spring:
     validate-on-migrate: false
     repair-on-migrate: true
 
+eureka:
+  client:
+    # Local dev often runs services independently; disable Eureka by default
+    # to avoid repeated Connection refused logs when discovery-server is down.
+    enabled: ${EUREKA_CLIENT_ENABLED:false}
+    register-with-eureka: ${EUREKA_CLIENT_ENABLED:false}
+    fetch-registry: ${EUREKA_CLIENT_ENABLED:false}
+  instance:
+    prefer-ip-address: true
+

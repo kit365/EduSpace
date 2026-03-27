@@ -8,7 +8,6 @@ import com.eduspace.conversationservice.model.entity.ConversationEntity;
 import com.eduspace.conversationservice.model.entity.VideoCallEntity;
 import com.eduspace.conversationservice.persistence.repository.ConversationRepository;
 import com.eduspace.conversationservice.persistence.repository.VideoCallRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,7 +18,6 @@ import java.util.Map;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 @Transactional
 public class VideoCallServiceImpl implements VideoCallService {
 
@@ -27,6 +25,17 @@ public class VideoCallServiceImpl implements VideoCallService {
     private final VideoCallRepository videoCallRepository;
     private final VideoCallNotificationService notificationService;
     private final OutboxService outboxService;
+
+    public VideoCallServiceImpl(
+            ConversationRepository conversationRepository,
+            VideoCallRepository videoCallRepository,
+            VideoCallNotificationService notificationService,
+            OutboxService outboxService) {
+        this.conversationRepository = conversationRepository;
+        this.videoCallRepository = videoCallRepository;
+        this.notificationService = notificationService;
+        this.outboxService = outboxService;
+    }
 
     @Override
     public VideoCallEntity initiate(String conversationId, String callerUserId) {
@@ -60,13 +69,12 @@ public class VideoCallServiceImpl implements VideoCallService {
             throw new IllegalArgumentException("User already has an ongoing call");
         }
 
-        VideoCallEntity call = VideoCallEntity.builder()
-                .conversation(conversation)
-                .callerId(callerUserId)
-                .receiverId(receiverId)
-                .callSessionId(UUID.randomUUID().toString())
-                .callStatus(VideoCallEntity.CallStatus.INITIATED)
-                .build();
+        VideoCallEntity call = new VideoCallEntity();
+        call.setConversation(conversation);
+        call.setCallerId(callerUserId);
+        call.setReceiverId(receiverId);
+        call.setCallSessionId(UUID.randomUUID().toString());
+        call.setCallStatus(VideoCallEntity.CallStatus.INITIATED);
         VideoCallEntity saved = videoCallRepository.save(call);
 
         conversation.incrementCallCount();

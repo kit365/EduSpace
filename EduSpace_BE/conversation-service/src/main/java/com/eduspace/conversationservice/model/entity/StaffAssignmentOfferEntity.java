@@ -68,4 +68,57 @@ public class StaffAssignmentOfferEntity {
             status = Status.PENDING;
         }
     }
+
+    // Explicit accessors for environments without Lombok annotation processing.
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    public void setConversationId(String conversationId) {
+        this.conversationId = conversationId;
+    }
+
+    public void setSagaId(String sagaId) {
+        this.sagaId = sagaId;
+    }
+
+    public void setStaffId(String staffId) {
+        this.staffId = staffId;
+    }
+
+    public void setStatus(Status status) {
+        this.status = status;
+    }
+
+    public void setExpiresAt(LocalDateTime expiresAt) {
+        this.expiresAt = expiresAt;
+    }
+
+    public String getStaffId() {
+        return staffId;
+    }
+
+    public String getConversationId() {
+        return conversationId;
+    }
+
+    public Status getStatus() {
+        return status;
+    }
+
+    public LocalDateTime getExpiresAt() {
+        return expiresAt;
+    }
+
+    public String getSagaId() {
+        return sagaId;
+    }
+
+    public void setAcceptedAt(LocalDateTime acceptedAt) {
+        this.acceptedAt = acceptedAt;
+    }
 }

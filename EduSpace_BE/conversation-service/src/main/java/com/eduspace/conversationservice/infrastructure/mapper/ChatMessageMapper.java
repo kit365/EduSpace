@@ -14,22 +14,22 @@ public class ChatMessageMapper {
         if (entity == null) {
             return null;
         }
-        return ChatMessageResponse.builder()
-                .messageId(entity.getId())
-                .conversationId(entity.getConversation() != null ? entity.getConversation().getId() : null)
-                .content(entity.getContent())
-                .messageType(entity.getMessageType() != null ? entity.getMessageType().name() : null)
-                .sentAt(entity.getSentAt())
-                .isRead(entity.getIsRead())
-                .readAt(entity.getReadAt())
-                .isDeleted(entity.getIsDeleted())
-                .editedAt(entity.getEditedAt())
-                .mediaUrl(entity.getMediaUrl())
-                .mediaType(entity.getMediaType())
-                .reactions(entity.getReactions())
-                .replyToMessageId(entity.getReplyToMessageId())
-                .sender(mapSender(entity.getSenderId(), profiles))
-                .build();
+        ChatMessageResponse response = new ChatMessageResponse();
+        response.setMessageId(entity.getId());
+        response.setConversationId(entity.getConversation() != null ? entity.getConversation().getId() : null);
+        response.setContent(entity.getContent());
+        response.setMessageType(entity.getMessageType() != null ? entity.getMessageType().name() : null);
+        response.setSentAt(entity.getSentAt());
+        response.setIsRead(entity.getIsRead());
+        response.setReadAt(entity.getReadAt());
+        response.setIsDeleted(entity.getIsDeleted());
+        response.setEditedAt(entity.getEditedAt());
+        response.setMediaUrl(entity.getMediaUrl());
+        response.setMediaType(entity.getMediaType());
+        response.setReactions(entity.getReactions());
+        response.setReplyToMessageId(entity.getReplyToMessageId());
+        response.setSender(mapSender(entity.getSenderId(), profiles));
+        return response;
     }
 
     public ChatMessageResponse.Sender mapSender(String senderId, Map<String, AccountClient.PublicUserProfile> profiles) {
@@ -40,12 +40,12 @@ public class ChatMessageMapper {
         if (profile == null) {
             return fallbackSender(senderId);
         }
-        return ChatMessageResponse.Sender.builder()
-                .userId(profile.keycloakId())
-                .fullName(profile.fullName())
-                .email(profile.email())
-                .avatarUrl(profile.avatarUrl())
-                .build();
+        ChatMessageResponse.Sender sender = new ChatMessageResponse.Sender();
+        sender.setUserId(profile.keycloakId());
+        sender.setFullName(profile.fullName());
+        sender.setEmail(profile.email());
+        sender.setAvatarUrl(profile.avatarUrl());
+        return sender;
     }
 
     private static ChatMessageResponse.Sender fallbackSender(String senderId) {
@@ -53,20 +53,20 @@ public class ChatMessageMapper {
             return null;
         }
         if (senderId.startsWith("GUEST-")) {
-            return ChatMessageResponse.Sender.builder()
-                    .userId(senderId)
-                    .fullName("Guest")
-                    .email(null)
-                    .avatarUrl(null)
-                    .build();
+            ChatMessageResponse.Sender sender = new ChatMessageResponse.Sender();
+            sender.setUserId(senderId);
+            sender.setFullName("Guest");
+            sender.setEmail(null);
+            sender.setAvatarUrl(null);
+            return sender;
         }
         if ("admin-support".equals(senderId) || "admin-keycloak-id-0000".equals(senderId)) {
-            return ChatMessageResponse.Sender.builder()
-                    .userId(senderId)
-                    .fullName("Support")
-                    .email(null)
-                    .avatarUrl(null)
-                    .build();
+            ChatMessageResponse.Sender sender = new ChatMessageResponse.Sender();
+            sender.setUserId(senderId);
+            sender.setFullName("Support");
+            sender.setEmail(null);
+            sender.setAvatarUrl(null);
+            return sender;
         }
         return null;
     }
