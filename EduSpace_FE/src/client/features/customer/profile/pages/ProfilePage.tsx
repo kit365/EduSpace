@@ -1,12 +1,9 @@
 import { useState } from 'react';
-import { User, Lock, Bell, CreditCard, Loader2, FileText, Users, UserPlus, Download, Trash2, ClipboardList } from 'lucide-react';
+import { User, Lock, Loader2, ClipboardList } from 'lucide-react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CustomerLayout } from '../../../../layouts/CustomerLayout';
-import { PersonalInfoTab, SecurityTab, NotificationsTab, PaymentMethodsTab, HostPartnerApplicationTab } from '../components';
-import { TeamsTab, TeamMemberTab, DataExportTab, DeleteAccountTab } from '../components/PlaceholderTabs';
-import { NOTIFICATION_SETTINGS, PAYMENT_METHODS } from '../data/mockData';
-import { NotificationSettings } from '../types';
+import { PersonalInfoTab, SecurityTab, HostPartnerApplicationTab } from '../components';
 import { useProfile } from '../hooks/useProfile';
 import { useAuthStore } from '@/stores/authStore';
 import { canAccessHostConsole, getRealmRolesFromAccessToken } from '@/utils/keycloakTokenRoles';
@@ -17,7 +14,6 @@ export function ProfilePage() {
   const navigate = useNavigate();
   const accessToken = useAuthStore((s) => s.accessToken);
   const [activeTab, setActiveTab] = useState('personal');
-  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(NOTIFICATION_SETTINGS);
   const isHostConsoleUser = canAccessHostConsole(getRealmRolesFromAccessToken(accessToken));
 
   if (isHostConsoleUser) {
@@ -57,13 +53,7 @@ export function ProfilePage() {
     { id: 'personal', label: t('customer.profile.sidebar.myProfile'), icon: User },
     ...(!hasHostPrivileges ? [{ id: 'hostPartner', label: t('customer.profile.sidebar.hostApplication', 'Đơn đối tác'), icon: ClipboardList }] : []),
     { id: 'security', label: t('customer.profile.sidebar.security'), icon: Lock },
-    { id: 'teams', label: t('customer.profile.sidebar.teams'), icon: Users },
-    { id: 'teamMember', label: t('customer.profile.sidebar.teamMember'), icon: UserPlus },
-    { id: 'notifications', label: t('customer.profile.sidebar.alerts'), icon: Bell },
-    { id: 'payment', label: t('customer.profile.sidebar.billing'), icon: CreditCard },
-    { id: 'dataExport', label: t('customer.profile.sidebar.dataExport'), icon: Download },
   ];
-  const deleteAccountLabel = t('customer.profile.sidebar.deleteAccount');
 
   return (
     <CustomerLayout>
@@ -96,37 +86,11 @@ export function ProfilePage() {
                     </button>
                   );
                 })}
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('deleteAccount')}
-                  data-delete
-                  data-active={activeTab === 'deleteAccount' ? 'true' : 'false'}
-                  className={`profile-tab w-full flex items-center gap-3 px-4 min-h-[44px] rounded-lg text-left cursor-pointer select-none transition-colors duration-150 mt-1 ${activeTab === 'deleteAccount' ? 'bg-red-50 text-red-600' : 'text-red-600'}`}
-                >
-                  <Trash2 className="w-5 h-5 shrink-0 flex-shrink-0" />
-                  <span className="truncate">{deleteAccountLabel}</span>
-                </button>
               </nav>
 
-              <button
-                type="button"
-                onClick={() => navigate('/transactions')}
-                data-transactions
-                className="profile-tab w-full flex items-center gap-3 px-4 min-h-[44px] rounded-xl cursor-pointer select-none text-[#666666] border border-gray-100 transition-colors duration-150"
-              >
-                <FileText className="w-5 h-5 shrink-0 flex-shrink-0 text-gray-400" />
-                <span className="truncate">{t('customer.profile.sidebar.transactions')}</span>
-              </button>
 
-              <div className="bg-gradient-to-br from-red-500 to-orange-600 p-6 rounded-xl text-white shadow-sm">
-                <h3 className="text-lg font-bold mb-2">{t('customer.profile.premium.title')}</h3>
-                <p className="text-xs text-white/90 mb-4 leading-relaxed">
-                  {t('customer.profile.premium.description')}
-                </p>
-                <button className="w-full bg-white text-gray-900 py-2.5 rounded-lg font-semibold text-sm hover:bg-gray-100 transition-all">
-                  {t('customer.profile.premium.upgrade')}
-                </button>
-              </div>
+
+
             </div>
 
             {/* Main Content Area - no animation on wrapper to avoid re-trigger when profile updates */}
@@ -140,17 +104,6 @@ export function ProfilePage() {
                 )}
                 {activeTab === 'hostPartner' && <HostPartnerApplicationTab />}
                 {activeTab === 'security' && <SecurityTab />}
-                {activeTab === 'teams' && <TeamsTab />}
-                {activeTab === 'teamMember' && <TeamMemberTab />}
-                {activeTab === 'notifications' && (
-                  <NotificationsTab
-                    settings={notificationSettings}
-                    onUpdate={setNotificationSettings}
-                  />
-                )}
-                {activeTab === 'payment' && <PaymentMethodsTab methods={PAYMENT_METHODS} />}
-                {activeTab === 'dataExport' && <DataExportTab />}
-                {activeTab === 'deleteAccount' && <DeleteAccountTab />}
               </div>
             </div>
           </div>

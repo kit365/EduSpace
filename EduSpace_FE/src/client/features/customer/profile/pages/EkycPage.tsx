@@ -36,6 +36,9 @@ export function EkycPage() {
     const [frontPreview, setFrontPreview] = useState<string | null>(null);
     const [backPreview, setBackPreview] = useState<string | null>(null);
     const [selfiePreview, setSelfiePreview] = useState<string | null>(null);
+    const [frontPreviewBroken, setFrontPreviewBroken] = useState(false);
+    const [backPreviewBroken, setBackPreviewBroken] = useState(false);
+    const [selfiePreviewBroken, setSelfiePreviewBroken] = useState(false);
     const [verifyResult, setVerifyResult] = useState<'success' | 'failed' | null>(null);
     const [ocrData, setOcrData] = useState<{
         name: string | null;
@@ -85,6 +88,9 @@ export function EkycPage() {
         setFrontPreview(null);
         setBackPreview(null);
         setSelfiePreview(null);
+        setFrontPreviewBroken(false);
+        setBackPreviewBroken(false);
+        setSelfiePreviewBroken(false);
         setVerifyResult(null);
         setOcrData(null);
         setErrorMessage(null);
@@ -99,16 +105,19 @@ export function EkycPage() {
         const url = URL.createObjectURL(file);
         if (type === 'front') {
             if (frontPreview) URL.revokeObjectURL(frontPreview);
+            setFrontPreviewBroken(false);
             setFrontFile(file);
             setFrontPreview(url);
             setStep('back');
         } else if (type === 'back') {
             if (backPreview) URL.revokeObjectURL(backPreview);
+            setBackPreviewBroken(false);
             setBackFile(file);
             setBackPreview(url);
             setStep('selfie');
         } else {
             if (selfiePreview) URL.revokeObjectURL(selfiePreview);
+            setSelfiePreviewBroken(false);
             setSelfieFile(file);
             setSelfiePreview(url);
             void runVerify(file);
@@ -446,7 +455,18 @@ export function EkycPage() {
                                                         <div className="flex gap-4 justify-center">
                                                         {frontPreview && (
                                                             <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="w-28 h-20 bg-gray-100 rounded-2xl overflow-hidden border-4 border-green-500/30 relative shadow-xl">
-                                                                <img src={frontPreview} alt="Front" className="w-full h-full object-cover" />
+                                                                {!frontPreviewBroken ? (
+                                                                    <img
+                                                                        src={frontPreview}
+                                                                        alt="Front"
+                                                                        className="w-full h-full object-cover"
+                                                                        onError={() => setFrontPreviewBroken(true)}
+                                                                    />
+                                                                ) : (
+                                                                    <div className="w-full h-full flex items-center justify-center bg-green-50 text-green-700 text-xs font-bold uppercase tracking-wide">
+                                                                        Front selected
+                                                                    </div>
+                                                                )}
                                                                 <div className="absolute inset-0 bg-green-500/10 flex items-center justify-center">
                                                                     <CheckCircle2 className="w-8 h-8 text-white shadow-lg" />
                                                                 </div>
@@ -454,7 +474,18 @@ export function EkycPage() {
                                                         )}
                                                         {backPreview && (
                                                             <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="w-28 h-20 bg-gray-100 rounded-2xl overflow-hidden border-4 border-green-500/30 relative shadow-xl">
-                                                                <img src={backPreview} alt="Back" className="w-full h-full object-cover" />
+                                                                {!backPreviewBroken ? (
+                                                                    <img
+                                                                        src={backPreview}
+                                                                        alt="Back"
+                                                                        className="w-full h-full object-cover"
+                                                                        onError={() => setBackPreviewBroken(true)}
+                                                                    />
+                                                                ) : (
+                                                                    <div className="w-full h-full flex items-center justify-center bg-green-50 text-green-700 text-xs font-bold uppercase tracking-wide">
+                                                                        Back selected
+                                                                    </div>
+                                                                )}
                                                                 <div className="absolute inset-0 bg-green-500/10 flex items-center justify-center">
                                                                     <CheckCircle2 className="w-8 h-8 text-white shadow-lg" />
                                                                 </div>
