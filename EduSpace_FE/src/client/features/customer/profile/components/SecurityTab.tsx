@@ -112,6 +112,14 @@ export function SecurityTab() {
     setShowDisableModal(true);
   };
 
+  const triggerTwoFactorAction = () => {
+    if (is2faEnabledLocal) {
+      startDisable2fa();
+      return;
+    }
+    void start2faSetup();
+  };
+
   const handleDisable2fa = async () => {
     if (disableCode.length !== 6) {
       setError(t('customer.profile.security.twoFactor.setup.invalid'));
@@ -185,9 +193,7 @@ export function SecurityTab() {
                 label: 'Bảo mật 2FA', 
                 desc: 'Bảo vệ bằng mã OTP hai lớp',
                 active: is2faEnabledLocal,
-                action: () => {
-                  document.getElementById('2fa-section')?.scrollIntoView({ behavior: 'smooth' });
-                }
+                action: triggerTwoFactorAction
               },
               { 
                 id: 'ekyc', 
@@ -220,7 +226,18 @@ export function SecurityTab() {
                   {step.desc}
                 </p>
 
-                {!step.active ? (
+                {step.id === '2fa' ? (
+                  <button
+                    onClick={step.action}
+                    className={`w-full py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${
+                      step.active
+                        ? 'border border-red-100 text-red-600 hover:bg-red-50'
+                        : 'border border-blue-100 text-blue-600 hover:bg-blue-50'
+                    }`}
+                  >
+                    {step.active ? 'Tắt 2FA' : 'Thực hiện ngay'}
+                  </button>
+                ) : !step.active ? (
                   <button 
                     onClick={step.action}
                     className="w-full py-2.5 rounded-xl border border-blue-100 text-[10px] font-bold uppercase tracking-wider text-blue-600 hover:bg-blue-50 transition-all"
@@ -297,55 +314,6 @@ export function SecurityTab() {
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
             {loading ? t('customer.profile.security.updating') : 'Đổi mật khẩu ngay'}
           </button>
-        </div>
-      </div>
-
-      {/* 3. Two-Factor Authentication Section */}
-      <div id="2fa-section" className={cardClass}>
-        <div className="flex flex-col md:flex-row items-start gap-8">
-          <div className="w-20 h-20 bg-blue-50 rounded-[28px] flex items-center justify-center flex-shrink-0 border border-blue-100 shadow-sm">
-            <Shield className="w-10 h-10 text-blue-500" />
-          </div>
-          <div className="flex-1">
-            <div className="flex flex-wrap items-center justify-between gap-4 mb-3">
-              <h3 className="font-bold text-lg text-[#333333]">{t('customer.profile.security.twoFactor.title')}</h3>
-              {is2faEnabledLocal ? (
-                <span className="px-3 py-1 bg-green-50 text-green-600 text-[10px] font-bold rounded-full uppercase tracking-wider border border-green-100">
-                  {t('customer.profile.security.twoFactor.enabled')}
-                </span>
-              ) : (
-                <span className="px-3 py-1 bg-gray-50 text-gray-400 text-[10px] font-bold rounded-full uppercase tracking-wider border border-gray-100">
-                  {t('customer.profile.security.twoFactor.disabled')}
-                </span>
-              )}
-            </div>
-            <p className="text-[#666666] text-sm mb-8 leading-relaxed">
-              {t('customer.profile.security.twoFactor.description')}
-              <br />
-              <span className="text-[11px] text-blue-500 mt-2 block font-semibold">* Khuyên dùng: Sử dụng Google Authenticator.</span>
-            </p>
-
-            <div className="flex flex-wrap gap-4">
-              {is2faEnabledLocal ? (
-                <button
-                  onClick={startDisable2fa}
-                  disabled={loading}
-                  className="px-6 py-3 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white font-bold transition-all text-sm border border-red-100"
-                >
-                  Tắt bảo mật 2FA
-                </button>
-              ) : (
-                <button
-                  onClick={start2faSetup}
-                  disabled={loading}
-                  className="px-8 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 font-bold shadow-md shadow-blue-100 transition-all flex items-center gap-2 text-sm"
-                >
-                  <Lock className="w-4 h-4" />
-                  Kích hoạt 2FA
-                </button>
-              )}
-            </div>
-          </div>
         </div>
       </div>
 

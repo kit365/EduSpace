@@ -30,6 +30,7 @@ public class StaffAssignmentOfferEntity {
     public enum Status {
         PENDING,
         ACCEPTED,
+        DECLINED,
         EXPIRED
     }
 

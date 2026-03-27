@@ -31,6 +31,7 @@ public class ConversationResponse {
     int unreadCount;
     String lastMessage;
     OtherUser otherUser;
+    PendingAssignmentOffer pendingAssignmentOffer;
 
     public LocalDateTime getLastActivityCompat() {
         return lastActivity;
@@ -55,6 +56,24 @@ public class ConversationResponse {
         public void setEmail(String email) { this.email = email; }
         public String getAvatarUrl() { return avatarUrl; }
         public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @FieldDefaults(level = AccessLevel.PRIVATE)
+    public static class PendingAssignmentOffer {
+        String offerId;
+        String targetAdminId;
+        LocalDateTime expiresAt;
+
+        public String getOfferId() { return offerId; }
+        public void setOfferId(String offerId) { this.offerId = offerId; }
+        public String getTargetAdminId() { return targetAdminId; }
+        public void setTargetAdminId(String targetAdminId) { this.targetAdminId = targetAdminId; }
+        public LocalDateTime getExpiresAt() { return expiresAt; }
+        public void setExpiresAt(LocalDateTime expiresAt) { this.expiresAt = expiresAt; }
     }
 
     public String getConversationId() { return conversationId; }
@@ -85,5 +104,7 @@ public class ConversationResponse {
     public void setLastMessage(String lastMessage) { this.lastMessage = lastMessage; }
     public OtherUser getOtherUser() { return otherUser; }
     public void setOtherUser(OtherUser otherUser) { this.otherUser = otherUser; }
+    public PendingAssignmentOffer getPendingAssignmentOffer() { return pendingAssignmentOffer; }
+    public void setPendingAssignmentOffer(PendingAssignmentOffer pendingAssignmentOffer) { this.pendingAssignmentOffer = pendingAssignmentOffer; }
 }
 

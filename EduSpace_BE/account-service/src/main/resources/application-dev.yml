@@ -37,7 +37,7 @@ spring:
   #   KAFKA_LISTENER_AUTO_STARTUP=true
   kafka:
     listener:
-      auto-startup: ${KAFKA_LISTENER_AUTO_STARTUP:false}
+      auto-startup: ${KAFKA_LISTENER_AUTO_STARTUP:true}
 
 logging:
   level:

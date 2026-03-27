@@ -36,6 +36,9 @@ export function EkycPage() {
     const [frontPreview, setFrontPreview] = useState<string | null>(null);
     const [backPreview, setBackPreview] = useState<string | null>(null);
     const [selfiePreview, setSelfiePreview] = useState<string | null>(null);
+    const [frontPreviewBroken, setFrontPreviewBroken] = useState(false);
+    const [backPreviewBroken, setBackPreviewBroken] = useState(false);
+    const [selfiePreviewBroken, setSelfiePreviewBroken] = useState(false);
     const [verifyResult, setVerifyResult] = useState<'success' | 'failed' | null>(null);
     const [ocrData, setOcrData] = useState<{
         name: string | null;
@@ -74,22 +77,57 @@ export function EkycPage() {
     const backInputRef = useRef<HTMLInputElement>(null);
     const selfieInputRef = useRef<HTMLInputElement>(null);
 
+    const resetVerificationFlow = () => {
+        if (frontPreview) URL.revokeObjectURL(frontPreview);
+        if (backPreview) URL.revokeObjectURL(backPreview);
+        if (selfiePreview) URL.revokeObjectURL(selfiePreview);
+
+        setFrontFile(null);
+        setBackFile(null);
+        setSelfieFile(null);
+        setFrontPreview(null);
+        setBackPreview(null);
+        setSelfiePreview(null);
+        setFrontPreviewBroken(false);
+        setBackPreviewBroken(false);
+        setSelfiePreviewBroken(false);
+        setVerifyResult(null);
+        setOcrData(null);
+        setErrorMessage(null);
+
+        if (frontInputRef.current) frontInputRef.current.value = '';
+        if (backInputRef.current) backInputRef.current.value = '';
+        if (selfieInputRef.current) selfieInputRef.current.value = '';
+    };
+
     const pickFile = (type: 'front' | 'back' | 'selfie', file: File | null) => {
         if (!file) return;
         const url = URL.createObjectURL(file);
         if (type === 'front') {
+            if (frontPreview) URL.revokeObjectURL(frontPreview);
+            setFrontPreviewBroken(false);
             setFrontFile(file);
             setFrontPreview(url);
             setStep('back');
         } else if (type === 'back') {
+            if (backPreview) URL.revokeObjectURL(backPreview);
+            setBackPreviewBroken(false);
             setBackFile(file);
             setBackPreview(url);
             setStep('selfie');
         } else {
+            if (selfiePreview) URL.revokeObjectURL(selfiePreview);
+            setSelfiePreviewBroken(false);
             setSelfieFile(file);
             setSelfiePreview(url);
             void runVerify(file);
         }
+    };
+
+    const openPicker = (type: 'front' | 'back' | 'selfie') => {
+        if (type === 'front') frontInputRef.current?.click();
+        else if (type === 'back') backInputRef.current?.click();
+        else selfieInputRef.current?.click();
     };
 
     const runVerify = async (selfie: File) => {
@@ -251,7 +289,10 @@ export function EkycPage() {
 
                                 <button
                                     type="button"
-                                    onClick={() => setStep('front')}
+                                    onClick={() => {
+                                        resetVerificationFlow();
+                                        setStep('front');
+                                    }}
                                     className="bg-gray-900 text-white px-12 py-5 rounded-3xl font-black text-lg shadow-2xl shadow-gray-200 hover:scale-105 active:scale-95 transition-all flex items-center gap-4 mx-auto"
                                 >
                                     {t('customer.ekyc.start')}
@@ -394,11 +435,7 @@ export function EkycPage() {
                                                     whileHover={{ scale: 1.01 }}
                                                     whileTap={{ scale: 0.99 }}
                                                     type="button"
-                                                    onClick={() => {
-                                                        if (step === 'front') frontInputRef.current?.click();
-                                                        else if (step === 'back') backInputRef.current?.click();
-                                                        else selfieInputRef.current?.click();
-                                                    }}
+                                                    onClick={() => openPicker(step === 'front' ? 'front' : step === 'back' ? 'back' : 'selfie')}
                                                     className="w-full aspect-[16/10] bg-gray-50 border-4 border-dashed border-gray-100 rounded-[40px] flex flex-col items-center justify-center cursor-pointer hover:border-blue-200 hover:bg-blue-50/20 transition-all group mb-8 shadow-inner"
                                                 >
                                                     <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-all mb-4 text-gray-300 group-hover:text-blue-500">
@@ -414,10 +451,22 @@ export function EkycPage() {
                                                 </motion.button>
 
                                                 {(frontPreview || backPreview || selfiePreview) && (
-                                                    <div className="flex gap-4 justify-center">
+                                                    <div className="space-y-3">
+                                                        <div className="flex gap-4 justify-center">
                                                         {frontPreview && (
                                                             <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="w-28 h-20 bg-gray-100 rounded-2xl overflow-hidden border-4 border-green-500/30 relative shadow-xl">
-                                                                <img src={frontPreview} alt="Front" className="w-full h-full object-cover" />
+                                                                {!frontPreviewBroken ? (
+                                                                    <img
+                                                                        src={frontPreview}
+                                                                        alt="Front"
+                                                                        className="w-full h-full object-cover"
+                                                                        onError={() => setFrontPreviewBroken(true)}
+                                                                    />
+                                                                ) : (
+                                                                    <div className="w-full h-full flex items-center justify-center bg-green-50 text-green-700 text-xs font-bold uppercase tracking-wide">
+                                                                        Front selected
+                                                                    </div>
+                                                                )}
                                                                 <div className="absolute inset-0 bg-green-500/10 flex items-center justify-center">
                                                                     <CheckCircle2 className="w-8 h-8 text-white shadow-lg" />
                                                                 </div>
@@ -425,11 +474,45 @@ export function EkycPage() {
                                                         )}
                                                         {backPreview && (
                                                             <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="w-28 h-20 bg-gray-100 rounded-2xl overflow-hidden border-4 border-green-500/30 relative shadow-xl">
-                                                                <img src={backPreview} alt="Back" className="w-full h-full object-cover" />
+                                                                {!backPreviewBroken ? (
+                                                                    <img
+                                                                        src={backPreview}
+                                                                        alt="Back"
+                                                                        className="w-full h-full object-cover"
+                                                                        onError={() => setBackPreviewBroken(true)}
+                                                                    />
+                                                                ) : (
+                                                                    <div className="w-full h-full flex items-center justify-center bg-green-50 text-green-700 text-xs font-bold uppercase tracking-wide">
+                                                                        Back selected
+                                                                    </div>
+                                                                )}
                                                                 <div className="absolute inset-0 bg-green-500/10 flex items-center justify-center">
                                                                     <CheckCircle2 className="w-8 h-8 text-white shadow-lg" />
                                                                 </div>
                                                             </motion.div>
+                                                        )}
+                                                        </div>
+                                                        {(step === 'back' || step === 'selfie') && (
+                                                            <div className="flex flex-wrap items-center justify-center gap-3">
+                                                                {frontPreview && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => openPicker('front')}
+                                                                        className="px-4 py-2 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-wide hover:bg-blue-100 transition-colors"
+                                                                    >
+                                                                        Chọn lại mặt trước
+                                                                    </button>
+                                                                )}
+                                                                {backPreview && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => openPicker('back')}
+                                                                        className="px-4 py-2 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-wide hover:bg-blue-100 transition-colors"
+                                                                    >
+                                                                        Chọn lại mặt sau
+                                                                    </button>
+                                                                )}
+                                                            </div>
                                                         )}
                                                     </div>
                                                 )}
@@ -510,7 +593,7 @@ export function EkycPage() {
 
                                                         <button
                                                             type="button"
-                                                            onClick={() => navigate('/host-registration')}
+                                                            onClick={() => navigate('/rental/register')}
                                                             className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-6 rounded-[32px] font-black text-lg shadow-2xl shadow-blue-200 hover:scale-[1.02] active:scale-98 transition-all flex items-center justify-center gap-4"
                                                         >
                                                             Continue to Registration
@@ -525,16 +608,8 @@ export function EkycPage() {
                                                     <button
                                                         type="button"
                                                         onClick={() => {
+                                                            resetVerificationFlow();
                                                             setStep('front');
-                                                            setFrontFile(null);
-                                                            setBackFile(null);
-                                                            setSelfieFile(null);
-                                                            setFrontPreview(null);
-                                                            setBackPreview(null);
-                                                            setSelfiePreview(null);
-                                                            setVerifyResult(null);
-                                                            setOcrData(null);
-                                                            setErrorMessage(null);
                                                         }}
                                                         className="w-full bg-gray-900 text-white py-6 rounded-[32px] font-black text-lg shadow-2xl shadow-gray-200 hover:scale-[1.02] active:scale-98 transition-all flex items-center justify-center gap-4"
                                                     >

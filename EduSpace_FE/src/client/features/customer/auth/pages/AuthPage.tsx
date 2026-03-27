@@ -80,28 +80,10 @@ export function AuthPage() {
         email: data.email,
         password: data.password,
         fullName: data.name,
-        ...(data.userType === 'host' && {
-          hostPartnerApplication: {
-            applicantType: data.hostApplicantType,
-            phone: data.hostPhone.trim() || undefined,
-            address: data.hostAddress.trim(),
-            documentFrontUrl: data.kycFrontUrl.trim() || undefined,
-            documentBackUrl: data.kycBackUrl.trim() || undefined,
-            businessLicenseUrl:
-              data.hostApplicantType === 'BUSINESS' ? data.kycLicenseUrl.trim() || undefined : undefined,
-          },
-        }),
       },
       {
         onSuccess: (res) => {
-          if (data.userType === 'host') {
-            toast.success(
-              res.message ||
-                'Đã tạo tài khoản & gửi đơn đối tác. Kiểm tra email để xác thực — bạn vẫn là khách cho đến khi admin duyệt.',
-            );
-          } else {
-            toast.success(res.message || 'Registration successful! Please login.');
-          }
+          toast.success(res.message || 'Registration successful! Please login.');
           setMode('login');
         },
         onError: (err: any) => {

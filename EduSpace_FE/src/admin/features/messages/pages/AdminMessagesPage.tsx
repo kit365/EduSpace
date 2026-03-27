@@ -48,9 +48,22 @@ export function AdminMessagesPage() {
 
     const { chatUserId: currentUserId } = useResolvedChatUserId();
     const { initiateCall, activeCall } = useVideoCall();
+    const isMessageFromCurrentUser = useCallback(
+        (message: ChatMessage): boolean => {
+            if (!currentUserId) return false;
+            const sender = message as ChatMessage & { senderId?: string | null };
+            const rawSenderId = message.sender?.userId ?? sender.senderId ?? null;
+            if (!rawSenderId) return false;
+            return rawSenderId.trim().toLowerCase() === currentUserId.trim().toLowerCase();
+        },
+        [currentUserId],
+    );
 
     const pendingOffers = useChatInboxStore((s) => s.pendingAssignmentOffers);
     const clearPendingAssignmentOffer = useChatInboxStore((s) => s.clearPendingAssignmentOffer);
+    const syncPendingAssignmentOffersFromConversations = useChatInboxStore(
+        (s) => s.syncPendingAssignmentOffersFromConversations,
+    );
 
     const reloadMessages = useCallback(async () => {
         if (!selectedConversation) return;
@@ -161,8 +174,27 @@ export function AdminMessagesPage() {
     };
 
     const handleDeclineOffer = (offer: AssignmentOfferEvent) => {
-        clearPendingAssignmentOffer(offer.conversationId);
+        void (async () => {
+            try {
+                const updated = await messageService.declineAssignmentOffer(offer.conversationId, offer.offerId);
+                setConversations((prev) =>
+                    prev.map((c) => (c.conversationId === updated.conversationId ? updated : c)),
+                );
+                if (selectedConversation?.conversationId === updated.conversationId) {
+                    setSelectedConversation(updated);
+                }
+                clearPendingAssignmentOffer(offer.conversationId);
+                const refreshed = await messageService.getAdminConversations();
+                setConversations(refreshed);
+            } catch (err) {
+                console.error('Failed to decline assignment offer', err);
+            }
+        })();
     };
+
+    useEffect(() => {
+        syncPendingAssignmentOffersFromConversations(conversations);
+    }, [conversations, syncPendingAssignmentOffersFromConversations]);
 
     useEffect(() => {
         if (!lastEdited) return;
@@ -437,7 +469,7 @@ export function AdminMessagesPage() {
                                             </div>
                                         );
                                     }
-                                    const isMe = m.sender?.userId === currentUserId;
+                                    const isMe = isMessageFromCurrentUser(m);
                                     return (
                                         <div key={m.messageId} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                                             {!isMe && (

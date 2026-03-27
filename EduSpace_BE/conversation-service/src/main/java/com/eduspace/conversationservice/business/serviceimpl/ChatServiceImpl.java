@@ -376,6 +376,51 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
+    @Transactional
+    public ConversationResponse declineAssignmentOffer(String conversationId, String offerId, String adminUserId) {
+        if (adminUserId == null || adminUserId.isBlank()) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+        ConversationEntity conversation = conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+        StaffAssignmentOfferEntity offer = offerRepository.findByIdAndConversationId(offerId, conversationId)
+                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST));
+
+        if (!adminUserId.equals(offer.getStaffId())) {
+            throw new AppException(ErrorCode.ACCESS_DENIED);
+        }
+        if (offer.getStatus() != StaffAssignmentOfferEntity.Status.PENDING) {
+            return toConversationResponse(conversation, adminUserId);
+        }
+        if (offer.getExpiresAt() != null && offer.getExpiresAt().isBefore(LocalDateTime.now())) {
+            offer.setStatus(StaffAssignmentOfferEntity.Status.EXPIRED);
+            offerRepository.save(offer);
+            sagaService.failSaga(offer.getSagaId(), "Offer expired before admin declined");
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+
+        offer.setStatus(StaffAssignmentOfferEntity.Status.DECLINED);
+        offerRepository.save(offer);
+        sagaService.failSaga(offer.getSagaId(), "Offer declined by admin");
+
+        // Queue conversation for a fresh assignment attempt immediately.
+        String nextSagaId = UUID.randomUUID().toString();
+        conversation.setUser2Id(resolvePlaceholderAdminId());
+        conversation.setSagaId(nextSagaId);
+        conversation.setIsActive(true);
+        conversationRepository.save(conversation);
+        sagaService.startSaga(
+                nextSagaId,
+                SagaType.FIND_STAFF.getValue(),
+                SagaStep.VALIDATE_USERS.getValue(),
+                Map.of("conversationId", conversation.getId(), "currentUserId", conversation.getUser1Id(), "retry", true));
+        scheduleAssignStaffKafkaSend(nextSagaId, conversation.getId(), conversation.getUser1Id());
+        emitSupportReassigningActivity(conversation, adminUserId);
+
+        return toConversationResponse(conversation, adminUserId);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public List<ConversationResponse> getUserConversations(String currentUserId) {
         return conversationRepository.findByUser1IdOrUser2IdOrderByLastActivityDesc(currentUserId, currentUserId).stream()
@@ -722,6 +767,15 @@ public class ChatServiceImpl implements ChatService {
             }
         }
         AccountClient.PublicUserProfile otherProfile = fetchProfileSafe(otherId);
+        if (Boolean.TRUE.equals(conversation.getIsAdminConversation())
+                && otherId != null
+                && otherId.startsWith("GUEST-")
+                && isAnonymousGuestProfile(otherProfile)) {
+            AccountClient.PublicUserProfile resolved = resolveRealParticipantProfileFromRecentMessages(conversation, currentUserId);
+            if (resolved != null) {
+                otherProfile = resolved;
+            }
+        }
 
         if (otherProfile == null && Boolean.TRUE.equals(conversation.getIsAdminConversation()) && otherId != null) {
             if (otherId.startsWith("GUEST-")) {
@@ -751,7 +805,85 @@ public class ChatServiceImpl implements ChatService {
         }
 
         ConversationResponse.OtherUser otherUser = conversationMapper.mapOtherUser(otherProfile, Boolean.TRUE.equals(conversation.getIsAdminConversation()), supportAdminKeycloakId);
-        return conversationMapper.toResponse(conversation, currentUserId, otherUser, unreadCount, preview);
+        ConversationResponse response = conversationMapper.toResponse(conversation, currentUserId, otherUser, unreadCount, preview);
+        if (Boolean.TRUE.equals(conversation.getIsAdminConversation())) {
+            offerRepository.findFirstByConversationIdAndStatusOrderByCreatedAtDesc(
+                            conversation.getId(),
+                            StaffAssignmentOfferEntity.Status.PENDING)
+                    .filter(o -> o.getExpiresAt() != null && o.getExpiresAt().isAfter(LocalDateTime.now()))
+                    .ifPresent(o -> response.setPendingAssignmentOffer(
+                            ConversationResponse.PendingAssignmentOffer.builder()
+                                    .offerId(o.getId())
+                                    .targetAdminId(o.getStaffId())
+                                    .expiresAt(o.getExpiresAt())
+                                    .build()));
+        }
+        return response;
+    }
+
+    private void emitSupportReassigningActivity(ConversationEntity conversation, String declinedAdminId) {
+        Map<String, Object> eventPayload = new HashMap<>();
+        eventPayload.put("type", "CONVERSATION_ACTIVITY");
+        eventPayload.put("conversationId", conversation.getId());
+        eventPayload.put("lastMessage", "Assignment declined, searching another available admin");
+        eventPayload.put("lastActivity", LocalDateTime.now().toString());
+        eventPayload.put("isAdminConversation", true);
+        eventPayload.put("senderId", declinedAdminId);
+        eventPayload.put("messageType", "SYSTEM");
+
+        String customerTopic = WebSocketTopics.USER + conversation.getUser1Id() + WebSocketTopics.CONVERSATIONS;
+        String adminTopic = WebSocketTopics.USER + declinedAdminId + WebSocketTopics.CONVERSATIONS;
+        messagingTemplate.convertAndSend(customerTopic, eventPayload);
+        messagingTemplate.convertAndSend(adminTopic, eventPayload);
+        outboxService.addEvent(
+                DomainEventConstants.AGGREGATE_CONVERSATION,
+                conversation.getId(),
+                "CONVERSATION_ACTIVITY",
+                eventPayload,
+                conversation.getUser1Id());
+        outboxService.addEvent(
+                DomainEventConstants.AGGREGATE_CONVERSATION,
+                conversation.getId(),
+                "CONVERSATION_ACTIVITY",
+                eventPayload,
+                declinedAdminId);
+    }
+
+    private boolean isAnonymousGuestProfile(AccountClient.PublicUserProfile profile) {
+        if (profile == null || profile.fullName() == null) {
+            return true;
+        }
+        String name = profile.fullName().trim().toLowerCase(Locale.ROOT);
+        return name.isBlank() || "anonymous guest".equals(name) || "guest".equals(name);
+    }
+
+    private AccountClient.PublicUserProfile resolveRealParticipantProfileFromRecentMessages(
+            ConversationEntity conversation,
+            String currentUserId
+    ) {
+        List<ChatMessageEntity> recent = chatMessageRepository
+                .findByConversationAndIsDeletedFalseOrderBySentAtDesc(conversation, PageRequest.of(0, 30))
+                .getContent();
+        for (ChatMessageEntity message : recent) {
+            String senderId = message.getSenderId();
+            if (senderId == null || senderId.isBlank()) {
+                continue;
+            }
+            if (senderId.equals(currentUserId)) {
+                continue;
+            }
+            if ("admin-support".equals(senderId) || "admin-keycloak-id-0000".equals(senderId)) {
+                continue;
+            }
+            if (senderId.startsWith("GUEST-")) {
+                continue;
+            }
+            AccountClient.PublicUserProfile profile = fetchProfileSafe(senderId);
+            if (profile != null && profile.keycloakId() != null && !profile.keycloakId().isBlank()) {
+                return profile;
+            }
+        }
+        return null;
     }
 
     private ChatMessageResponse toMessageResponse(ChatMessageEntity message) {
@@ -879,15 +1011,17 @@ public class ChatServiceImpl implements ChatService {
         if ("admin-support".equals(userId) || "admin-keycloak-id-0000".equals(userId)) {
             return new AccountClient.PublicUserProfile(userId, "Admin Support", null, null);
         }
-        if (userId.startsWith("GUEST-")) {
-            return new AccountClient.PublicUserProfile(userId, "Anonymous Guest", null, null);
-        }
 
         try {
             ApiResponse<AccountClient.PublicUserProfile> res = accountClient.getPublicProfileByIdentifier(userId);
-            if (res != null && res.success()) return res.data();
+            if (res != null && res.success() && res.data() != null) {
+                return res.data();
+            }
         } catch (Exception ex) {
             log.warn("Failed to fetch profile for user {}: {}", userId, ex.getMessage());
+        }
+        if (userId.startsWith("GUEST-")) {
+            return new AccountClient.PublicUserProfile(userId, "Anonymous Guest", null, null);
         }
         return null;
     }
@@ -901,8 +1035,6 @@ public class ChatServiceImpl implements ChatService {
         for (String id : userIds) {
             if ("admin-support".equals(id) || "admin-keycloak-id-0000".equals(id)) {
                 result.put(id, new AccountClient.PublicUserProfile(id, "Admin Support", null, null));
-            } else if (id != null && id.startsWith("GUEST-")) {
-                result.put(id, new AccountClient.PublicUserProfile(id, "Anonymous Guest", null, null));
             } else {
                 realIds.add(id);
             }
@@ -916,6 +1048,12 @@ public class ChatServiceImpl implements ChatService {
                 }
             } catch (Exception ex) {
                 log.warn("Failed to batch fetch profiles: {}", ex.getMessage());
+            }
+        }
+
+        for (String id : userIds) {
+            if (id != null && id.startsWith("GUEST-") && !result.containsKey(id)) {
+                result.put(id, new AccountClient.PublicUserProfile(id, "Anonymous Guest", null, null));
             }
         }
 

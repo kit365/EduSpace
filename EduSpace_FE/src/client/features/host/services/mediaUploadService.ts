@@ -1,5 +1,6 @@
 import apiClient from '@/lib/axios';
 import type { ApiResponse } from '@/types/api';
+import { ROOM_API } from '@/config/api';
 
 /**
  * Folder Cloudinary (và thư mục con khi lưu local) chỉ dành cho EduSpace — tách biệt với TeddyPet / pet-avatars.
@@ -21,7 +22,7 @@ export async function uploadBranchLogoImage(file: File): Promise<string> {
     const formData = new FormData();
     formData.append('file', file);
     const res = await apiClient.post<unknown, ApiResponse<string>>(
-        `/api/v1/media/upload?folder=${encodeURIComponent(EDUSPACE_MEDIA_FOLDER_BRANCH_LOGOS)}`,
+        `${ROOM_API.ROOM_MEDIA_UPLOAD}?folder=${encodeURIComponent(EDUSPACE_MEDIA_FOLDER_BRANCH_LOGOS)}`,
         formData,
     );
     const url = unwrapData<string>(res);

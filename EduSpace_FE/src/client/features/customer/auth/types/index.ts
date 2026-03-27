@@ -53,14 +53,7 @@ export interface SignupFormData {
   email: string;
   password: string;
   confirmPassword: string;
-  userType: 'guest' | 'host';
   agreeToTerms: boolean;
-  hostApplicantType: 'INDIVIDUAL' | 'BUSINESS';
-  hostPhone: string;
-  hostAddress: string;
-  kycFrontUrl: string;
-  kycBackUrl: string;
-  kycLicenseUrl: string;
 }
 
 export interface AuthUser {

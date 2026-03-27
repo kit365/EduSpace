@@ -10,7 +10,6 @@ import { FavoritesPage } from '../features/customer/favorites';
 import { MessagesPage } from '../features/customer/messages';
 import { HelpPage } from '../features/customer/help';
 import { NotificationsPage } from '../features/customer/notifications/pages/NotificationsPage';
-import { TransactionHistoryPage } from '../features/customer/transactions/pages/TransactionHistoryPage';
 import { SpaceDetailPage } from '../features/customer/spaces/pages/SpaceDetailPage';
 
 export const customerRoutes: RouteObject[] = [
@@ -28,7 +27,6 @@ export const customerRoutes: RouteObject[] = [
     { path: '/favorites', element: <FavoritesPage /> },
     { path: '/messages', element: <MessagesPage /> },
     { path: '/notifications', element: <NotificationsPage /> },
-    { path: '/transactions', element: <TransactionHistoryPage /> },
     { path: '/help', element: <HelpPage /> },
     { path: '/:categorySlug', element: <SearchPage /> },
 ];
