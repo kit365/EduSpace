@@ -43,7 +43,24 @@ export function HostProfilePage() {
         );
     }
 
-    if (!profile) return null;
+    if (!profile) {
+        return (
+            <RentalLayout title="Cài đặt Profile Host">
+                <div className="flex min-h-[400px] items-center justify-center">
+                    <div className="text-center">
+                        <p className="text-sm font-semibold text-slate-600">Không tải được hồ sơ host.</p>
+                        <button
+                            type="button"
+                            onClick={() => window.location.reload()}
+                            className="mt-3 rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+                        >
+                            Tải lại trang
+                        </button>
+                    </div>
+                </div>
+            </RentalLayout>
+        );
+    }
 
     const handleSave = async () => {
         try {

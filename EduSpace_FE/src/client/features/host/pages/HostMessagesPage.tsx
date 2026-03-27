@@ -59,6 +59,16 @@ export function HostMessagesPage() {
     );
 
     const { chatUserId: currentUserId, identityReady } = useResolvedChatUserId();
+    const isMessageFromCurrentUser = useCallback(
+        (message: ChatMessage): boolean => {
+            if (!currentUserId) return false;
+            const sender = message as ChatMessage & { senderId?: string | null };
+            const rawSenderId = message.sender?.userId ?? sender.senderId ?? null;
+            if (!rawSenderId) return false;
+            return rawSenderId.trim().toLowerCase() === currentUserId.trim().toLowerCase();
+        },
+        [currentUserId],
+    );
 
     const activeChatIdRef = useRef<string | null>(null);
     const messagesScrollRef = useRef<HTMLDivElement | null>(null);
@@ -426,7 +436,7 @@ export function HostMessagesPage() {
                                         );
                                     }
 
-                                    const isMe = m.sender?.userId === currentUserId;
+                                    const isMe = isMessageFromCurrentUser(m);
 
                                     return (
                                         <div key={m.messageId} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
