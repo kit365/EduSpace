@@ -6,7 +6,7 @@ import { useRewardCatalog } from '../hooks/useRewardCatalog';
 import { usePointTransactions } from '../hooks/usePointTransactions';
 import { useLoyaltyConfig } from '../hooks/useLoyaltyConfig';
 import type { PointEarningRule, PointEarningRuleRequest, RewardCatalog, RewardCatalogRequest } from '../types';
-import { formatCurrency } from '@/utils/format';
+import { formatCurrency } from '../../../../utils/format';
 import { RefreshCcw, Plus, Pencil, Trash2, Gift, Coins, History, ChevronLeft, ChevronRight, ClipboardList, Inbox, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
 

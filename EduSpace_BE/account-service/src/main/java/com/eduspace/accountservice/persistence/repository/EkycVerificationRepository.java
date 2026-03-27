@@ -12,4 +12,5 @@ public interface EkycVerificationRepository extends JpaRepository<EkycVerificati
     boolean existsByIdNumberHashAndStatus(String idNumberHash, VerificationStatus status);
     Optional<EkycVerificationEntity> findByUserId(String userId);
     Optional<EkycVerificationEntity> findFirstByUserIdAndStatusOrderByCreatedAtDesc(String userId, VerificationStatus status);
+    Optional<EkycVerificationEntity> findFirstByUserIdOrderByCreatedAtDesc(String userId);
 }

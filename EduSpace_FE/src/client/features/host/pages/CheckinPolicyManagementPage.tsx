@@ -8,8 +8,8 @@ import {
   type CheckinRefundMode,
   type LateWithinGraceUsageMode,
 } from '../services/checkinPolicyService';
-import { showToast } from '@/utils/toast';
-import { getApiErrorMessage } from '@/utils/apiError';
+import { showToast } from '../../../../utils/toast';
+import { getApiErrorMessage } from '../../../../utils/apiError';
 
 type PolicyForm = {
   graceMinutes: number;
