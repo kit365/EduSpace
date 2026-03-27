@@ -9,6 +9,9 @@ import java.util.Optional;
 
 public interface StaffAssignmentOfferRepository extends JpaRepository<StaffAssignmentOfferEntity, String> {
     Optional<StaffAssignmentOfferEntity> findByIdAndConversationId(String offerId, String conversationId);
+    Optional<StaffAssignmentOfferEntity> findFirstByConversationIdAndStatusOrderByCreatedAtDesc(
+            String conversationId,
+            StaffAssignmentOfferEntity.Status status);
 
     List<StaffAssignmentOfferEntity> findByConversationIdAndStatus(String conversationId, StaffAssignmentOfferEntity.Status status);
 

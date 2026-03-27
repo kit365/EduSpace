@@ -376,6 +376,51 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
+    @Transactional
+    public ConversationResponse declineAssignmentOffer(String conversationId, String offerId, String adminUserId) {
+        if (adminUserId == null || adminUserId.isBlank()) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+        ConversationEntity conversation = conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+        StaffAssignmentOfferEntity offer = offerRepository.findByIdAndConversationId(offerId, conversationId)
+                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST));
+
+        if (!adminUserId.equals(offer.getStaffId())) {
+            throw new AppException(ErrorCode.ACCESS_DENIED);
+        }
+        if (offer.getStatus() != StaffAssignmentOfferEntity.Status.PENDING) {
+            return toConversationResponse(conversation, adminUserId);
+        }
+        if (offer.getExpiresAt() != null && offer.getExpiresAt().isBefore(LocalDateTime.now())) {
+            offer.setStatus(StaffAssignmentOfferEntity.Status.EXPIRED);
+            offerRepository.save(offer);
+            sagaService.failSaga(offer.getSagaId(), "Offer expired before admin declined");
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+
+        offer.setStatus(StaffAssignmentOfferEntity.Status.DECLINED);
+        offerRepository.save(offer);
+        sagaService.failSaga(offer.getSagaId(), "Offer declined by admin");
+
+        // Queue conversation for a fresh assignment attempt immediately.
+        String nextSagaId = UUID.randomUUID().toString();
+        conversation.setUser2Id(resolvePlaceholderAdminId());
+        conversation.setSagaId(nextSagaId);
+        conversation.setIsActive(true);
+        conversationRepository.save(conversation);
+        sagaService.startSaga(
+                nextSagaId,
+                SagaType.FIND_STAFF.getValue(),
+                SagaStep.VALIDATE_USERS.getValue(),
+                Map.of("conversationId", conversation.getId(), "currentUserId", conversation.getUser1Id(), "retry", true));
+        scheduleAssignStaffKafkaSend(nextSagaId, conversation.getId(), conversation.getUser1Id());
+        emitSupportReassigningActivity(conversation, adminUserId);
+
+        return toConversationResponse(conversation, adminUserId);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public List<ConversationResponse> getUserConversations(String currentUserId) {
         return conversationRepository.findByUser1IdOrUser2IdOrderByLastActivityDesc(currentUserId, currentUserId).stream()
@@ -760,7 +805,48 @@ public class ChatServiceImpl implements ChatService {
         }
 
         ConversationResponse.OtherUser otherUser = conversationMapper.mapOtherUser(otherProfile, Boolean.TRUE.equals(conversation.getIsAdminConversation()), supportAdminKeycloakId);
-        return conversationMapper.toResponse(conversation, currentUserId, otherUser, unreadCount, preview);
+        ConversationResponse response = conversationMapper.toResponse(conversation, currentUserId, otherUser, unreadCount, preview);
+        if (Boolean.TRUE.equals(conversation.getIsAdminConversation())) {
+            offerRepository.findFirstByConversationIdAndStatusOrderByCreatedAtDesc(
+                            conversation.getId(),
+                            StaffAssignmentOfferEntity.Status.PENDING)
+                    .filter(o -> o.getExpiresAt() != null && o.getExpiresAt().isAfter(LocalDateTime.now()))
+                    .ifPresent(o -> response.setPendingAssignmentOffer(
+                            ConversationResponse.PendingAssignmentOffer.builder()
+                                    .offerId(o.getId())
+                                    .targetAdminId(o.getStaffId())
+                                    .expiresAt(o.getExpiresAt())
+                                    .build()));
+        }
+        return response;
+    }
+
+    private void emitSupportReassigningActivity(ConversationEntity conversation, String declinedAdminId) {
+        Map<String, Object> eventPayload = new HashMap<>();
+        eventPayload.put("type", "CONVERSATION_ACTIVITY");
+        eventPayload.put("conversationId", conversation.getId());
+        eventPayload.put("lastMessage", "Assignment declined, searching another available admin");
+        eventPayload.put("lastActivity", LocalDateTime.now().toString());
+        eventPayload.put("isAdminConversation", true);
+        eventPayload.put("senderId", declinedAdminId);
+        eventPayload.put("messageType", "SYSTEM");
+
+        String customerTopic = WebSocketTopics.USER + conversation.getUser1Id() + WebSocketTopics.CONVERSATIONS;
+        String adminTopic = WebSocketTopics.USER + declinedAdminId + WebSocketTopics.CONVERSATIONS;
+        messagingTemplate.convertAndSend(customerTopic, eventPayload);
+        messagingTemplate.convertAndSend(adminTopic, eventPayload);
+        outboxService.addEvent(
+                DomainEventConstants.AGGREGATE_CONVERSATION,
+                conversation.getId(),
+                "CONVERSATION_ACTIVITY",
+                eventPayload,
+                conversation.getUser1Id());
+        outboxService.addEvent(
+                DomainEventConstants.AGGREGATE_CONVERSATION,
+                conversation.getId(),
+                "CONVERSATION_ACTIVITY",
+                eventPayload,
+                declinedAdminId);
     }
 
     private boolean isAnonymousGuestProfile(AccountClient.PublicUserProfile profile) {

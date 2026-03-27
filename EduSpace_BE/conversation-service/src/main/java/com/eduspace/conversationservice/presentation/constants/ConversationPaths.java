@@ -18,6 +18,7 @@ public final class ConversationPaths {
     public static final String BLOCK = BY_ID + "/block";
     public static final String UNBLOCK = BY_ID + "/unblock";
     public static final String ACCEPT_ASSIGNMENT_OFFER = BY_ID + "/assignment-offers/{offerId}/accept";
+    public static final String DECLINE_ASSIGNMENT_OFFER = BY_ID + "/assignment-offers/{offerId}/decline";
 
     public static final class Message {
         private Message() {

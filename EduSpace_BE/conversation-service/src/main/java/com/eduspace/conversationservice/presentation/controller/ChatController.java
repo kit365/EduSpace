@@ -161,6 +161,17 @@ public class ChatController {
         return ApiResponse.success(conversation, SuccessCode.CONVERSATION_GET_SUCCESS, "Assignment accepted");
     }
 
+    @PostMapping(ConversationPaths.DECLINE_ASSIGNMENT_OFFER)
+    public ApiResponse<ConversationResponse> declineAssignmentOffer(@PathVariable String conversationId,
+            @PathVariable String offerId) {
+        String userId = currentUserId(SecurityContextHolder.getContext().getAuthentication());
+        if (userId == null) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+        ConversationResponse conversation = chatService.declineAssignmentOffer(conversationId, offerId, userId);
+        return ApiResponse.success(conversation, SuccessCode.CONVERSATION_GET_SUCCESS, "Assignment declined");
+    }
+
     @PostMapping(ConversationPaths.MESSAGES)
     public ApiResponse<ChatMessageResponse> sendMessage(@PathVariable String conversationId,
             @Valid @RequestBody SendMessageRequest request) {

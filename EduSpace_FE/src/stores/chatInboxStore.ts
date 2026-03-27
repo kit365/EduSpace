@@ -1,5 +1,9 @@
 import { create } from 'zustand';
-import type { AssignmentOfferEvent, ConversationInboxEvent } from '../client/features/customer/messages/types';
+import type {
+    AssignmentOfferEvent,
+    Conversation,
+    ConversationInboxEvent,
+} from '../client/features/customer/messages/types';
 
 export type ChatInboxStoreState = {
     /** Latest inbox event from STOMP (global bridge). Pages read this instead of useChatWebSocket when subscribeInbox is false. */
@@ -14,6 +18,7 @@ export type ChatInboxStoreState = {
     setTotalUnreadCount: (n: number) => void;
     setAdminTotalUnread: (n: number) => void;
     setPendingAssignmentOffer: (e: AssignmentOfferEvent) => void;
+    syncPendingAssignmentOffersFromConversations: (conversations: Conversation[]) => void;
     clearPendingAssignmentOffer: (conversationId: string) => void;
 };
 
@@ -29,6 +34,28 @@ export const useChatInboxStore = create<ChatInboxStoreState>((set) => ({
         set((s) => ({
             pendingAssignmentOffers: { ...s.pendingAssignmentOffers, [e.conversationId]: e },
         })),
+    syncPendingAssignmentOffersFromConversations: (conversations) =>
+        set(() => {
+            const next: Record<string, AssignmentOfferEvent> = {};
+            for (const conversation of conversations) {
+                const pending = conversation.pendingAssignmentOffer;
+                if (!pending?.offerId || !pending.expiresAt) {
+                    continue;
+                }
+                next[conversation.conversationId] = {
+                    type: 'ASSIGNMENT_OFFER',
+                    conversationId: conversation.conversationId,
+                    offerId: pending.offerId,
+                    targetAdminId: pending.targetAdminId,
+                    expiresAt: pending.expiresAt,
+                    lastMessage: conversation.lastMessage ?? 'Support request waiting for admin acceptance',
+                    lastActivity: conversation.lastActivity ?? new Date().toISOString(),
+                    senderId: conversation.otherUser?.userId ?? '',
+                    messageType: 'SYSTEM',
+                };
+            }
+            return { pendingAssignmentOffers: next };
+        }),
     clearPendingAssignmentOffer: (conversationId) =>
         set((s) => {
             const next = { ...s.pendingAssignmentOffers };
