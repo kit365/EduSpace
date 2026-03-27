@@ -1,4 +1,4 @@
-import apiClient from '@/lib/axios';
+import apiClient from '../../../../lib/axios';
 
 export type CheckinRefundMode = 'FOLLOW_DEPOSIT_REFUND_POLICY' | 'ZERO_DEPOSIT_REFUND';
 export type LateWithinGraceUsageMode = 'DEDUCT_LATE_TIME' | 'KEEP_ORIGINAL_SLOT';

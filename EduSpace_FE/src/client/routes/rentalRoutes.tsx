@@ -23,9 +23,9 @@ import { HostSpaceDetailsPage } from "../features/host/pages/HostSpaceDetailsPag
 import { UtilityPriceManagementPage } from "../features/host/pages/UtilityPriceManagementPage";
 import { DepositRefundPolicyManagementPage } from "../features/host/pages/DepositRefundPolicyManagementPage";
 import { CheckinPolicyManagementPage } from "../features/host/pages/CheckinPolicyManagementPage";
-import { useAuthStore } from "@/stores/authStore";
-import { canAccessHostConsole, getRealmRolesFromAccessToken, hasHostPermission } from "@/utils/keycloakTokenRoles";
-import { refreshHostPermissionsFromAccount } from "@/utils/refreshHostPermissionsFromAccount";
+import { useAuthStore } from "../../stores/authStore";
+import { canAccessHostConsole, getRealmRolesFromAccessToken, hasHostPermission } from "../../utils/keycloakTokenRoles";
+import { refreshHostPermissionsFromAccount } from "../../utils/refreshHostPermissionsFromAccount";
 import { hostMenuPermissions } from "../features/host/permissions/hostPermissions";
 import { hostPermissions } from "../features/host/permissions/hostPermissions";
 

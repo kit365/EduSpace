@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AdminLayout } from '../../../layouts/AdminLayout';
 import { AdminDetailOverlay } from '../../../components/AdminDetailOverlay';
 import { disputeService } from '../services/disputeService';
-import { getApiErrorMessage } from '@/utils/apiError';
-import { showToast } from '@/utils/toast';
+import { getApiErrorMessage } from '../../../../utils/apiError';
+import { showToast } from '../../../../utils/toast';
 import { 
     AlertTriangle, 
     ExternalLink, 
@@ -15,7 +15,7 @@ import {
     Upload,
     Loader2
 } from 'lucide-react';
-import type { Dispute, Report, DisputeStatus, DisputePriority } from '@/types';
+import type { Dispute, Report, DisputeStatus, DisputePriority } from '../../../../types';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 
