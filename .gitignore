@@ -25,6 +25,7 @@ Podfile.lock
 
 # Java/Maven
 target/
+out/
 *.class
 *.jar
 *.war

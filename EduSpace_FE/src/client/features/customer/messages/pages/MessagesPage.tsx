@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { CustomerLayout } from '../../../../layouts/CustomerLayout';
 import { 
     Send, Search, MoreVertical, Paperclip, Smile, Loader2, Headphones,
     Download, CheckCheck, Clock, X, ChevronRight
 } from 'lucide-react';
+import { Video } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useConversations } from '../hooks/useMessages';
 import { messageService } from '../services/messageService';
@@ -13,28 +16,53 @@ import { SUPPORT_PLACEHOLDER_USER_ID } from '../../../../../config/chat';
 import { useResolvedChatUserId } from '../../../../../hooks/useResolvedChatUserId';
 import { SUPPORT_CHAT_SYNC_EVENT, emitSupportChatSync } from '../supportChatSync';
 import { setStoredSupportConversationId } from '../supportConversationStorage';
+import {
+    appendUniqueMessage,
+    applyConversationActivity,
+    applyDeleteEvent,
+    applyEditEvent,
+    applyReactionEvent,
+    applyReadReceiptEvent,
+    buildChatMessageFromWs,
+    parseMediaUrls,
+} from '../utils/chatSyncUtils';
+import { useChatInboxStore } from '@/stores/chatInboxStore';
+import { useVideoCall } from '../../../../../contexts/VideoCallContext';
 import { useAuthStore } from '@/stores/authStore';
 import { guestFeatureAllowed, guestPermissions } from '../../permissions/guestPermissions';
 
 export function MessagesPage() {
+    const PAGE_SIZE = 50;
     const accessToken = useAuthStore((s) => s.accessToken);
     const hostPermissionsFromAccount = useAuthStore((s) => s.hostPermissionsFromAccount);
     const canSendGuestMessages = useMemo(
         () => guestFeatureAllowed(accessToken, guestPermissions.guestSendMessages, hostPermissionsFromAccount),
         [accessToken, hostPermissionsFromAccount],
     );
-
     const { conversations, loading, setConversations, refetch } = useConversations('user');
+    const location = useLocation();
     const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
     const [messageInput, setMessageInput] = useState('');
     const [isCreatingSupport, setIsCreatingSupport] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [currentPage, setCurrentPage] = useState(0);
+    const [hasMoreMessages, setHasMoreMessages] = useState(true);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const [selectedImages, setSelectedImages] = useState<File[]>([]);
+    const [showImagePreview, setShowImagePreview] = useState(false);
+    const [isSendingImages, setIsSendingImages] = useState(false);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const messagesScrollRef = useRef<HTMLDivElement | null>(null);
     const messagesBottomRef = useRef<HTMLDivElement | null>(null);
+    const isPrependingRef = useRef(false);
     const queryClient = useQueryClient();
+    const handledRecipientIdRef = useRef<string | null>(null);
+    const activeChatIdRef = useRef<string | null>(null);
+    const { t } = useTranslation();
 
     const { chatUserId: currentUserId } = useResolvedChatUserId();
+    const lastConversationEvent = useChatInboxStore((s) => s.lastInboxEvent);
+    const { initiateCall, activeCall } = useVideoCall();
 
     // Query to fetch messages - persisted in QueryClient cache
     const {
@@ -45,7 +73,9 @@ export function MessagesPage() {
         queryKey: ['messages', selectedConversation?.conversationId],
         queryFn: async () => {
             if (!selectedConversation) return [];
-            const history = await messageService.getMessages(selectedConversation.conversationId, 0, 50);
+            const history = await messageService.getMessages(selectedConversation.conversationId, 0, PAGE_SIZE);
+            setHasMoreMessages(history.length === PAGE_SIZE);
+            setCurrentPage(0);
             return history.slice().reverse();
         },
         enabled: !!selectedConversation,
@@ -128,14 +158,34 @@ export function MessagesPage() {
 
     const reloadMessages = useCallback(async () => {
         if (!selectedConversation) return;
+        setCurrentPage(0);
         await refetchMessages();
     }, [selectedConversation, refetchMessages]);
 
-    const { lastMessage } = useChatWebSocket({
+    const { lastMessage, lastReadReceipt, lastEdited, lastDeleted, lastReaction } = useChatWebSocket({
         conversationId: selectedConversation?.conversationId ?? null,
         userId: currentUserId,
         onReconnect: reloadMessages,
+        subscribeInbox: false,
     });
+
+    useEffect(() => {
+        activeChatIdRef.current = selectedConversation?.conversationId ?? null;
+    }, [selectedConversation?.conversationId]);
+
+    useEffect(() => {
+        if (!lastConversationEvent || lastConversationEvent.type !== 'CONVERSATION_ACTIVITY') return;
+        setConversations((prev) => {
+            const next = applyConversationActivity(prev, lastConversationEvent, {
+                activeConversationId: activeChatIdRef.current,
+                currentUserId,
+            });
+            if (next === prev) {
+                void refetch();
+            }
+            return next;
+        });
+    }, [lastConversationEvent, currentUserId, setConversations, refetch]);
 
     useEffect(() => {
         if (!selectedConversation && conversations.length > 0) {
@@ -144,10 +194,39 @@ export function MessagesPage() {
     }, [conversations, selectedConversation]);
 
     useEffect(() => {
+        const navState = (location.state as { recipientId?: string; contactIntentId?: string } | null) ?? null;
+        const recipientId = (navState?.recipientId ?? '').trim();
+        if (!recipientId) return;
+
+        const contactIntentId = navState?.contactIntentId ?? recipientId;
+        if (handledRecipientIdRef.current === contactIntentId) return;
+
+        const openHostConversation = async () => {
+            try {
+                const conv = await messageService.createConversation(recipientId, false);
+                handledRecipientIdRef.current = contactIntentId;
+                setConversations((prev) => {
+                    const filtered = prev.filter((c) => c.conversationId !== conv.conversationId);
+                    return [conv, ...filtered];
+                });
+                setSelectedConversation(conv);
+                await queryClient.invalidateQueries({ queryKey: ['messages', conv.conversationId] });
+            } catch (error) {
+                console.error('Failed to open host conversation', error);
+                window.alert(t('customer.spaceDetail.contactHostUnavailable'));
+            }
+        };
+
+        void openHostConversation();
+    }, [location.state, queryClient, setConversations, t]);
+
+    useEffect(() => {
         if (!selectedConversation) return;
-        // Mark as read
-        void messageService.markRead(selectedConversation.conversationId);
-    }, [selectedConversation]);
+        void (async () => {
+            await messageService.markRead(selectedConversation.conversationId);
+            await refetch();
+        })();
+    }, [selectedConversation, refetch]);
 
     /** Widget chat dùng cùng id — lưu để sau F5 GET /conversations lỡ trống vẫn restore được. */
     useEffect(() => {
@@ -168,6 +247,10 @@ export function MessagesPage() {
     }, [refetch]);
 
     useEffect(() => {
+        if (isPrependingRef.current) {
+            isPrependingRef.current = false;
+            return;
+        }
         scrollMessagesToBottom();
     }, [messages, scrollMessagesToBottom]);
 
@@ -184,42 +267,95 @@ export function MessagesPage() {
     useEffect(() => {
         if (!lastMessage || !selectedConversation) return;
         if (lastMessage.conversationId !== selectedConversation.conversationId) return;
-
-        // Convert WebSocket payload to ChatMessage and update cache
-        const chatMessage: ChatMessage = {
-            messageId: lastMessage.messageId,
-            conversationId: lastMessage.conversationId,
-            content: lastMessage.content,
-            messageType: lastMessage.messageType || 'TEXT',
-            sentAt: lastMessage.sentAt,
-            isRead: false,
-            isDeleted: false,
-            mediaUrl: lastMessage.mediaUrl ?? null,
-            mediaType: null,
-            readAt: null,
-            editedAt: null,
-            reactions: null,
-            replyToMessageId: null,
-            sender: lastMessage.senderId
-                ? {
-                      userId: lastMessage.senderId,
-                      fullName: lastMessage.senderUsername ?? null,
-                      email: lastMessage.senderEmail ?? null,
-                      avatarUrl: null,
-                  }
-                : null,
-        };
+        const chatMessage = buildChatMessageFromWs(lastMessage);
 
         // Update the cached messages with the real-time message from WebSocket
         queryClient.setQueryData<ChatMessage[]>(
             ['messages', selectedConversation.conversationId],
             (prev) => {
                 if (!prev) return [chatMessage];
-                if (prev.some((m) => m.messageId === chatMessage.messageId)) return prev;
-                return [...prev, chatMessage];
+                return appendUniqueMessage(prev, chatMessage);
             }
         );
     }, [lastMessage, selectedConversation, queryClient]);
+
+    useEffect(() => {
+        if (!lastConversationEvent || lastConversationEvent.type !== 'CONVERSATION_ACTIVITY') return;
+        if (!selectedConversation) return;
+        if (lastConversationEvent.conversationId !== selectedConversation.conversationId) return;
+        // Recover from websocket timing races by reloading persisted history on conversation-level events.
+        void refetchMessages();
+    }, [lastConversationEvent, selectedConversation, refetchMessages]);
+
+    useEffect(() => {
+        if (!lastEdited || !selectedConversation) return;
+        queryClient.setQueryData<ChatMessage[]>(
+            ['messages', selectedConversation.conversationId],
+            (prev) => (prev ? applyEditEvent(prev, lastEdited) : [])
+        );
+    }, [lastEdited, selectedConversation, queryClient]);
+
+    useEffect(() => {
+        if (!lastDeleted || !selectedConversation) return;
+        queryClient.setQueryData<ChatMessage[]>(
+            ['messages', selectedConversation.conversationId],
+            (prev) => (prev ? applyDeleteEvent(prev, lastDeleted) : [])
+        );
+    }, [lastDeleted, selectedConversation, queryClient]);
+
+    useEffect(() => {
+        if (!lastReaction || !selectedConversation) return;
+        queryClient.setQueryData<ChatMessage[]>(
+            ['messages', selectedConversation.conversationId],
+            (prev) => (prev ? applyReactionEvent(prev, lastReaction) : [])
+        );
+    }, [lastReaction, selectedConversation, queryClient]);
+
+    useEffect(() => {
+        if (!lastReadReceipt || !selectedConversation || !currentUserId) return;
+        if (lastReadReceipt.conversationId !== selectedConversation.conversationId) return;
+
+        queryClient.setQueryData<ChatMessage[]>(
+            ['messages', selectedConversation.conversationId],
+            (prev) => (prev ? applyReadReceiptEvent(prev, lastReadReceipt, currentUserId) : [])
+        );
+        void refetch();
+    }, [lastReadReceipt, selectedConversation, currentUserId, queryClient, refetch]);
+
+    const loadOlderMessages = useCallback(async () => {
+        if (!selectedConversation || isLoadingMore || !hasMoreMessages) return;
+        const pane = messagesScrollRef.current;
+        const prevHeight = pane?.scrollHeight ?? 0;
+        const prevTop = pane?.scrollTop ?? 0;
+        setIsLoadingMore(true);
+        try {
+            const nextPage = currentPage + 1;
+            const older = await messageService.getMessages(selectedConversation.conversationId, nextPage, PAGE_SIZE);
+            if (older.length < PAGE_SIZE) setHasMoreMessages(false);
+            if (older.length > 0) {
+                isPrependingRef.current = true;
+                queryClient.setQueryData<ChatMessage[]>(
+                    ['messages', selectedConversation.conversationId],
+                    (prev) => [...older.slice().reverse(), ...(prev ?? [])]
+                );
+                setCurrentPage(nextPage);
+                requestAnimationFrame(() => {
+                    const node = messagesScrollRef.current;
+                    if (node) {
+                        node.scrollTop = node.scrollHeight - prevHeight + prevTop;
+                    }
+                });
+            }
+        } finally {
+            setIsLoadingMore(false);
+        }
+    }, [selectedConversation, isLoadingMore, hasMoreMessages, currentPage, queryClient]);
+
+    const handleMessagesScroll: React.UIEventHandler<HTMLDivElement> = (event) => {
+        if (event.currentTarget.scrollTop < 80) {
+            void loadOlderMessages();
+        }
+    };
 
     const handleSendMessage = async () => {
         if (!messageInput.trim() || !selectedConversation) return;
@@ -298,7 +434,7 @@ export function MessagesPage() {
         fileInputRef.current?.click();
     };
 
-    const handleFilesSelected: React.ChangeEventHandler<HTMLInputElement> = async (event) => {
+    const handleFilesSelected: React.ChangeEventHandler<HTMLInputElement> = (event) => {
         if (!selectedConversation) return;
         if (!canSendGuestMessages) {
             event.target.value = '';
@@ -306,12 +442,23 @@ export function MessagesPage() {
         }
         const files = Array.from(event.target.files ?? []);
         if (files.length === 0) return;
+        setSelectedImages(files.slice(0, 8));
+        setShowImagePreview(true);
+        event.target.value = '';
+    };
+
+    const handleSendImages = async () => {
+        if (!selectedConversation || selectedImages.length === 0 || isSendingImages) return;
+        setIsSendingImages(true);
         try {
-            await messageService.uploadImages(selectedConversation.conversationId, files);
+            await messageService.uploadImages(selectedConversation.conversationId, selectedImages);
+            setSelectedImages([]);
+            setShowImagePreview(false);
         } catch (error) {
             console.error('Failed to upload images', error);
+            alert('Failed to upload images');
         } finally {
-            event.target.value = '';
+            setIsSendingImages(false);
         }
     };
 
@@ -440,6 +587,15 @@ export function MessagesPage() {
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => void initiateCall(selectedConversation.conversationId)}
+                                            disabled={!!activeCall}
+                                            className="p-3 hover:bg-slate-50 rounded-2xl transition-all duration-300 text-slate-400 hover:text-blue-600 border border-transparent hover:border-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            title={activeCall ? 'A call is already in progress' : 'Start video call'}
+                                        >
+                                            <Video className="w-5 h-5" />
+                                        </button>
                                         <button className="p-3 hover:bg-slate-50 rounded-2xl transition-all duration-300 text-slate-400 hover:text-slate-900 border border-transparent hover:border-slate-100">
                                             <MoreVertical className="w-5 h-5" />
                                         </button>
@@ -453,9 +609,15 @@ export function MessagesPage() {
                                     {/* Chat Messages */}
                                     <div
                                         ref={messagesScrollRef}
+                                        onScroll={handleMessagesScroll}
                                         className="flex-1 overflow-y-auto p-6 custom-scrollbar relative z-10"
                                     >
                                         <div className="flex flex-col gap-6">
+                                            {isLoadingMore && (
+                                                <div className="flex items-center justify-center text-xs text-slate-500">
+                                                    Loading older messages...
+                                                </div>
+                                            )}
                                             {messages.map((msg) => {
                                         if (msg.messageType === 'SYSTEM') {
                                             return (
@@ -500,17 +662,37 @@ export function MessagesPage() {
                                                     >
                                                         {msg.messageType === 'IMAGE' ? (
                                                             <div className="space-y-3">
-                                                                <div className="relative group/img overflow-hidden rounded-2xl shadow-inner bg-slate-100 min-w-[200px]">
-                                                                    <img 
-                                                                        src={msg.mediaUrl || ''} 
-                                                                        className="max-w-full h-auto object-cover transition-transform duration-700 group-hover/img:scale-105" 
-                                                                        alt="Media" 
-                                                                    />
-                                                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-4">
-                                                                        <button className="p-2.5 bg-white/90 rounded-xl hover:bg-white transition-all shadow-xl">
-                                                                            <Download className="w-5 h-5 text-slate-900" />
-                                                                        </button>
-                                                                    </div>
+                                                                <div
+                                                                    className={`grid gap-2 ${
+                                                                        parseMediaUrls(msg.mediaUrl).length === 1
+                                                                            ? 'grid-cols-1'
+                                                                            : parseMediaUrls(msg.mediaUrl).length <= 4
+                                                                              ? 'grid-cols-2'
+                                                                              : 'grid-cols-3'
+                                                                    }`}
+                                                                >
+                                                                    {parseMediaUrls(msg.mediaUrl).map((url, index) => (
+                                                                        <div
+                                                                            key={`${msg.messageId}-image-${index}`}
+                                                                            className="relative group/img overflow-hidden rounded-2xl shadow-inner bg-slate-100 min-w-[120px]"
+                                                                        >
+                                                                            <img
+                                                                                src={url}
+                                                                                className="max-w-full h-auto object-cover transition-transform duration-700 group-hover/img:scale-105"
+                                                                                alt={`Media ${index + 1}`}
+                                                                            />
+                                                                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-4">
+                                                                                <a
+                                                                                    href={url}
+                                                                                    target="_blank"
+                                                                                    rel="noreferrer"
+                                                                                    className="p-2.5 bg-white/90 rounded-xl hover:bg-white transition-all shadow-xl"
+                                                                                >
+                                                                                    <Download className="w-5 h-5 text-slate-900" />
+                                                                                </a>
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
                                                                 </div>
                                                                 {msg.content && <p className="text-[13px] font-medium leading-relaxed">{msg.content}</p>}
                                                             </div>
@@ -531,6 +713,8 @@ export function MessagesPage() {
                                                                     </div>
                                                                 </div>
                                                             </div>
+                                                        ) : msg.isDeleted ? (
+                                                            <p className="text-[13px] italic opacity-70">Message deleted</p>
                                                         ) : (
                                                             <p className="text-[14px] font-semibold leading-relaxed break-words">
                                                                 {msg.content}
@@ -562,6 +746,9 @@ export function MessagesPage() {
                                                         <span className="text-[10px] font-extrabold text-slate-300 uppercase tracking-tighter">
                                                             {timestamp}
                                                         </span>
+                                                        {msg.editedAt && (
+                                                            <span className="text-[10px] font-bold text-slate-300">edited</span>
+                                                        )}
                                                         {isMe && <CheckCheck className="w-3 h-3 text-blue-400" />}
                                                         {!isMe && (
                                                             <button
@@ -573,6 +760,18 @@ export function MessagesPage() {
                                                             </button>
                                                         )}
                                                     </div>
+                                                    {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+                                                        <div className={`mt-1 flex flex-wrap gap-1 px-2 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                                            {Object.entries(msg.reactions).map(([emoji, users]) => (
+                                                                <span
+                                                                    key={`${msg.messageId}-${emoji}`}
+                                                                    className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] text-slate-600"
+                                                                >
+                                                                    {emoji} {users.length}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -706,6 +905,67 @@ export function MessagesPage() {
                     </div>
                 </div>
             </div>
+            {showImagePreview && selectedImages.length > 0 && (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="w-full max-w-3xl rounded-2xl bg-white shadow-xl overflow-hidden">
+                        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                            <h3 className="text-base font-bold text-slate-900">
+                                Send {selectedImages.length} image{selectedImages.length > 1 ? 's' : ''}
+                            </h3>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowImagePreview(false);
+                                    setSelectedImages([]);
+                                }}
+                                className="p-2 rounded-lg hover:bg-slate-100"
+                            >
+                                <X className="w-5 h-5 text-slate-500" />
+                            </button>
+                        </div>
+                        <div className="p-5 max-h-[65vh] overflow-y-auto">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                {selectedImages.map((file, index) => (
+                                    <div key={`${file.name}-${index}`} className="relative">
+                                        <img
+                                            src={URL.createObjectURL(file)}
+                                            alt={`Preview ${index + 1}`}
+                                            className="w-full aspect-square object-cover rounded-xl"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedImages((prev) => prev.filter((_, i) => i !== index))}
+                                            className="absolute top-2 right-2 p-1 rounded-full bg-black/70 text-white"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="px-5 py-4 border-t border-slate-100 flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowImagePreview(false);
+                                    setSelectedImages([]);
+                                }}
+                                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                disabled={isSendingImages || selectedImages.length === 0}
+                                onClick={() => void handleSendImages()}
+                                className="px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                            >
+                                {isSendingImages ? 'Sending...' : 'Send images'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </CustomerLayout>
     );
 }

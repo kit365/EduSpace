@@ -22,9 +22,10 @@ import { RoomTypeFormPage } from "../features/host/pages/RoomTypeFormPage";
 import { HostSpaceDetailsPage } from "../features/host/pages/HostSpaceDetailsPage";
 import { UtilityPriceManagementPage } from "../features/host/pages/UtilityPriceManagementPage";
 import { DepositRefundPolicyManagementPage } from "../features/host/pages/DepositRefundPolicyManagementPage";
-import { useAuthStore } from "@/stores/authStore";
-import { canAccessHostConsole, getRealmRolesFromAccessToken, hasHostPermission } from "@/utils/keycloakTokenRoles";
-import { refreshHostPermissionsFromAccount } from "@/utils/refreshHostPermissionsFromAccount";
+import { CheckinPolicyManagementPage } from "../features/host/pages/CheckinPolicyManagementPage";
+import { useAuthStore } from "../../stores/authStore";
+import { canAccessHostConsole, getRealmRolesFromAccessToken, hasHostPermission } from "../../utils/keycloakTokenRoles";
+import { refreshHostPermissionsFromAccount } from "../../utils/refreshHostPermissionsFromAccount";
 import { hostMenuPermissions } from "../features/host/permissions/hostPermissions";
 import { hostPermissions } from "../features/host/permissions/hostPermissions";
 
@@ -193,6 +194,14 @@ export const rentalRoutes: RouteObject[] = [
                 element: (
                     <HostConsoleGate
                         element={<PermissionGate permission={hostMenuPermissions.depositPolicy} element={<DepositRefundPolicyManagementPage />} />}
+                    />
+                ),
+            },
+            {
+                path: 'checkin-policy',
+                element: (
+                    <HostConsoleGate
+                        element={<PermissionGate permission={hostMenuPermissions.checkinPolicy} element={<CheckinPolicyManagementPage />} />}
                     />
                 ),
             },

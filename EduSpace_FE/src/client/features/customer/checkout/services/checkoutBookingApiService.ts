@@ -26,6 +26,10 @@ export interface CreateBookingResponse {
   startDateTime: string;
   endDateTime: string;
   totalPrice: number;
+  finalPrice?: number;
+  discountAmount?: number;
+  voucherCode?: string;
+  isTemporary?: boolean;
   status: string;
   extraAmenities?: BookingExtraAmenityResponse[];
 }

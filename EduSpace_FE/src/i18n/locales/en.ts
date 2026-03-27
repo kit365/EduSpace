@@ -301,6 +301,7 @@ export const en = {
             contactHostTitle: "Contact Host",
             contactHostDesc: "Need more information about amenities, schedule, or booking support? Message the host directly.",
             contactHostBtn: "Message host",
+            contactHostUnavailable: "This space does not have host contact information yet.",
             verifiedHost: "Verified Host",
             pricing: {
                 open24Hours: "Open 24/7",
@@ -601,6 +602,7 @@ export const en = {
         hosts: "Host Management",
         users: "User Management",
         roles: "Role & Perms",
+        logs: "Audit Logs",
         settings: "System Settings",
         points: "Points & Rewards",
         depositPolicies: "Deposits & Refunds",

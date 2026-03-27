@@ -303,6 +303,7 @@ export const vi = {
             contactHostTitle: "Liên hệ Host",
             contactHostDesc: "Bạn cần thêm thông tin về tiện nghi, thời gian hoặc hỗ trợ đặt chỗ? Hãy nhắn trực tiếp cho host.",
             contactHostBtn: "Nhắn host ngay",
+            contactHostUnavailable: "Phòng này hiện chưa có thông tin host để liên hệ.",
             verifiedHost: "Chủ phòng đã xác thực",
             pricing: {
                 open24Hours: "Mở cửa 24/7",
@@ -604,6 +605,7 @@ export const vi = {
         hosts: "Quản lý Host",
         users: "Quản lý Người dùng",
         roles: "Vai trò & Quyền",
+        logs: "Nhật ký hệ thống",
         settings: "Cài đặt Hệ thống",
         points: "Điểm thưởng & Quà",
         depositPolicies: "Cọc & Hoàn tiền",

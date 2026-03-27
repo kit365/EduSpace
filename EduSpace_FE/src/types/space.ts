@@ -54,6 +54,8 @@ export interface SpaceAmenity {
   id?: number;
   icon: LucideIcon;
   name: string;
+  type?: string;
+  price?: number;
 }
 
 

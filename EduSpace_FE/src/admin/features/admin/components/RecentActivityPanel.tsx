@@ -1,11 +1,13 @@
 import { ActivityLog } from '../types';
 import { CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface RecentActivityPanelProps {
   activities: ActivityLog[];
 }
 
 export function RecentActivityPanel({ activities }: RecentActivityPanelProps) {
+  const navigate = useNavigate();
   const getIcon = (type: string) => {
     switch (type) {
       case 'approval':
@@ -23,7 +25,7 @@ export function RecentActivityPanel({ activities }: RecentActivityPanelProps) {
     <div className="bg-white rounded-lg border border-gray-200 p-6">
       <div className="flex justify-between items-center mb-4">
         <h3 className="font-semibold text-gray-600 uppercase text-sm">Recent Activity</h3>
-        <button className="text-red-500 text-sm hover:text-red-600">
+        <button className="text-red-500 text-sm hover:text-red-600" onClick={() => navigate('/admin/logs')}>
           View Full Audit Log
         </button>
       </div>

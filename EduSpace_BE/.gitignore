@@ -1,5 +1,7 @@
 HELP.md
 target/
+# IntelliJ / IDE compiled output (never commit)
+out/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/

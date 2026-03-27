@@ -7,4 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface BookingDepositRefundPolicyRepository extends JpaRepository<BookingDepositRefundPolicyEntity, Long> {
 
     List<BookingDepositRefundPolicyEntity> findAllByDeletedFalseOrderByIdAsc();
+
+    List<BookingDepositRefundPolicyEntity> findAllByDeletedFalseAndActiveTrueOrderByIdAsc();
 }

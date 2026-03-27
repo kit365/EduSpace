@@ -1,7 +1,9 @@
 package com.eduspace.bookingservice.persistence.repository;
 
 import com.eduspace.bookingservice.model.entity.VoucherEntity;
+import jakarta.transaction.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -36,4 +38,11 @@ public interface VoucherRepository extends JpaRepository<VoucherEntity, Long> {
     List<VoucherEntity> findAllByCampaign(@Param("campaignId") Long campaignId);
 
     boolean existsByCodeAndIsDeletedFalse(String code);
+
+    /** Cascade: bật/tắt toàn bộ voucher thuộc 1 campaign. */
+    @Modifying
+    @Transactional
+    @Query("UPDATE VoucherEntity v SET v.isActive = :isActive WHERE v.campaignId = :campaignId")
+    void updateIsActiveByCampaignId(@Param("campaignId") Long campaignId,
+                                    @Param("isActive") boolean isActive);
 }

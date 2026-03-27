@@ -89,12 +89,16 @@ app:
   verification:
     token-expiry-hours: 24
   kafka:
+    # Assign-staff saga: must match conversation-service topic names. Staff assignment uses Redis
+    # support:admin:presence (see SupportStaffPresenceService) and ADMIN/SUPER_ADMIN users in DB.
     topics:
       assign-staff-request: ${KAFKA_TOPIC_ASSIGN_STAFF_REQUEST:eduspace.assign-staff.request}
       assign-staff-result: ${KAFKA_TOPIC_ASSIGN_STAFF_RESULT:eduspace.assign-staff.result}
       ekyc-result: ${KAFKA_TOPIC_EKYC_RESULT:eduspace.ekyc.result}
   support-presence:
-    window-ms: ${SUPPORT_PRESENCE_WINDOW_MS:90000}
+    # Keep this slightly above FE heartbeat interval (30s) to avoid false offline,
+    # while minimizing stale "online" assignments after admin disconnect/logout.
+    window-ms: ${SUPPORT_PRESENCE_WINDOW_MS:35000}
   kyc-ai:
     base-url: ${APP_KYC_AI_BASE_URL:http://localhost:8000}
     api-key: ${APP_KYC_AI_API_KEY:dev-kyc-ai-secret}

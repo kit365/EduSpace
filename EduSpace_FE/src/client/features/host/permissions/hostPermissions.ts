@@ -95,6 +95,7 @@ export const hostMenuPermissions = {
     finance: hostPermissions.finance.view,
     utility: hostPermissions.utility.view,
     depositPolicy: hostPermissions.depositPolicy.view,
+    checkinPolicy: hostPermissions.operations.checkin,
     kyc: 'branch.profile.manage',
     messages: hostPermissions.messages.view,
 } as const;

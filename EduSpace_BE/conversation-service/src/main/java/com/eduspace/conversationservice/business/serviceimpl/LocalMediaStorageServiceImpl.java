@@ -22,8 +22,24 @@ public class LocalMediaStorageServiceImpl implements MediaStorageService {
             @Value("${app.media.storage-path}") String storagePath,
             @Value("${app.media.public-base-url}") String publicBaseUrl
     ) {
-        this.root = Path.of(storagePath).toAbsolutePath().normalize();
+        this.root = resolveWritableRoot(storagePath);
         this.publicBaseUrl = publicBaseUrl;
+    }
+
+    private Path resolveWritableRoot(String configuredStoragePath) {
+        Path configured = Path.of(configuredStoragePath).toAbsolutePath().normalize();
+        try {
+            Files.createDirectories(configured);
+            return configured;
+        } catch (IOException ignored) {
+            Path fallback = Path.of(System.getProperty("java.io.tmpdir"), "eduspace-media").toAbsolutePath().normalize();
+            try {
+                Files.createDirectories(fallback);
+                return fallback;
+            } catch (IOException e) {
+                throw new IllegalStateException("Failed to initialize media storage path", e);
+            }
+        }
     }
 
     @Override

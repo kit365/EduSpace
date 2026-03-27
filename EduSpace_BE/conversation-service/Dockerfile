@@ -16,9 +16,11 @@ WORKDIR /app
 
 # Non-root user
 RUN addgroup -S spring && adduser -S spring -G spring
+# Ensure runtime media storage path is writable by non-root user
+RUN mkdir -p /app/data/media && chown -R spring:spring /app
 USER spring:spring
 
-COPY --from=build /app/target/*.jar app.jar
+COPY --from=build --chown=spring:spring /app/target/*.jar app.jar
 
 EXPOSE 8083
 ENTRYPOINT ["java", "-jar", "app.jar"]

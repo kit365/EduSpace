@@ -4,8 +4,8 @@ server:
 spring:
   datasource:
     url: jdbc:postgresql://localhost:${POSTGRES_ACCOUNT_HOST_PORT:5432}/eduspace_account
-    username: eduspace
-    password: eduspace_dev_123
+    username: postgres
+    password: Linhvovip
     driver-class-name: org.postgresql.Driver
 
   jpa:
