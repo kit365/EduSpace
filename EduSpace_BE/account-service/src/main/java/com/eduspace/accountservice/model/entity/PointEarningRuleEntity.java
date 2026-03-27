@@ -3,18 +3,17 @@ package com.eduspace.accountservice.model.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-
-import java.time.LocalDateTime;
+import lombok.experimental.SuperBuilder;
 
 @Entity
 @Table(name = "point_earning_rules")
 @Getter
 @Setter
-@Builder
+@SuperBuilder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @NoArgsConstructor
 @AllArgsConstructor
-public class PointEarningRuleEntity {
+public class PointEarningRuleEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -33,21 +32,4 @@ public class PointEarningRuleEntity {
     @Builder.Default
     @Column(name = "is_active")
     Boolean isActive = true;
-
-    @Column(name = "created_at")
-    LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    LocalDateTime updatedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
 }

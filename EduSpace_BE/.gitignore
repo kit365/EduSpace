@@ -1,5 +1,7 @@
 HELP.md
 target/
+# IntelliJ / IDE compiled output (never commit)
+out/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
@@ -36,3 +38,21 @@ build/
 .env
 .env.*
 !.env.example
+
+### Python ###
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+### macOS ###
+.DS_Store
+.AppleDouble
+.LSOverride

@@ -13,4 +13,8 @@ public class KafkaProperties {
     private String conversationEvents;
     private String assignStaffRequest;
     private String assignStaffResult;
+
+    public String getConversationEvents() {
+        return conversationEvents;
+    }
 }

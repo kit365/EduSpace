@@ -30,6 +30,14 @@ public class VoucherCampaignController {
         return ApiResponse.success(campaignService.create(request));
     }
 
+    /** Cập nhật chiến dịch. */
+    @PutMapping("/{id}")
+    public ApiResponse<VoucherCampaignResponse> update(
+            @PathVariable Long id,
+            @Valid @RequestBody CreateVoucherCampaignRequest request) {
+        return ApiResponse.success(campaignService.update(id, request));
+    }
+
     /** Lấy tất cả chiến dịch (admin). */
     @GetMapping
     public ApiResponse<List<VoucherCampaignResponse>> getAll() {

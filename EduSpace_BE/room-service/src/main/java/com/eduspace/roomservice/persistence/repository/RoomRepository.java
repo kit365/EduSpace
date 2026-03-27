@@ -27,5 +27,13 @@ public interface RoomRepository extends JpaRepository<RoomEntity, Integer>, JpaS
 
     List<RoomEntity> findByCategory_SlugAndDeletedAtIsNull(String categorySlug);
 
+    long countByDeletedAtIsNull();
+
+    long countByApprovalStatusAndDeletedAtIsNull(String approvalStatus);
+
+    long countByCreatedAtAfterAndDeletedAtIsNull(java.time.LocalDateTime date);
+
+    long countByCategory_IdAndDeletedAtIsNull(Integer categoryId);
+
     boolean existsBySlugAndDeletedAtIsNull(String slug);
 }

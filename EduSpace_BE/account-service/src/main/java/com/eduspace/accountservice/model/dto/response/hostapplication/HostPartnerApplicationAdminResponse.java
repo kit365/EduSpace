@@ -22,4 +22,11 @@ public class HostPartnerApplicationAdminResponse {
     LocalDateTime createdAt;
     LocalDateTime reviewedAt;
     String reviewedBy;
+    String bankAccountNumber;
+    String bankName;
+    String bankAccountHolder;
+    String taxId;
+    String documentFrontUrl;
+    String documentBackUrl;
+    String businessLicenseUrl;
 }

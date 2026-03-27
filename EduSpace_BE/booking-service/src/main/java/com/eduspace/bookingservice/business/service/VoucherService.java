@@ -11,6 +11,8 @@ public interface VoucherService {
 
     VoucherResponse create(CreateVoucherRequest request);
 
+    VoucherResponse update(Long id, CreateVoucherRequest request);
+
     VoucherResponse getById(Long id);
 
     VoucherResponse getByCode(String code);

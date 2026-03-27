@@ -17,6 +17,9 @@ import { RoomStatusCard } from '../components/RoomStatusCard';
 import { roomBlockService, type RoomBlockDto } from '../services/roomBlockService';
 import { showToast } from '@/utils/toast';
 import { getApiErrorMessage } from '@/utils/apiError';
+import { useAuthStore } from '@/stores/authStore';
+import { getRealmRolesFromAccessToken, normalizeRoleName } from '@/utils/keycloakTokenRoles';
+import { fetchMyManagerScope } from '../services/hostStaffService';
 import {
   hostPartnerApplicationService,
   type MyHostApplicationStatus,
@@ -41,6 +44,7 @@ const FILTER_TEXT: Record<'all' | RoomOperationalStatus, string> = {
 export function RoomStatusPage() {
   const { profile, loading: profileLoading } = useProfile();
   const { selectedBranch } = useBranch();
+  const accessToken = useAuthStore((s) => s.accessToken);
   const [hostApp, setHostApp] = useState<MyHostApplicationStatus | null | undefined>(undefined);
 
   const [rooms, setRooms] = useState<RoomDto[]>([]);
@@ -53,6 +57,10 @@ export function RoomStatusPage() {
 
   const isHostPartner = profile?.role === 'host';
   const canManageRooms = isHostPartner || hostApp?.status === 'APPROVED';
+  const isManagerOnly = useMemo(() => {
+    const roles = getRealmRolesFromAccessToken(accessToken).map(normalizeRoleName);
+    return roles.includes('MANAGER') && !roles.includes('HOST');
+  }, [accessToken]);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,11 +78,23 @@ export function RoomStatusPage() {
   }, [profile?.id]);
 
   const loadRooms = useCallback(async () => {
-    if (!profile?.id) return;
     setIsLoading(true);
     try {
+      let roomList: RoomDto[] = [];
+      if (isManagerOnly) {
+        let branchId = selectedBranch?.id;
+        if (branchId == null) {
+          const scope = await fetchMyManagerScope().catch(() => ({ managerScoped: true, branchPropertyId: null }));
+          branchId = scope.managerScoped ? (scope.branchPropertyId ?? undefined) : undefined;
+        }
+        if (branchId != null) {
+          roomList = await roomApiService.getAll({ propertyId: branchId });
+        }
+      } else if (profile?.id) {
+        roomList = await roomApiService.getAll({ ownerId: profile.id });
+      }
       const [list, allBlocks] = await Promise.all([
-        roomApiService.getAll({ ownerId: profile.id }),
+        Promise.resolve(roomList),
         roomBlockService.listAll(),
       ]);
       const propertyIds = new Set(list.map((r) => r.propertyId));
@@ -87,7 +107,7 @@ export function RoomStatusPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [profile?.id]);
+  }, [isManagerOnly, profile?.id, selectedBranch?.id]);
 
   useEffect(() => {
     if (profileLoading || hostApp === undefined) return;

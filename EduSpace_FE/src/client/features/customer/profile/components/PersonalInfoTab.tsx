@@ -1,4 +1,4 @@
-import { Phone, Save, Edit2, X } from 'lucide-react';
+import { Phone, Save, Edit2, X, CheckCircle2, ShieldCheck, Shield, ShieldAlert, Mail, Lock as LockIcon } from 'lucide-react';
 import { UserProfile } from '../types';
 import { UserRole } from '@/types';
 import { useState } from 'react';
@@ -179,8 +179,22 @@ export function PersonalInfoTab({ profile, onUpdate }: PersonalInfoTabProps) {
           className="w-20 h-20 rounded-full object-cover border border-gray-100"
         />
         <div className="flex-1 min-w-0">
-          <h3 className="text-lg font-bold text-[#333333]">{profile.name}</h3>
-          <p className="text-sm text-[#666666] mt-0.5">{getRoleLabel(profile.role, t)}</p>
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-bold text-[#333333]">{profile.name}</h3>
+            {profile.kycStatus === 'verified' && (
+              <CheckCircle2 className="w-5 h-5 text-blue-500 fill-blue-50" />
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-1">
+            <p className="text-sm text-[#666666]">{getRoleLabel(profile.role, t)}</p>
+            
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 rounded-full border border-gray-100">
+               <ShieldCheck className={`w-3.5 h-3.5 ${profile.kycStatus === 'verified' ? 'text-green-500' : 'text-gray-300'}`} />
+               <span className="text-[11px] font-bold text-gray-500 uppercase tracking-tight">
+                 Level {profile.kycStatus === 'verified' ? '3' : profile.is2faEnabled ? '2' : profile.verified ? '1' : '0'}
+               </span>
+            </div>
+          </div>
           {profile.location && (
             <p className="text-sm text-[#666666] mt-0.5">{profile.location}</p>
           )}
@@ -381,6 +395,7 @@ export function PersonalInfoTab({ profile, onUpdate }: PersonalInfoTabProps) {
           </div>
         </div>
       </div>
+
     </div>
   );
 }

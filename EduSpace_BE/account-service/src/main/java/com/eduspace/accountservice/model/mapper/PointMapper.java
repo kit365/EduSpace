@@ -1,7 +1,7 @@
 package com.eduspace.accountservice.model.mapper;
 
-import com.eduspace.accountservice.model.dto.pointrule.PointEarningRuleRequest;
-import com.eduspace.accountservice.model.dto.pointrule.PointEarningRuleResponse;
+import com.eduspace.accountservice.model.dto.request.pointrule.PointEarningRuleRequest;
+import com.eduspace.accountservice.model.dto.response.pointrule.PointEarningRuleResponse;
 import com.eduspace.accountservice.model.dto.transaction.PointTransactionResponse;
 import com.eduspace.accountservice.model.entity.PointEarningRuleEntity;
 import com.eduspace.accountservice.model.entity.PointTransactionEntity;

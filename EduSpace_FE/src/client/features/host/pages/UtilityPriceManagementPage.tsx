@@ -43,6 +43,10 @@ import { RentalLayout } from '../../../layouts/RentalLayout';
 import { showToast } from '@/utils/toast';
 import { roomApiService } from '@/client/features/room/services/roomApiService';
 import type { AmenityCreateRequest, AmenityDto } from '@/client/features/room/types';
+import { useAuthStore } from '@/stores/authStore';
+import { hasHostPermission } from '@/utils/keycloakTokenRoles';
+import { hostPermissions } from '../permissions/hostPermissions';
+import { refreshHostPermissionsFromAccount } from '@/utils/refreshHostPermissionsFromAccount';
 
 type AmenityTypeFilter = 'ALL' | 'BASIC' | 'SERVICE' | 'EQUIPMENT' | 'FEATURE' | 'POLICY';
 type FormMode = 'create' | 'edit';
@@ -117,6 +121,8 @@ const ICON_OPTIONS = [
 ];
 
 export function UtilityPriceManagementPage() {
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const hostPermissionsFromAccount = useAuthStore((s) => s.hostPermissionsFromAccount);
   const [amenities, setAmenities] = useState<AmenityDto[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeType, setActiveType] = useState<AmenityTypeFilter>('ALL');
@@ -147,8 +153,18 @@ export function UtilityPriceManagementPage() {
   };
 
   useEffect(() => {
+    void refreshHostPermissionsFromAccount();
+  }, [accessToken]);
+
+  const canViewUtility = hasHostPermission(accessToken, hostPermissions.utility.view, hostPermissionsFromAccount);
+  const canCreateUtility = hasHostPermission(accessToken, hostPermissions.utility.create, hostPermissionsFromAccount);
+  const canEditUtility = hasHostPermission(accessToken, hostPermissions.utility.edit, hostPermissionsFromAccount);
+  const canDeleteUtility = hasHostPermission(accessToken, hostPermissions.utility.delete, hostPermissionsFromAccount);
+
+  useEffect(() => {
+    if (!canViewUtility) return;
     void loadAmenities();
-  }, []);
+  }, [canViewUtility]);
 
   const availableTypes = useMemo(() => {
     const set = new Set<AmenityTypeFilter>(['ALL']);
@@ -177,6 +193,10 @@ export function UtilityPriceManagementPage() {
   };
 
   const openCreateForm = () => {
+    if (!canCreateUtility) {
+      showToast.error('Bạn không có quyền tạo tiện ích.');
+      return;
+    }
     setFormMode('create');
     setCurrentAmenity(null);
     setForm({ nameVi: '', icon: 'zap', type: 'SERVICE', price: '0' });
@@ -184,6 +204,10 @@ export function UtilityPriceManagementPage() {
   };
 
   const openEditForm = (amenity: AmenityDto) => {
+    if (!canEditUtility) {
+      showToast.error('Bạn không có quyền sửa tiện ích.');
+      return;
+    }
     setFormMode('edit');
     setCurrentAmenity(amenity);
     setForm({
@@ -204,6 +228,10 @@ export function UtilityPriceManagementPage() {
     setSaving(true);
     try {
       if (formMode === 'create') {
+        if (!canCreateUtility) {
+          showToast.error('Bạn không có quyền tạo tiện ích.');
+          return;
+        }
         const created = await roomApiService.createAmenity({
           nameVi: cleanName,
           nameEn: cleanName,
@@ -214,6 +242,10 @@ export function UtilityPriceManagementPage() {
         setAmenities((prev) => [created, ...prev]);
         showToast.success('Đã tạo tiện ích mới.');
       } else if (currentAmenity) {
+        if (!canEditUtility) {
+          showToast.error('Bạn không có quyền sửa tiện ích.');
+          return;
+        }
         const updated = await roomApiService.updateAmenity(currentAmenity.id, {
           nameVi: cleanName,
           nameEn: cleanName,
@@ -233,6 +265,10 @@ export function UtilityPriceManagementPage() {
   };
 
   const handleDelete = async (amenity: AmenityDto) => {
+    if (!canDeleteUtility) {
+      showToast.error('Bạn không có quyền xóa tiện ích.');
+      return;
+    }
     if (!window.confirm(`Xóa tiện ích "${amenity.name}"?`)) return;
     try {
       await roomApiService.deleteAmenity(amenity.id);
@@ -243,6 +279,14 @@ export function UtilityPriceManagementPage() {
     }
   };
 
+  if (!canViewUtility) {
+    return (
+      <RentalLayout title="Quản lý tiện ích">
+        <div className="mx-auto max-w-lg p-8 text-center text-gray-600">Bạn không có quyền xem module tiện ích.</div>
+      </RentalLayout>
+    );
+  }
+
   return (
     <RentalLayout title="Quản lý tiện ích">
       <div className="p-8 max-w-7xl mx-auto">
@@ -251,13 +295,15 @@ export function UtilityPriceManagementPage() {
             <h1 className="text-4xl font-black text-gray-900 tracking-tight mb-2">Quản lý dịch vụ & tiện ích</h1>
             <p className="text-gray-500 font-medium max-w-2xl">Hiển thị icon đúng từ DB, lọc theo type và quản lý tạo/sửa/xóa tiện ích.</p>
           </div>
-          <button
-            onClick={openCreateForm}
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-gray-900 text-white font-bold hover:bg-red-500 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Thêm tiện ích
-          </button>
+          {canCreateUtility && (
+            <button
+              onClick={openCreateForm}
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-gray-900 text-white font-bold hover:bg-red-500 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Thêm tiện ích
+            </button>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -325,20 +371,24 @@ export function UtilityPriceManagementPage() {
                     </td>
                     <td className="px-8 py-6 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => openEditForm(amenity)}
-                          className="p-3 bg-white border border-gray-100 rounded-xl text-blue-500 hover:bg-blue-50 hover:border-blue-100 shadow-sm transition-all active:scale-90"
-                          title="Sửa tiện ích"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => void handleDelete(amenity)}
-                          className="p-3 bg-white border border-gray-100 rounded-xl text-red-500 hover:bg-red-50 hover:border-red-100 shadow-sm transition-all active:scale-90"
-                          title="Xóa tiện ích"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {canEditUtility && (
+                          <button
+                            onClick={() => openEditForm(amenity)}
+                            className="p-3 bg-white border border-gray-100 rounded-xl text-blue-500 hover:bg-blue-50 hover:border-blue-100 shadow-sm transition-all active:scale-90"
+                            title="Sửa tiện ích"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                        )}
+                        {canDeleteUtility && (
+                          <button
+                            onClick={() => void handleDelete(amenity)}
+                            className="p-3 bg-white border border-gray-100 rounded-xl text-red-500 hover:bg-red-50 hover:border-red-100 shadow-sm transition-all active:scale-90"
+                            title="Xóa tiện ích"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

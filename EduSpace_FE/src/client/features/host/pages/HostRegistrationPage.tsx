@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
-import { CheckCircle2, ChevronLeft, ArrowRight, Loader2 } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ArrowRight, Loader2, ShieldCheck } from 'lucide-react';
 import { CustomerLayout } from '../../../layouts/CustomerLayout';
-import { Step1BasicInfo, Step2KycDocs, Step3Confirmation } from '../components/registration';
+import { Step1BasicInfo, Step2Contract } from '../components/registration';
 import { hostPartnerApplicationService } from '../services/hostPartnerApplicationService';
 import { profileService } from '@/client/features/customer/profile/services/profileService';
 import { useAuthStore } from '@/stores/authStore';
@@ -22,6 +22,7 @@ export function HostRegistrationPage() {
     /** Khách: true ngay; user đăng nhập: false cho đến khi kiểm tra đơn / realm role xong */
     const [hostRegHydrated, setHostRegHydrated] = useState(() => !useAuthStore.getState().isAuthenticated);
     const [appGate, setAppGate] = useState<'pending' | 'approved_relogin' | 'none'>('none');
+    const [kycStatus, setKycStatus] = useState<string | null>(null);
 
     const [formData, setFormData] = useState({
         type: 'individual' as 'individual' | 'business',
@@ -53,6 +54,10 @@ export function HostRegistrationPage() {
             },
         ],
         agreedTerms: false,
+        bankAccount: '',
+        bankName: '',
+        taxId: '',
+        ocrData: null as any,
     });
 
     useEffect(() => {
@@ -71,7 +76,10 @@ export function HostRegistrationPage() {
                     phone: prev.phone.trim() ? prev.phone : (p.phone || '').trim() || prev.phone,
                     email: prev.email.trim() ? prev.email : (p.email || '').trim() || prev.email,
                     address: prev.address.trim() ? prev.address : addressFromProfile || prev.address,
+                    taxId: prev.taxId.trim() ? prev.taxId : (p.taxId || '').trim() || prev.taxId,
+                    ocrData: p.ocrData,
                 }));
+                setKycStatus(p.kycStatus);
             } catch {
                 /* profile lỗi — form để trống */
             }
@@ -123,7 +131,7 @@ export function HostRegistrationPage() {
 
     const nextStep = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
-        setStep((s) => Math.min(s + 1, 3));
+        setStep((s) => Math.min(s + 1, 2));
     };
     const prevStep = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -138,14 +146,17 @@ export function HostRegistrationPage() {
         }
         setIsSubmitting(true);
         try {
-            const docSummary = formData.documents.map((d) => `${d.id}:${d.status}`).join(';');
             await hostPartnerApplicationService.submit({
                 applicantType: formData.type === 'individual' ? 'INDIVIDUAL' : 'BUSINESS',
                 fullName: formData.name.trim(),
                 phone: formData.phone.trim(),
                 email: formData.email.trim(),
                 address: formData.address.trim(),
-                message: `Giấy tờ (mock): ${docSummary}`,
+                message: `Đơn đăng ký Host (Ký hợp đồng e-contract)`,
+                bankAccountNumber: formData.bankAccount.trim(),
+                bankName: formData.bankName.trim(),
+                bankAccountHolder: formData.name.trim(),
+                taxId: formData.taxId.trim(),
                 documentFrontUrl: formData.kycFrontUrl.trim() || undefined,
                 documentBackUrl: formData.kycBackUrl.trim() || undefined,
                 businessLicenseUrl:
@@ -227,6 +238,36 @@ export function HostRegistrationPage() {
         );
     }
 
+    if (isAuthenticated && kycStatus !== 'VERIFIED' && kycStatus !== 'verified') {
+        return (
+            <CustomerLayout>
+                <div className="mx-auto max-w-lg px-4 py-16 text-center">
+                    <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-red-100">
+                        <ShieldCheck className="h-10 w-10 text-red-600" />
+                    </div>
+                    <h1 className="mb-4 text-2xl font-black text-gray-900">Yêu cầu xác minh danh tính (eKYC)</h1>
+                    <p className="mb-6 text-gray-600">
+                        Để đảm bảo an toàn cho cộng đồng, bạn cần hoàn tất xác minh danh tính eKYC trước khi gửi đơn đăng ký làm Host.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={() => navigate('/ekyc')}
+                        className="w-full rounded-2xl bg-red-600 py-4 text-sm font-black uppercase tracking-widest text-white shadow-xl shadow-red-100 mb-4"
+                    >
+                        Bắt đầu xác minh ngay
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => navigate('/')}
+                        className="w-full rounded-2xl bg-gray-100 py-4 text-sm font-black uppercase tracking-widest text-gray-600"
+                    >
+                        Quay lại trang chủ
+                    </button>
+                </div>
+            </CustomerLayout>
+        );
+    }
+
     if (isAuthenticated && appGate === 'approved_relogin') {
         return (
             <CustomerLayout>
@@ -281,9 +322,9 @@ export function HostRegistrationPage() {
                         <div className="absolute left-0 top-1/2 -z-0 h-1 w-full -translate-y-1/2 rounded-full bg-gray-100" />
                         <div
                             className="absolute left-0 top-1/2 -z-0 h-1 -translate-y-1/2 rounded-full bg-red-500 transition-all duration-500"
-                            style={{ width: `${((step - 1) / 2) * 100}%` }}
+                            style={{ width: `${((step - 1) / 1) * 100}%` }}
                         />
-                        {[1, 2, 3].map((i) => (
+                        {[1, 2].map((i) => (
                             <div
                                 key={i}
                                 className={`relative z-10 flex h-12 w-12 items-center justify-center rounded-2xl border-4 font-black transition-all duration-500 ${
@@ -297,7 +338,7 @@ export function HostRegistrationPage() {
                                     <span
                                         className={`text-[10px] font-black uppercase tracking-widest ${step >= i ? 'text-red-500' : 'text-gray-300'}`}
                                     >
-                                        {t(`host.register.step${i}Label`)}
+                                        {i === 1 ? t('host.register.step1Label') : 'Hợp đồng'}
                                     </span>
                                 </div>
                             </div>
@@ -306,8 +347,7 @@ export function HostRegistrationPage() {
 
                     <div className="bg-white">
                         {step === 1 && <Step1BasicInfo formData={formData} setFormData={setFormData} />}
-                        {step === 2 && <Step2KycDocs formData={formData} setFormData={setFormData} />}
-                        {step === 3 && <Step3Confirmation formData={formData} setFormData={setFormData} />}
+                        {step === 2 && <Step2Contract formData={formData} setFormData={setFormData} />}
 
                         <div className="mt-16 flex gap-4 border-t border-gray-100 pt-10">
                             {step > 1 && (
@@ -323,21 +363,21 @@ export function HostRegistrationPage() {
 
                             <button
                                 type="button"
-                                onClick={step === 3 ? handleSubmit : nextStep}
-                                disabled={isSubmitting || (step === 3 && !formData.agreedTerms)}
+                                onClick={step === 1 ? nextStep : handleSubmit}
+                                disabled={isSubmitting || (step === 2 && !formData.agreedTerms)}
                                 className={`flex flex-1 items-center justify-center gap-3 rounded-2xl px-8 py-5 text-xs font-black uppercase tracking-widest shadow-xl transition-all active:scale-95 ${
-                                    isSubmitting || (step === 3 && !formData.agreedTerms)
+                                    isSubmitting || (step === 2 && !formData.agreedTerms)
                                         ? 'cursor-not-allowed bg-gray-100 text-gray-400 shadow-none'
-                                        : 'bg-gray-900 text-white shadow-gray-200 hover:bg-red-500 hover:shadow-red-100'
+                                        : 'bg-[#2563eb] text-white shadow-blue-200 hover:bg-[#1d4ed8] active:scale-[0.98]'
                                 }`}
                             >
                                 {isSubmitting ? (
                                     <Loader2 className="h-5 w-5 animate-spin" />
-                                ) : step === 3 ? (
-                                    t('host.register.submitApplication')
+                                ) : step === 2 ? (
+                                    'Ký hợp đồng & Gửi đơn'
                                 ) : (
                                     <>
-                                        {t('common.continue')}
+                                        Tiếp tục: Xem hợp đồng
                                         <ArrowRight className="h-5 w-5" />
                                     </>
                                 )}

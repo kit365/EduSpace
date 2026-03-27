@@ -515,7 +515,7 @@ export function BranchesPage() {
                     {canCreateBranch && (
                         <button
                             onClick={openCreateBranch}
-                            className="inline-flex h-10 items-center gap-2 rounded-xl bg-red-500 px-4 text-sm font-bold text-white shadow-md transition-all hover:bg-red-600 active:scale-95"
+                            className="inline-flex h-11 items-center gap-2 rounded-xl bg-red-500 px-4 text-sm font-bold text-white shadow-md transition-all hover:bg-red-600 active:scale-95"
                         >
                             <Plus className="h-4 w-4" />
                             Thêm cơ sở mới

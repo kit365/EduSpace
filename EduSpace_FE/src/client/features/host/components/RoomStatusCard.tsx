@@ -62,8 +62,7 @@ export function RoomStatusCard({
           Cập nhật:{' '}
           {room.updatedAt
             ? new Date(room.updatedAt).toLocaleString('vi-VN')
-            : '—'}{' '}
-          bởi <span className="font-medium text-gray-500">—</span>
+            : '—'}
         </p>
 
         <div

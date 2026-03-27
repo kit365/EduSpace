@@ -17,6 +17,19 @@ export function getRealmRolesFromAccessToken(token: string | null | undefined): 
     }
 }
 
+export function isTokenExpired(token: string | null | undefined): boolean {
+    if (!token) return true;
+    try {
+        const part = token.split('.')[1];
+        if (!part) return true;
+        const payload = JSON.parse(atob(part.replace(/-/g, '+').replace(/_/g, '/'))) as { exp?: number };
+        if (!payload.exp) return false;
+        return (payload.exp * 1000) < Date.now();
+    } catch {
+        return true;
+    }
+}
+
 type TokenPayload = {
     realm_access?: { roles?: string[] };
     permissions?: string[];
@@ -51,7 +64,6 @@ export function getPermissionsFromAccessToken(token: string | null | undefined):
         .filter(Boolean)
         .map(normalizePermissionName);
 }
-
 export function normalizeRoleName(r: string): string {
     return r.toUpperCase().replace(/^ROLE_/, '');
 }
@@ -146,6 +158,18 @@ export const legacyPermissionAliases: Record<string, string[]> = {
     view_dashboard: [],
     view_transactions: [hp?.finance?.view].filter((p): p is string => typeof p === 'string' && p.length > 0),
     manage_reports: [hp?.finance?.manage].filter((p): p is string => typeof p === 'string' && p.length > 0),
+    'branch.utility.manage': [
+        hp?.utility?.view,
+        hp?.utility?.create,
+        hp?.utility?.edit,
+        hp?.utility?.delete,
+    ].filter((p): p is string => typeof p === 'string' && p.length > 0),
+    'branch.deposit_policy.manage': [
+        hp?.depositPolicy?.view,
+        hp?.depositPolicy?.create,
+        hp?.depositPolicy?.edit,
+        hp?.depositPolicy?.delete,
+    ].filter((p): p is string => typeof p === 'string' && p.length > 0),
     manage_kyc: ['branch.profile.manage'],
     'manage-kyc': ['branch.profile.manage'],
 };
@@ -168,12 +192,27 @@ export function resolveHostPermissions(
     token: string | null | undefined,
     hostPermissionsFromAccount?: string[] | null,
 ): Set<string> {
-    const explicitPermissions = getPermissionsFromAccessToken(token);
     const accountPermissions = hostPermissionsFromAccount ?? useAuthStore.getState().hostPermissionsFromAccount;
+    const roles = getRealmRolesFromAccessToken(token).map(normalizeRoleName);
 
+    // Admin always keeps wildcard access for host console utilities.
+    if (roles.includes('ADMIN') || roles.includes('SUPER_ADMIN')) {
+        return new Set<string>(['*']);
+    }
+
+    // For host/manager/staff console, permissions from /accounts/me are source of truth.
+    // Important: even an empty array means "no permission", and must not be mixed with token claims.
+    if (Array.isArray(accountPermissions)) {
+        const expanded = new Set<string>();
+        accountPermissions
+            .filter(Boolean)
+            .forEach((permission) => expandLegacyPermissions(permission).forEach((resolved) => expanded.add(resolved)));
+        return expanded;
+    }
+
+    const explicitPermissions = getPermissionsFromAccessToken(token);
     const mergedRaw = [
         ...explicitPermissions,
-        ...(Array.isArray(accountPermissions) ? accountPermissions : []),
     ].filter(Boolean);
 
     if (mergedRaw.length > 0) {
@@ -187,7 +226,6 @@ export function resolveHostPermissions(
     // Transition mode only: keep role fallback when explicitly enabled via env flag.
     if (!roleFallbackEnabled) return new Set<string>();
 
-    const roles = getRealmRolesFromAccessToken(token).map(normalizeRoleName);
     const merged = new Set<string>();
     for (const role of roles) {
         (defaultHostPermissionsByRole[role] ?? []).forEach((permission) => merged.add(permission));

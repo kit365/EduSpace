@@ -12,4 +12,5 @@ import org.springframework.context.annotation.Configuration;
 public class KafkaProperties {
     private String assignStaffRequest;
     private String assignStaffResult;
+    private String ekycResult;
 }

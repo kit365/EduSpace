@@ -23,9 +23,9 @@ import com.eduspace.accountservice.persistence.repository.PermissionRepository;
 import com.eduspace.accountservice.persistence.repository.RoleRepository;
 import com.eduspace.accountservice.persistence.repository.UserPermissionRepository;
 import com.eduspace.accountservice.persistence.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import com.eduspace.accountservice.infrastructure.config.AppProperties;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -45,7 +45,6 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class HostStaffServiceImpl implements HostStaffService {
 
     private final UserRepository userRepository;
@@ -56,9 +55,28 @@ public class HostStaffServiceImpl implements HostStaffService {
     private final KeycloakUserService keycloakUserService;
     private final EmailService emailService;
     private final RestTemplate restTemplate;
+    private final AppProperties appProperties;
 
-    @Value("${app.gateway-url:http://localhost:8080}")
-    private String gatewayUrl;
+    public HostStaffServiceImpl(
+            UserRepository userRepository,
+            RoleRepository roleRepository,
+            PermissionRepository permissionRepository,
+            HostStaffLinkRepository hostStaffLinkRepository,
+            UserPermissionRepository userPermissionRepository,
+            KeycloakUserService keycloakUserService,
+            EmailService emailService,
+            @Qualifier("loadBalancedRestTemplate") RestTemplate restTemplate,
+            AppProperties appProperties) {
+        this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
+        this.permissionRepository = permissionRepository;
+        this.hostStaffLinkRepository = hostStaffLinkRepository;
+        this.userPermissionRepository = userPermissionRepository;
+        this.keycloakUserService = keycloakUserService;
+        this.emailService = emailService;
+        this.restTemplate = restTemplate;
+        this.appProperties = appProperties;
+    }
 
     private static final String TEMP_PASSWORD_CHARS =
             "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*";
@@ -76,15 +94,30 @@ public class HostStaffServiceImpl implements HostStaffService {
             "branch.booking.view",
             "branch.booking.manage",
             "branch.room.view",
+            "branch.room.create",
             "branch.room.edit",
+            "branch.room.delete",
             "branch.checkin.manage",
             "branch.checkout.manage",
             "branch.room_status.manage",
             "branch.profile.view",
+            "branch.finance.view",
+            "branch.finance.export",
             "view_messages",
             "manage_messages",
+            "branch.utility.view",
+            "branch.utility.create",
+            "branch.utility.edit",
+            "branch.utility.delete",
+            "branch.deposit_policy.view",
+            "branch.deposit_policy.create",
+            "branch.deposit_policy.edit",
+            "branch.deposit_policy.delete",
+            "branch.staff.view",
             "branch.cleaning.manage",
-            "branch.maintenance.manage");
+            "branch.maintenance.manage",
+            "rbac.permission.view",
+            "rbac.template.view");
 
     private static final Set<String> MANAGER_DEFAULT_PERMISSION_NAMES = Set.of(
             "view_dashboard",
@@ -92,13 +125,24 @@ public class HostStaffServiceImpl implements HostStaffService {
             "branch.booking.view",
             "branch.booking.manage",
             "branch.room.view",
-            "branch.room.edit",
             "branch.checkin.manage",
             "branch.checkout.manage",
             "branch.room_status.manage",
             "branch.profile.view",
+            "branch.finance.view",
+            "branch.finance.export",
             "view_messages",
-            "manage_messages");
+            "manage_messages",
+            "branch.utility.view",
+            "branch.utility.create",
+            "branch.utility.edit",
+            "branch.utility.delete",
+            "branch.deposit_policy.view",
+            "branch.deposit_policy.create",
+            "branch.deposit_policy.edit",
+            "branch.deposit_policy.delete",
+            "rbac.permission.view",
+            "rbac.template.view");
 
     private UserEntity resolveHost(String hostUserId) {
         return userRepository.findById(hostUserId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
@@ -167,7 +211,8 @@ public class HostStaffServiceImpl implements HostStaffService {
 
     private void assertBranchExistsAndOwnedByHost(Long branchPropertyId, String hostUserId) {
         try {
-            String endpoint = gatewayUrl + "/api/v1/properties/" + branchPropertyId;
+            String endpoint = appProperties.getGatewayUrl() + "/api/v1/properties/" + branchPropertyId;
+
             @SuppressWarnings("unchecked")
             Map<String, Object> response = restTemplate.getForObject(endpoint, Map.class);
             if (response == null || !(response.get("data") instanceof Map<?, ?> data)) {

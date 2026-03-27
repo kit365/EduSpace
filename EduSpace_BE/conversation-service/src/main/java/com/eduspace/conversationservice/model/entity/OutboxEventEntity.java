@@ -68,5 +68,12 @@ public class OutboxEventEntity {
         if (availableAt == null) availableAt = createdAt;
         if (status == null) status = Status.PENDING;
     }
+
+    public Long getId() { return id; }
+    public String getAggregateType() { return aggregateType; }
+    public String getAggregateId() { return aggregateId; }
+    public String getEventType() { return eventType; }
+    public String getPayload() { return payload; }
+    public Status getStatus() { return status; }
 }
 

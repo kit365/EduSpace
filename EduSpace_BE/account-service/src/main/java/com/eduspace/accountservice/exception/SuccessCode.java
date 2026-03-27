@@ -11,6 +11,8 @@ public enum SuccessCode {
     USER_PROFILE_UPDATE_SUCCESS(HttpStatus.OK, "USER_PROFILE_UPDATE_SUCCESS", "user.profile.update.success"),
     USER_LOGOUT_SUCCESS(HttpStatus.OK, "USER_LOGOUT_SUCCESS", "user.logout.success"),
     EMAIL_VERIFY_SUCCESS(HttpStatus.OK, "EMAIL_VERIFY_SUCCESS", "user.email.verify.success"),
+    EKYC_VERIFY_SUCCESS(HttpStatus.OK, "EKYC_VERIFY_SUCCESS", "user.ekyc.verify.success"),
+    EKYC_COMMIT_SUCCESS(HttpStatus.OK, "EKYC_COMMIT_SUCCESS", "user.ekyc.commit.success"),
     HOST_MANAGER_GRANTED_SUCCESS(HttpStatus.OK, "HOST_MANAGER_GRANTED_SUCCESS", "host.manager.granted"),
     HOST_MANAGER_CREATED_SUCCESS(HttpStatus.CREATED, "HOST_MANAGER_CREATED_SUCCESS", "host.manager.created");
 

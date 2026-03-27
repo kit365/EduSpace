@@ -3,17 +3,17 @@ import com.eduspace.accountservice.common.enums.TransactionType;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import java.time.LocalDateTime;
+import lombok.experimental.SuperBuilder;
 
 @Entity
 @Table(name = "point_transactions")
 @Getter
 @Setter
-@Builder
+@SuperBuilder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @NoArgsConstructor
 @AllArgsConstructor
-public class PointTransactionEntity {
+public class PointTransactionEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -36,12 +36,4 @@ public class PointTransactionEntity {
 
     @Column(name = "reason")
     String reason;
-
-    @Column(name = "created_at")
-    LocalDateTime createdAt;
-
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-    }
 }

@@ -9,6 +9,7 @@ export interface UserFilterParams {
     role?: string;
     status?: string;
     kyc?: string;
+    sort?: string;
 }
 
 /** BE UserResponse shape (account-service) */
@@ -24,6 +25,13 @@ interface ApiUser {
     verificationDocument?: string;
     roles?: string[];
     createdAt?: string;
+    ocrData?: {
+        name: string;
+        idNumber: string;
+        dob: string;
+        address: string;
+    };
+    faceMatchPercentage?: number;
     [key: string]: unknown;
 }
 
@@ -63,7 +71,9 @@ function mapApiUserToUser(api: ApiUser): User {
         kycStatus,
         isVerified: Boolean(api.isEmailVerified),
         verificationDocs: api.verificationDocument ? [api.verificationDocument] : [],
-        joinedAt: api.createdAt ? new Date(api.createdAt).toISOString() : new Date().toISOString()
+        joinedAt: api.createdAt ? new Date(api.createdAt).toISOString() : new Date().toISOString(),
+        ocrData: api.ocrData as User['ocrData'],
+        faceMatchPercentage: api.faceMatchPercentage as number
     };
 }
 
@@ -103,5 +113,11 @@ export const userService = {
             ? `?reason=${encodeURIComponent(reason.trim())}`
             : '';
         await apiClient.post(`/api/v1/accounts/admin/users/${userId}/kyc/reject${query}`);
+    },
+
+    toggleUserStatus: async (userId: string, active: boolean): Promise<void> => {
+        await apiClient.patch(`/api/v1/accounts/admin/users/${userId}/status`, null, {
+            params: { active }
+        });
     },
 };

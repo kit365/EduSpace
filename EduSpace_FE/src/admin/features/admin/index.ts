@@ -5,7 +5,7 @@ export * from './pages/SystemLogsPage';
 export * from './pages/SystemSettingsPage';
 export * from './pages/FinancePayoutsPage';
 export * from './pages/VerificationPage';
-export * from './pages/DisputesPage';
+export * from '../disputes';
 export * from './hooks/useAdmin';
 export * from './services/adminService';
 export * from './data/mockData';

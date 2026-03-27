@@ -46,6 +46,18 @@ export const hostPermissions = {
         export: 'branch.finance.export',
         payoutCreate: 'branch.finance.payout.create',
     },
+    utility: {
+        view: 'branch.utility.view',
+        create: 'branch.utility.create',
+        edit: 'branch.utility.edit',
+        delete: 'branch.utility.delete',
+    },
+    depositPolicy: {
+        view: 'branch.deposit_policy.view',
+        create: 'branch.deposit_policy.create',
+        edit: 'branch.deposit_policy.edit',
+        delete: 'branch.deposit_policy.delete',
+    },
     rbacTemplate: {
         view: 'rbac.template.view',
         manage: 'rbac.template.manage',
@@ -81,6 +93,8 @@ export const hostMenuPermissions = {
     checkout: hostPermissions.operations.checkout,
     staff: hostPermissions.staff.view,
     finance: hostPermissions.finance.view,
+    utility: hostPermissions.utility.view,
+    depositPolicy: hostPermissions.depositPolicy.view,
     kyc: 'branch.profile.manage',
     messages: hostPermissions.messages.view,
 } as const;

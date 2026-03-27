@@ -10,6 +10,18 @@ export const useUsers = (initialParams: UserFilterParams = { page: 0, size: 10 }
     const [loading, setLoading] = useState(true);
     const [params, setParams] = useState<UserFilterParams>(initialParams);
 
+    // Sync params with initialParams when props change
+    useEffect(() => {
+        setParams(initialParams);
+    }, [
+        initialParams.page, 
+        initialParams.size, 
+        initialParams.search, 
+        initialParams.role, 
+        initialParams.status, 
+        initialParams.sort
+    ]);
+
     const fetchUsers = useCallback(async () => {
         setLoading(true);
         try {

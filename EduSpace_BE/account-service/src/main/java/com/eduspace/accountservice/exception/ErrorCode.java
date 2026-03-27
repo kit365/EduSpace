@@ -27,12 +27,25 @@ public enum ErrorCode {
             "host.application.pending-exists"),
     HOST_APPLICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "HOST_APPLICATION_NOT_FOUND", "host.application.not-found"),
     HOST_APPLICATION_BAD_STATE(HttpStatus.BAD_REQUEST, "HOST_APPLICATION_BAD_STATE", "host.application.bad-state"),
+
+    // eKYC related
+    EKYC_VERIFICATION_FAILED(HttpStatus.BAD_REQUEST, "EKYC_VERIFICATION_FAILED", "error.ekyc.verification-failed"),
+    EKYC_AI_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "EKYC_AI_UNAVAILABLE", "error.ekyc.ai-unavailable"),
+    EKYC_INVALID_DOCUMENTS(HttpStatus.BAD_REQUEST, "EKYC_INVALID_DOCUMENTS", "error.ekyc.invalid-documents"),
+    EKYC_REQUIRED(HttpStatus.FORBIDDEN, "EKYC_REQUIRED", "error.ekyc.required"),
+    EKYC_LIVENESS_FAILED(HttpStatus.BAD_REQUEST, "EKYC_LIVENESS_FAILED", "error.ekyc.liveness-failed"),
+    EKYC_FACE_MISMATCH(HttpStatus.BAD_REQUEST, "EKYC_FACE_MISMATCH", "error.ekyc.face-mismatch"),
+    EKYC_OCR_FAILED(HttpStatus.BAD_REQUEST, "EKYC_OCR_FAILED", "error.ekyc.ocr-failed"),
+
+    // RBAC & Staff management
     HOST_STAFF_FORBIDDEN(HttpStatus.FORBIDDEN, "HOST_STAFF_FORBIDDEN", "host.staff.forbidden"),
     HOST_STAFF_NOT_FOUND(HttpStatus.NOT_FOUND, "HOST_STAFF_NOT_FOUND", "host.staff.not-found"),
     INVALID_STAFF_PERMISSION(HttpStatus.BAD_REQUEST, "INVALID_STAFF_PERMISSION", "host.staff.invalid-permission"),
     INVALID_MANAGER_PERMISSION(HttpStatus.BAD_REQUEST, "INVALID_MANAGER_PERMISSION", "host.manager.invalid-permission"),
     HOST_MANAGER_INVALID_USER(HttpStatus.BAD_REQUEST, "HOST_MANAGER_INVALID_USER", "host.manager.invalid-user"),
     HOST_MANAGER_ALREADY_LINKED(HttpStatus.CONFLICT, "HOST_MANAGER_ALREADY_LINKED", "host.manager.already-linked"),
+    EKYC_DUPLICATE_ID(HttpStatus.CONFLICT, "EKYC_DUPLICATE_ID", "error.ekyc.duplicate-id"),
+
     HOST_BRANCH_NOT_FOUND(HttpStatus.BAD_REQUEST, "HOST_BRANCH_NOT_FOUND", "host.branch.not-found"),
     HOST_BRANCH_FORBIDDEN(HttpStatus.FORBIDDEN, "HOST_BRANCH_FORBIDDEN", "host.branch.forbidden"),
     HOST_BRANCH_VALIDATION_FAILED(

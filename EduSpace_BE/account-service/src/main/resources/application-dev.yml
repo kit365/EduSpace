@@ -37,7 +37,7 @@ spring:
 
 logging:
   level:
-    com.eduspace.accountservice.business.serviceimpl.EmailServiceImpl: INFO
+    "[com.eduspace.accountservice.business.serviceimpl.EmailServiceImpl]": INFO
     # Bật khi cần log SMTP chi tiết: SPRING_MAIL_DEBUG=true hoặc thêm org.springframework.mail: DEBUG
 
 keycloak:
@@ -46,5 +46,4 @@ keycloak:
   client-id: ${KEYCLOAK_CLIENT_ID:eduspace-be}
   client-secret: ${KEYCLOAK_CLIENT_SECRET:eduspace-secret}
 
-app:
-  gateway-url: ${API_GATEWAY_URL:http://localhost:8080}
+

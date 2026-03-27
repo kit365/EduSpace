@@ -638,24 +638,17 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
               ),
             ],
           ),
-
-          // ── Sticky Bottom Bar ──────────────────────────────────
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: _BottomBar(
-              pricePerHour: room.pricePerHour,
-              onBook: () {
-                Navigator.pushNamed(
-                  context,
-                  '/booking/new',
-                  arguments: room,
-                );
-              },
-            ),
-          ),
         ],
+      ),
+      bottomNavigationBar: _BottomBar(
+        pricePerHour: room.pricePerHour,
+        onBook: () {
+          Navigator.pushNamed(
+            context,
+            '/booking/new',
+            arguments: room,
+          );
+        },
       ),
     );
   }

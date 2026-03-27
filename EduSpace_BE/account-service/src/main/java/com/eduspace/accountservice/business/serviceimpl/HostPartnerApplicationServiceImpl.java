@@ -4,6 +4,7 @@ import com.eduspace.accountservice.business.service.HostPartnerApplicationServic
 import com.eduspace.accountservice.business.service.KeycloakUserService;
 import com.eduspace.accountservice.common.enums.PartnerAppStatus;
 import com.eduspace.accountservice.common.enums.HostPartnerApplicationUserStatus;
+import com.eduspace.accountservice.common.enums.VerificationStatus;
 import com.eduspace.accountservice.common.enums.Role;
 import com.eduspace.accountservice.exception.AppException;
 import com.eduspace.accountservice.exception.ErrorCode;
@@ -15,9 +16,12 @@ import com.eduspace.accountservice.model.dto.response.hostapplication.PendingBra
 import com.eduspace.accountservice.model.entity.HostPartnerApplicationEntity;
 import com.eduspace.accountservice.model.entity.RoleEntity;
 import com.eduspace.accountservice.model.entity.UserEntity;
+import com.eduspace.accountservice.persistence.repository.UserRepository;
 import com.eduspace.accountservice.persistence.repository.HostPartnerApplicationRepository;
 import com.eduspace.accountservice.persistence.repository.RoleRepository;
-import com.eduspace.accountservice.persistence.repository.UserRepository;
+import com.eduspace.accountservice.business.service.EkycVerificationService;
+import com.eduspace.accountservice.business.service.PdfService;
+import com.eduspace.accountservice.model.dto.response.ekyc.EkycVerifyResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -43,6 +47,8 @@ public class HostPartnerApplicationServiceImpl implements HostPartnerApplication
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final KeycloakUserService keycloakUserService;
+    private final PdfService pdfService;
+    private final EkycVerificationService ekycVerificationService;
 
     private static boolean isHostPartnerRole(String roleName) {
         if (roleName == null) {
@@ -178,6 +184,11 @@ public class HostPartnerApplicationServiceImpl implements HostPartnerApplication
             throw new AppException(ErrorCode.INVALID_KEY);
         }
 
+        // Enforce KYC requirement
+        if (user.getVerificationStatus() != VerificationStatus.VERIFIED) {
+            throw new AppException(ErrorCode.EKYC_REQUIRED);
+        }
+
         boolean branchApplication = isBranchApplication(applicantType);
 
         if (userIsHostPartner(user) && !branchApplication) {
@@ -224,7 +235,21 @@ public class HostPartnerApplicationServiceImpl implements HostPartnerApplication
                 .documentBackUrl(trimToNull(request.getDocumentBackUrl()))
                 .businessLicenseUrl(trimToNull(request.getBusinessLicenseUrl()))
                 .status(PartnerAppStatus.PENDING)
+                .bankAccountNumber(trimToNull(request.getBankAccountNumber()))
+                .bankName(trimToNull(request.getBankName()))
+                .bankAccountHolder(trimToNull(request.getBankAccountHolder()))
+                .taxId(trimToNull(request.getTaxId()))
                 .build();
+
+        // Generate PDF Contract
+        try {
+            byte[] pdfBytes = generateContractPdf(user, request);
+            entity.setContractPdf(pdfBytes);
+        } catch (Exception e) {
+            log.error("Failed to generate contract PDF for user {}: {}", user.getId(), e.getMessage());
+            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
+        }
+
         try {
             applicationRepository.save(entity);
         } catch (DataIntegrityViolationException ex) {
@@ -245,6 +270,18 @@ public class HostPartnerApplicationServiceImpl implements HostPartnerApplication
                     PartnerAppStatus.PENDING);
             userRepository.save(user);
         }
+    }
+
+    @Override
+    public byte[] getContractPdf(UUID applicationId) {
+        HostPartnerApplicationEntity app = applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new AppException(ErrorCode.HOST_APPLICATION_NOT_FOUND));
+        
+        if (app.getContractPdf() == null) {
+            throw new AppException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
+        
+        return app.getContractPdf();
     }
 
     @Override
@@ -356,31 +393,10 @@ public class HostPartnerApplicationServiceImpl implements HostPartnerApplication
         if (StringUtils.hasText(applicantType)) {
             user.setHostType(applicantType.trim());
         }
-        String doc = firstNonBlank(documentFrontUrl, documentBackUrl, businessLicenseUrl);
-        if (StringUtils.hasText(doc)) {
-            user.setVerificationDocument(doc);
-        }
-        if (phase == PartnerAppStatus.PENDING) {
-            user.setVerificationStatus("PENDING");
-        } else if (phase == PartnerAppStatus.APPROVED) {
-            user.setVerificationStatus("VERIFIED");
-        }
         if (StringUtils.hasText(applicantType) && "BUSINESS".equalsIgnoreCase(applicantType.trim())
                 && StringUtils.hasText(fullName)) {
             user.setOrganizationName(fullName.trim());
         }
-    }
-
-    private static String firstNonBlank(String... values) {
-        if (values == null) {
-            return null;
-        }
-        for (String v : values) {
-            if (StringUtils.hasText(v)) {
-                return v.trim();
-            }
-        }
-        return null;
     }
 
     private static String trimToNull(String s) {
@@ -431,15 +447,6 @@ public class HostPartnerApplicationServiceImpl implements HostPartnerApplication
     }
 
     private HostPartnerApplicationAdminResponse toAdminResponse(HostPartnerApplicationEntity e) {
-        String msg = e.getMessage();
-        if (e.getDocumentFrontUrl() != null || e.getDocumentBackUrl() != null || e.getBusinessLicenseUrl() != null) {
-            String doc = String.format(
-                    " [KYC URL] front=%s back=%s license=%s",
-                    e.getDocumentFrontUrl() != null ? e.getDocumentFrontUrl() : "-",
-                    e.getDocumentBackUrl() != null ? e.getDocumentBackUrl() : "-",
-                    e.getBusinessLicenseUrl() != null ? e.getBusinessLicenseUrl() : "-");
-            msg = (msg != null ? msg : "") + doc;
-        }
         return HostPartnerApplicationAdminResponse.builder()
                 .id(e.getId())
                 .userId(e.getUserId())
@@ -448,12 +455,58 @@ public class HostPartnerApplicationServiceImpl implements HostPartnerApplication
                 .phone(e.getPhone())
                 .email(e.getEmail())
                 .address(e.getAddress())
-                .message(msg)
+                .message(e.getMessage())
                 .status(e.getStatus().name())
                 .adminNote(e.getAdminNote())
                 .createdAt(e.getCreatedAt())
                 .reviewedAt(e.getReviewedAt())
                 .reviewedBy(e.getReviewedBy())
+                .bankAccountNumber(e.getBankAccountNumber())
+                .bankName(e.getBankName())
+                .bankAccountHolder(e.getBankAccountHolder())
+                .taxId(e.getTaxId())
+                .documentFrontUrl(e.getDocumentFrontUrl())
+                .documentBackUrl(e.getDocumentBackUrl())
+                .businessLicenseUrl(e.getBusinessLicenseUrl())
                 .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public HostPartnerApplicationAdminResponse findByUserId(String userId) {
+        return applicationRepository.findFirstByUserIdOrderByCreatedAtDesc(userId)
+                .map(this::toAdminResponse)
+                .orElseThrow(() -> new AppException(ErrorCode.HOST_APPLICATION_NOT_FOUND));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countPendingApplications() {
+        return applicationRepository.countByStatus(PartnerAppStatus.PENDING);
+    }
+
+    private byte[] generateContractPdf(UserEntity user, SubmitHostPartnerApplicationRequest request) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        
+        // Get verified data from eKYC service
+        Optional<EkycVerifyResponse.OcrPayload> ocrOpt = ekycVerificationService.getLatestVerifiedOcrData(user.getId());
+        
+        String idNumber = ocrOpt.map(EkycVerifyResponse.OcrPayload::idNumber).orElse("---");
+        String dob = ocrOpt.map(EkycVerifyResponse.OcrPayload::dob).orElse("---");
+        String address = ocrOpt.map(EkycVerifyResponse.OcrPayload::address).orElse(user.getStreetAddress());
+
+        data.put("contractNumber", "ESP-" + System.currentTimeMillis() / 1000);
+        data.put("fullName", request.getFullName());
+        data.put("idNumber", idNumber);
+        data.put("dob", dob);
+        data.put("address", address);
+        data.put("phone", request.getPhone());
+        data.put("email", request.getEmail());
+        data.put("taxId", request.getTaxId() != null ? request.getTaxId() : "---");
+        data.put("bankAccount", request.getBankAccountNumber());
+        data.put("bankName", request.getBankName());
+        data.put("signDate", LocalDateTime.now().toString());
+
+        return pdfService.generatePdfFromTemplate("pdf/host_contract", data);
     }
 }

@@ -11,6 +11,7 @@ import com.eduspace.accountservice.model.entity.HostStaffLinkEntity;
 import com.eduspace.accountservice.model.entity.UserEntity;
 import com.eduspace.accountservice.model.mapper.UserMapper;
 import com.eduspace.accountservice.business.service.ActivityLogService;
+import com.eduspace.accountservice.common.enums.VerificationStatus;
 import com.eduspace.accountservice.business.service.KeycloakUserService;
 import com.eduspace.accountservice.business.service.SupportStaffPresenceService;
 import com.eduspace.accountservice.business.service.UserService;
@@ -27,6 +28,7 @@ import java.util.Optional;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.stream.Collectors;
 import dev.samstevens.totp.code.CodeVerifier;
 import dev.samstevens.totp.code.DefaultCodeGenerator;
@@ -59,18 +61,39 @@ public class UserServiceImpl implements UserService {
             "branch.booking.view",
             "branch.booking.manage",
             "branch.room.view",
-            "branch.room.edit",
             "branch.checkin.manage",
             "branch.checkout.manage",
             "branch.room_status.manage",
             "branch.profile.view",
+            "branch.finance.view",
+            "branch.finance.export",
             "view_messages",
-            "manage_messages");
+            "manage_messages",
+            "branch.utility.view",
+            "branch.utility.create",
+            "branch.utility.edit",
+            "branch.utility.delete",
+            "branch.deposit_policy.view",
+            "branch.deposit_policy.create",
+            "branch.deposit_policy.edit",
+            "branch.deposit_policy.delete",
+            "rbac.permission.view",
+            "rbac.template.view");
 
     private UserResponse toUserResponseWithMergedPermissions(UserEntity user) {
         UserResponse response = userMapper.toUserResponse(user, userPermissionRepository.findPermissionNamesByUserId(user.getId()));
         boolean isManager = user.getRoles() != null
                 && user.getRoles().stream().anyMatch(r -> "MANAGER".equalsIgnoreCase(r.getName()));
+        boolean isHost = user.getRoles() != null
+                && user.getRoles().stream().anyMatch(r -> "HOST".equalsIgnoreCase(r.getName()));
+        // Strict host RBAC: if user has HOST role, permissions exposed to Host UI must come from HOST role only.
+        // This prevents MANAGER role grants from leaking host menu items when HOST role has no assigned permissions.
+        if (isHost) {
+            response.setPermissions(resolvePermissionsByRole(user, "HOST"));
+            return response;
+        }
+        // Only enforce per-host manager defaults for manager-only users.
+        // If a user also has HOST role, host role permissions should remain the source of truth.
         if (!isManager) return response;
         HostStaffLinkEntity link = hostStaffLinkRepository.findByStaffUserId(user.getId()).orElse(null);
         Set<String> linkPermissions = parsePermissionCsv(link != null ? link.getManagerPermissionNames() : null);
@@ -86,6 +109,19 @@ public class UserServiceImpl implements UserService {
         return Arrays.stream(csv.split(","))
                 .map(s -> s == null ? "" : s.trim().toLowerCase())
                 .filter(s -> !s.isBlank())
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    private static Set<String> resolvePermissionsByRole(UserEntity user, String roleName) {
+        if (user == null || user.getRoles() == null || roleName == null) {
+            return Collections.emptySet();
+        }
+        return user.getRoles().stream()
+                .filter(r -> r != null && roleName.equalsIgnoreCase(r.getName()))
+                .flatMap(r -> r.getPermissions() == null ? java.util.stream.Stream.empty() : r.getPermissions().stream())
+                .map(p -> p == null ? null : p.getName())
+                .filter(name -> name != null && !name.isBlank())
+                .map(name -> name.trim().toLowerCase())
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
@@ -115,6 +151,10 @@ public class UserServiceImpl implements UserService {
                     .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
             // Ensure we use the right ID
             keycloakId = user.getKeycloakId();
+        }
+
+        if (isHostUpdate(request) && user.getVerificationStatus() != VerificationStatus.VERIFIED) {
+            throw new AppException(ErrorCode.EKYC_REQUIRED);
         }
 
         userMapper.updateUserEntityFromRequest(request, user);
@@ -354,16 +394,15 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public PageResponse<UserResponse> getAllUsers(Pageable pageable, String search, List<String> roles, String status, String kyc, String identifier, boolean isEmail) {
-        UserEntity requester;
-        if (isEmail) {
-            requester = userRepository.findByEmail(identifier)
-                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        } else {
-            requester = userRepository.findByKeycloakId(identifier)
-                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        UserEntity requester = null;
+        if (identifier != null) {
+            requester = isEmail 
+                ? userRepository.findByEmail(identifier).orElse(null)
+                : userRepository.findByKeycloakId(identifier).orElse(null);
         }
 
-        boolean isSuperAdmin = requester.getRoles().stream().anyMatch(r -> "SUPER_ADMIN".equals(r.getName()));
+        boolean isSuperAdmin = requester != null && requester.getRoles() != null && 
+                               requester.getRoles().stream().anyMatch(r -> "SUPER_ADMIN".equals(r.getName()));
 
         List<String> mappedRoles = (roles != null && !roles.isEmpty())
                 ? roles.stream()
@@ -478,7 +517,7 @@ public class UserServiceImpl implements UserService {
     public void approveUserKyc(String userId) {
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        user.setVerificationStatus("VERIFIED");
+        user.setVerificationStatus(VerificationStatus.VERIFIED);
         userRepository.save(user);
     }
 
@@ -487,7 +526,34 @@ public class UserServiceImpl implements UserService {
     public void rejectUserKyc(String userId, String reason) {
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        user.setVerificationStatus("REJECTED");
+        user.setVerificationStatus(VerificationStatus.REJECTED);
         userRepository.save(user);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countTotalUsers() {
+        return userRepository.count();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countUsersByRole(String roleName) {
+        return userRepository.findByRoleName(roleName).size();
+    }
+
+    @Override
+    @Transactional
+    public void toggleUserStatus(String userId, boolean active) {
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        user.setIsActive(active);
+        userRepository.save(user);
+    }
+
+    private boolean isHostUpdate(UpdateProfileRequest request) {
+        return request.getTaxId() != null || 
+               request.getHostType() != null || 
+               request.getOrganizationName() != null;
     }
 }

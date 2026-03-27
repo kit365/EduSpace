@@ -8,6 +8,7 @@ import com.eduspace.accountservice.common.enums.ActivityLogEventType;
 import com.eduspace.accountservice.common.enums.ActivityLogStatus;
 import com.eduspace.accountservice.common.enums.PartnerAppStatus;
 import com.eduspace.accountservice.common.enums.Role;
+import com.eduspace.accountservice.common.enums.VerificationStatus;
 import com.eduspace.accountservice.exception.AppException;
 import com.eduspace.accountservice.exception.ErrorCode;
 import com.eduspace.accountservice.model.dto.request.auth.LoginRequest;
@@ -122,7 +123,7 @@ public class AuthServiceImpl implements AuthService {
         RoleEntity hostRole = roleRepository.findByName(Role.HOST.getName())
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND));
         user.getRoles().add(hostRole);
-        user.setVerificationStatus("VERIFIED");
+        user.setVerificationStatus(VerificationStatus.VERIFIED);
         userRepository.save(user);
 
         try {

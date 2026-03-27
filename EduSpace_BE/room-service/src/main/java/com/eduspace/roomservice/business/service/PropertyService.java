@@ -20,5 +20,7 @@ public interface PropertyService {
 
     PropertyResponse reject(Integer id, PropertyModerationRequest request);
 
+    List<PropertyResponse> getPendingSortedBySubmittedAtDesc();
+
     void deleteById(Integer id);
 }

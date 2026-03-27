@@ -3,20 +3,36 @@ package com.eduspace.conversationservice.infrastructure.mapper;
 import com.eduspace.conversationservice.infrastructure.client.AccountClient;
 import com.eduspace.conversationservice.model.dto.response.ChatMessageResponse;
 import com.eduspace.conversationservice.model.entity.ChatMessageEntity;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
+import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
-@Mapper(componentModel = "spring")
-public interface ChatMessageMapper {
+@Component
+public class ChatMessageMapper {
 
-    @Mapping(target = "messageId", source = "entity.id")
-    @Mapping(target = "conversationId", source = "entity.conversation.id")
-    @Mapping(target = "sender", expression = "java(mapSender(entity.getSenderId(), profiles))")
-    ChatMessageResponse toResponse(ChatMessageEntity entity, Map<String, AccountClient.PublicUserProfile> profiles);
+    public ChatMessageResponse toResponse(ChatMessageEntity entity, Map<String, AccountClient.PublicUserProfile> profiles) {
+        if (entity == null) {
+            return null;
+        }
+        return ChatMessageResponse.builder()
+                .messageId(entity.getId())
+                .conversationId(entity.getConversation() != null ? entity.getConversation().getId() : null)
+                .content(entity.getContent())
+                .messageType(entity.getMessageType() != null ? entity.getMessageType().name() : null)
+                .sentAt(entity.getSentAt())
+                .isRead(entity.getIsRead())
+                .readAt(entity.getReadAt())
+                .isDeleted(entity.getIsDeleted())
+                .editedAt(entity.getEditedAt())
+                .mediaUrl(entity.getMediaUrl())
+                .mediaType(entity.getMediaType())
+                .reactions(entity.getReactions())
+                .replyToMessageId(entity.getReplyToMessageId())
+                .sender(mapSender(entity.getSenderId(), profiles))
+                .build();
+    }
 
-    default ChatMessageResponse.Sender mapSender(String senderId, Map<String, AccountClient.PublicUserProfile> profiles) {
+    public ChatMessageResponse.Sender mapSender(String senderId, Map<String, AccountClient.PublicUserProfile> profiles) {
         if (profiles == null) {
             return fallbackSender(senderId);
         }

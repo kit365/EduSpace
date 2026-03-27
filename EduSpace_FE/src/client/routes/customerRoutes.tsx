@@ -20,7 +20,7 @@ export const customerRoutes: RouteObject[] = [
     { path: '/auth', element: <AuthPage /> },
     { path: '/verify-email', element: <VerifyEmailPage /> },
     { path: '/profile', element: <ProfilePage /> },
-    { path: '/ekyc', element: <EkycPage /> },           // FR-07: eKYC xác thực danh tính
+    { path: '/eKYC', element: <EkycPage /> },           // FR-07: eKYC xác thực danh tính
     { path: '/bookings', element: <BookingsPage /> },
     { path: '/bookings/:id', element: <BookingDetailPage /> }, // FR-09: Chi tiết + QR + Chat
     { path: '/checkout', element: <CheckoutPage /> },    // FR-08: Đặt phòng & Thanh toán

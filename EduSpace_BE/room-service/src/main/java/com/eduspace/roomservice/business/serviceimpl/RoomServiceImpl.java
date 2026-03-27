@@ -15,6 +15,7 @@ import com.eduspace.roomservice.model.dto.request.RoomPriceRuleRequest;
 import com.eduspace.roomservice.model.dto.request.RoomRequest;
 import com.eduspace.roomservice.model.dto.request.RoomSearchRequest;
 import com.eduspace.roomservice.model.dto.response.PageResponse;
+import com.eduspace.roomservice.model.dto.response.RoomDashboardStatsResponse;
 import com.eduspace.roomservice.model.dto.response.RoomPriceQuoteResponse;
 import com.eduspace.roomservice.model.dto.response.RoomResponse;
 import com.eduspace.roomservice.model.dto.response.RoomScheduleResponse;
@@ -28,7 +29,9 @@ import com.eduspace.roomservice.persistence.repository.RoomPriceRuleRepository;
 import com.eduspace.roomservice.persistence.repository.RoomRepository;
 import com.eduspace.roomservice.persistence.specification.RoomSpecification;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -36,6 +39,7 @@ import java.time.Duration;
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -237,22 +241,32 @@ public class RoomServiceImpl implements RoomService {
 
         // Update Amenities if provided
         if (request.getAmenityIds() != null) {
-            existing.getAmenities().clear();
-            List<RoomAmenityEntity> newAmenities = request.getAmenityIds().stream()
-                .map(amId -> {
-                    AmenityEntity amenity = amenityRepository.findById(amId)
-                        .orElseThrow(() -> new AppException(ErrorCode.AMENITY_NOT_FOUND));
-                    return RoomAmenityEntity.builder()
-                        .id(new RoomAmenityId(existing.getId(), amenity.getId()))
-                        .room(existing)
-                        .amenity(amenity)
-                        // Group for UI: POLICY vs TIỆN ÍCH & TRANG THIẾT BỊ
-                        .type(amenity.getType() != null && "POLICY".equalsIgnoreCase(amenity.getType()) ? "POLICY" : "AMENITY")
-                        .quantity(1)
-                        .build();
-                })
-                .collect(Collectors.toList());
-            existing.getAmenities().addAll(newAmenities);
+            Set<Integer> requestedAmenityIds = new HashSet<>(request.getAmenityIds());
+            existing.getAmenities().removeIf(current -> current.getAmenity() == null
+                    || current.getAmenity().getId() == null
+                    || !requestedAmenityIds.contains(current.getAmenity().getId()));
+
+            Set<Integer> currentAmenityIds = existing.getAmenities().stream()
+                    .map(RoomAmenityEntity::getAmenity)
+                    .filter(java.util.Objects::nonNull)
+                    .map(AmenityEntity::getId)
+                    .collect(Collectors.toSet());
+
+            List<RoomAmenityEntity> amenitiesToAdd = request.getAmenityIds().stream()
+                    .filter(amId -> !currentAmenityIds.contains(amId))
+                    .map(amId -> {
+                        AmenityEntity amenity = amenityRepository.findById(amId)
+                                .orElseThrow(() -> new AppException(ErrorCode.AMENITY_NOT_FOUND));
+                        return RoomAmenityEntity.builder()
+                                .room(existing)
+                                .amenity(amenity)
+                                // Group for UI: POLICY vs TIỆN ÍCH & TRANG THIẾT BỊ
+                                .type(amenity.getType() != null && "POLICY".equalsIgnoreCase(amenity.getType()) ? "POLICY" : "AMENITY")
+                                .quantity(1)
+                                .build();
+                    })
+                    .collect(Collectors.toList());
+            existing.getAmenities().addAll(amenitiesToAdd);
         }
 
         if (request.getPriceRules() != null) {
@@ -323,17 +337,74 @@ public class RoomServiceImpl implements RoomService {
         if (room.getPendingEditPayload() == null || room.getPendingEditPayload().isBlank()) {
             throw new AppException(ErrorCode.ROOM_PENDING_EDIT_MISSING);
         }
+        RoomRequest req = deserializePendingEditPayload(roomId, room.getPendingEditPayload());
+        req.setApprovalStatus(RoomApprovalStatus.APPROVED);
+        req.setRejectionNote(null);
         try {
-            RoomRequest req = objectMapper.readValue(room.getPendingEditPayload(), RoomRequest.class);
+            update(roomId, req);
             room.setPendingEditPayload(null);
             room.setPendingEditStatus(null);
             room.setPendingEditRejectionNote(null);
-            roomRepository.save(room);
-            req.setApprovalStatus(RoomApprovalStatus.APPROVED);
-            req.setRejectionNote(null);
-            return update(roomId, req);
-        } catch (JsonProcessingException e) {
-            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
+            return mapToResponse(roomRepository.save(room));
+        } catch (AppException ex) {
+            throw ex;
+        } catch (RuntimeException ex) {
+            log.error("approvePendingEdit failed for roomId={}: {}", roomId, ex.getMessage(), ex);
+            throw new AppException(ErrorCode.INVALID_KEY);
+        }
+    }
+
+    private RoomRequest deserializePendingEditPayload(Integer roomId, String payload) {
+        try {
+            JsonNode node = objectMapper.readTree(payload);
+            if (!(node instanceof ObjectNode root)) {
+                throw new AppException(ErrorCode.INVALID_KEY);
+            }
+
+            sanitizeEnumField(root, "bookingType", BookingType.class, BookingType.SLOT_BASED.name());
+            sanitizeEnumField(root, "status", RoomStatus.class, RoomStatus.ACTIVE.name());
+            sanitizeEnumField(root, "roomType", RoomType.class, null);
+
+            return objectMapper.treeToValue(root, RoomRequest.class);
+        } catch (JsonProcessingException | IllegalArgumentException ex) {
+            log.warn("Cannot parse pending edit payload for roomId={}: {}", roomId, ex.getMessage());
+            throw new AppException(ErrorCode.INVALID_KEY);
+        } catch (RuntimeException ex) {
+            log.error("Unexpected pending edit payload parse failure for roomId={}: {}", roomId, ex.getMessage(), ex);
+            throw new AppException(ErrorCode.INVALID_KEY);
+        }
+    }
+
+    private static <E extends Enum<E>> void sanitizeEnumField(
+            ObjectNode root,
+            String fieldName,
+            Class<E> enumClass,
+            String fallbackValue
+    ) {
+        JsonNode raw = root.get(fieldName);
+        if (raw == null || raw.isNull()) {
+            return;
+        }
+        String value = raw.asText("");
+        if (value == null || value.isBlank()) {
+            root.putNull(fieldName);
+            return;
+        }
+
+        String normalized = value.trim().replace('-', '_');
+        E matched = Arrays.stream(enumClass.getEnumConstants())
+                .filter(e -> e.name().equalsIgnoreCase(normalized))
+                .findFirst()
+                .orElse(null);
+
+        if (matched != null) {
+            root.put(fieldName, matched.name());
+            return;
+        }
+        if (fallbackValue == null || fallbackValue.isBlank()) {
+            root.putNull(fieldName);
+        } else {
+            root.put(fieldName, fallbackValue);
         }
     }
 
@@ -423,6 +494,30 @@ public class RoomServiceImpl implements RoomService {
                 .weekendSurchargePercent(weekendSurchargePercent)
                 .weekendSurchargeAmount(weekendSurchargeAmount)
                 .total(total)
+                .build();
+    }
+
+    @Override
+    public RoomDashboardStatsResponse getDashboardStats() {
+        long totalListings = roomRepository.countByDeletedAtIsNull();
+        long pendingApprovals = roomRepository.countByApprovalStatusAndDeletedAtIsNull(RoomApprovalStatus.PENDING.name());
+        
+        LocalDateTime today = LocalDateTime.now().with(LocalTime.MIN);
+        long newListingsToday = roomRepository.countByCreatedAtAfterAndDeletedAtIsNull(today);
+
+        List<RoomCategoryEntity> categories = categoryRepository.findAll();
+        java.util.Map<String, Long> distribution = categories.stream()
+                .collect(Collectors.toMap(
+                        RoomCategoryEntity::getNameVi,
+                        cat -> roomRepository.countByCategory_IdAndDeletedAtIsNull(cat.getId()),
+                        (v1, v2) -> v1
+                ));
+
+        return RoomDashboardStatsResponse.builder()
+                .totalListings(totalListings)
+                .pendingApprovals(pendingApprovals)
+                .newListingsToday(newListingsToday)
+                .categoryDistribution(distribution)
                 .build();
     }
 
@@ -584,7 +679,13 @@ public class RoomServiceImpl implements RoomService {
                         .filter(s -> dow.equals(s.getDayOfWeek()))
                         .findFirst()
                         .orElse(null);
+                if (row == null || !Boolean.TRUE.equals(row.getIsOpen())) {
+                    continue;
+                }
                 BigDecimal opH = operatingHours(row);
+                if (opH.compareTo(BigDecimal.ZERO) <= 0) {
+                    continue;
+                }
                 if (minH.compareTo(opH) > 0) {
                     throw new AppException(ErrorCode.INVALID_KEY);
                 }

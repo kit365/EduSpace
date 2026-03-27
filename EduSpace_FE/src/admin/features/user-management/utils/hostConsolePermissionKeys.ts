@@ -23,6 +23,8 @@ const usedHostPermissionKeys = [
     hostMenuPermissions.checkout,
     hostMenuPermissions.staff,
     hostMenuPermissions.finance,
+    hostMenuPermissions.utility,
+    hostMenuPermissions.depositPolicy,
     hostMenuPermissions.messages,
     hostMenuPermissions.kyc,
 
@@ -45,6 +47,14 @@ const usedHostPermissionKeys = [
     hostPermissions.finance.view,
     hostPermissions.finance.export,
     hostPermissions.finance.payoutCreate,
+    hostPermissions.utility.view,
+    hostPermissions.utility.create,
+    hostPermissions.utility.edit,
+    hostPermissions.utility.delete,
+    hostPermissions.depositPolicy.view,
+    hostPermissions.depositPolicy.create,
+    hostPermissions.depositPolicy.edit,
+    hostPermissions.depositPolicy.delete,
 
     hostPermissions.messages.manage,
 ];
