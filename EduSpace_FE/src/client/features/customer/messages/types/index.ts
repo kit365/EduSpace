@@ -29,6 +29,13 @@ export interface Conversation {
     unreadCount: number;
     lastMessage?: string | null;
     otherUser?: PublicUserProfile | null;
+    pendingAssignmentOffer?: PendingAssignmentOffer | null;
+}
+
+export interface PendingAssignmentOffer {
+    offerId: string;
+    targetAdminId: string;
+    expiresAt: string;
 }
 
 export interface ChatMessage {

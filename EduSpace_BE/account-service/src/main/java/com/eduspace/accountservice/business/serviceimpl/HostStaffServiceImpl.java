@@ -30,6 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.security.SecureRandom;
@@ -55,6 +56,7 @@ public class HostStaffServiceImpl implements HostStaffService {
     private final KeycloakUserService keycloakUserService;
     private final EmailService emailService;
     private final RestTemplate restTemplate;
+    private final RestTemplate directRestTemplate;
     private final AppProperties appProperties;
 
     public HostStaffServiceImpl(
@@ -75,6 +77,7 @@ public class HostStaffServiceImpl implements HostStaffService {
         this.keycloakUserService = keycloakUserService;
         this.emailService = emailService;
         this.restTemplate = restTemplate;
+        this.directRestTemplate = new RestTemplate();
         this.appProperties = appProperties;
     }
 
@@ -210,26 +213,44 @@ public class HostStaffServiceImpl implements HostStaffService {
     }
 
     private void assertBranchExistsAndOwnedByHost(Long branchPropertyId, String hostUserId) {
-        try {
-            String endpoint = appProperties.getGatewayUrl() + "/api/v1/properties/" + branchPropertyId;
-
-            @SuppressWarnings("unchecked")
-            Map<String, Object> response = restTemplate.getForObject(endpoint, Map.class);
-            if (response == null || !(response.get("data") instanceof Map<?, ?> data)) {
-                throw new AppException(ErrorCode.HOST_BRANCH_NOT_FOUND);
-            }
-            Object ownerId = data.get("ownerId");
-            if (!(ownerId instanceof String owner) || !hostUserId.equals(owner.trim())) {
-                throw new AppException(ErrorCode.HOST_BRANCH_FORBIDDEN);
-            }
-        } catch (HttpClientErrorException.NotFound e) {
-            throw new AppException(ErrorCode.HOST_BRANCH_NOT_FOUND);
-        } catch (AppException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("Failed to validate branch {} ownership for host {}", branchPropertyId, hostUserId, e);
-            throw new AppException(ErrorCode.HOST_BRANCH_VALIDATION_FAILED);
+        List<String> baseCandidates = new ArrayList<>();
+        if (StringUtils.hasText(appProperties.getGatewayUrl())) {
+            baseCandidates.add(trimTrailingSlash(appProperties.getGatewayUrl().trim()));
         }
+        // Local dev: run through API Gateway from host machine.
+        baseCandidates.add("http://localhost:8080");
+        // Container/Eureka fallback.
+        baseCandidates.add("lb://API-GATEWAY");
+
+        for (String base : new LinkedHashSet<>(baseCandidates)) {
+            String endpoint = base + "/api/v1/public/properties/" + branchPropertyId;
+            try {
+                RestTemplate client = endpoint.startsWith("lb://") ? restTemplate : directRestTemplate;
+                @SuppressWarnings("unchecked")
+                Map<String, Object> response = client.getForObject(endpoint, Map.class);
+                if (response == null || !(response.get("data") instanceof Map<?, ?> data)) {
+                    continue;
+                }
+                Object ownerId = data.get("ownerId");
+                if (!(ownerId instanceof String owner) || !hostUserId.equals(owner.trim())) {
+                    throw new AppException(ErrorCode.HOST_BRANCH_FORBIDDEN);
+                }
+                return;
+            } catch (HttpClientErrorException.NotFound e) {
+                throw new AppException(ErrorCode.HOST_BRANCH_NOT_FOUND);
+            } catch (AppException e) {
+                throw e;
+            } catch (RestClientException e) {
+                log.warn("Branch validation attempt failed via {}: {}", base, e.getMessage());
+            } catch (Exception e) {
+                log.warn("Branch validation attempt failed via {}: {}", base, e.getMessage());
+            }
+        }
+        throw new AppException(ErrorCode.HOST_BRANCH_VALIDATION_FAILED);
+    }
+
+    private static String trimTrailingSlash(String value) {
+        return value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
     }
 
     private String generateTemporaryPassword() {

@@ -61,6 +61,9 @@ export function AdminMessagesPage() {
 
     const pendingOffers = useChatInboxStore((s) => s.pendingAssignmentOffers);
     const clearPendingAssignmentOffer = useChatInboxStore((s) => s.clearPendingAssignmentOffer);
+    const syncPendingAssignmentOffersFromConversations = useChatInboxStore(
+        (s) => s.syncPendingAssignmentOffersFromConversations,
+    );
 
     const reloadMessages = useCallback(async () => {
         if (!selectedConversation) return;
@@ -171,8 +174,27 @@ export function AdminMessagesPage() {
     };
 
     const handleDeclineOffer = (offer: AssignmentOfferEvent) => {
-        clearPendingAssignmentOffer(offer.conversationId);
+        void (async () => {
+            try {
+                const updated = await messageService.declineAssignmentOffer(offer.conversationId, offer.offerId);
+                setConversations((prev) =>
+                    prev.map((c) => (c.conversationId === updated.conversationId ? updated : c)),
+                );
+                if (selectedConversation?.conversationId === updated.conversationId) {
+                    setSelectedConversation(updated);
+                }
+                clearPendingAssignmentOffer(offer.conversationId);
+                const refreshed = await messageService.getAdminConversations();
+                setConversations(refreshed);
+            } catch (err) {
+                console.error('Failed to decline assignment offer', err);
+            }
+        })();
     };
+
+    useEffect(() => {
+        syncPendingAssignmentOffersFromConversations(conversations);
+    }, [conversations, syncPendingAssignmentOffersFromConversations]);
 
     useEffect(() => {
         if (!lastEdited) return;

@@ -86,6 +86,7 @@ app:
     from: ${SPRING_MAIL_FROM:noreply@eduspace.id.vn}
     display-name: ${SPRING_MAIL_DISPLAY_NAME:EduSpace Support}
   frontend-url: ${FRONTEND_URL:http://localhost:${FRONTEND_PORT:5173}}
+  gateway-url: ${APP_GATEWAY_URL:http://localhost:${GATEWAY_PORT:8080}}
   verification:
     token-expiry-hours: 24
   kafka:

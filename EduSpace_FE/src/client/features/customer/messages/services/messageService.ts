@@ -83,6 +83,15 @@ export class MessageService {
         return res.data;
     }
 
+    async declineAssignmentOffer(conversationId: string, offerId: string): Promise<Conversation> {
+        const res = await apiClient.post<any, ApiResponse<Conversation>>(
+            `${this.BASE_PATH}/${conversationId}/assignment-offers/${offerId}/decline`,
+            {},
+            { headers: this.getHeaders() },
+        );
+        return res.data;
+    }
+
     async getMessages(conversationId: string, page = 0, size = 50): Promise<ChatMessage[]> {
         devChatLog(`GET /conversations/${conversationId}/messages`, { page, size });
         const res = await apiClient.get<any, ApiResponse<ChatMessage[]>>(

@@ -55,7 +55,10 @@ public class StaffAssignmentSagaHandler {
 
         if (!SagaEventConstants.ASSIGN_STAFF_OFFERED.equals(eventType)
                 && !SagaEventConstants.ASSIGN_STAFF_SUCCESS.equals(eventType)
-                && !SagaEventConstants.ASSIGN_STAFF_FAILED.equals(eventType)) {
+                && !SagaEventConstants.ASSIGN_STAFF_ACCEPTED.equals(eventType)
+                && !SagaEventConstants.ASSIGN_STAFF_FAILED.equals(eventType)
+                && !SagaEventConstants.ASSIGN_STAFF_DECLINED.equals(eventType)
+                && !SagaEventConstants.ASSIGN_STAFF_OFFER_EXPIRED.equals(eventType)) {
             log.warn("Unknown event type: {}", eventType);
             return;
         }
@@ -80,7 +83,8 @@ public class StaffAssignmentSagaHandler {
             return;
         }
 
-        if (SagaEventConstants.ASSIGN_STAFF_SUCCESS.equals(eventType)) {
+        if (SagaEventConstants.ASSIGN_STAFF_SUCCESS.equals(eventType)
+                || SagaEventConstants.ASSIGN_STAFF_ACCEPTED.equals(eventType)) {
             log.info("Staff assignment succeeded for conversation: {}. Assigned Staff: {}", conversation.getId(), result);
             conversation.setIsActive(true);
             conversation.setUser2Id(result);
