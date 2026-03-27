@@ -1,8 +1,11 @@
 package com.eduspace.bookingservice.presentation.controller;
 
+import com.eduspace.bookingservice.business.service.BookingDepositRefundPolicyService;
 import com.eduspace.bookingservice.business.service.BookingService;
 import com.eduspace.bookingservice.model.dto.request.CreateBookingRequest;
+import com.eduspace.bookingservice.model.dto.response.ApiResponse;
 import com.eduspace.bookingservice.model.dto.response.BookingByCodeResponse;
+import com.eduspace.bookingservice.model.dto.response.BookingDepositRefundPolicyResponse;
 import com.eduspace.bookingservice.model.dto.response.BookingResponse;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -24,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class BookingController {
 
     private final BookingService bookingService;
+    private final BookingDepositRefundPolicyService depositRefundPolicyService;
 
     @GetMapping("/health")
     public Map<String, String> health() {
@@ -55,6 +59,12 @@ public class BookingController {
     @PatchMapping("/{id}/cancel")
     public BookingResponse cancelBooking(@PathVariable Long id) {
         return bookingService.cancelBooking(id);
+    }
+
+    /** Active deposit/refund policy catalog for checkout (no auth). */
+    @GetMapping("/public/deposit-refund-policies")
+    public ApiResponse<List<BookingDepositRefundPolicyResponse>> listPublicDepositRefundPolicies() {
+        return ApiResponse.success(depositRefundPolicyService.findAllActivePublic());
     }
 
 }

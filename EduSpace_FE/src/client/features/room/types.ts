@@ -294,6 +294,8 @@ export interface RoomAmenityDto {
   notes?: string | null;
   /** Grouping type from BE: POLICY vs AMENITY */
   type?: string;
+  /** Granular type from BE: BASIC, EQUIPMENT, SERVICE, etc. */
+  amenityType?: string;
 }
 
 export interface RoomPolicyDto {

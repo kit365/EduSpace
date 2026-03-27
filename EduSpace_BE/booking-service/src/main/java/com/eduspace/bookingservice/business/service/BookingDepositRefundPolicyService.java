@@ -6,6 +6,11 @@ import java.util.List;
 
 public interface BookingDepositRefundPolicyService {
 
+    /**
+     * Active, non-deleted policies for customer-facing screens (checkout, policy details).
+     */
+    List<BookingDepositRefundPolicyResponse> findAllActivePublic();
+
     List<BookingDepositRefundPolicyResponse> findAll();
 
     BookingDepositRefundPolicyResponse create(UpsertBookingDepositRefundPolicyRequest request);

@@ -20,6 +20,13 @@ public class BookingDepositRefundPolicyServiceImpl implements BookingDepositRefu
     private final BookingDepositRefundPolicyRepository policyRepository;
 
     @Override
+    public List<BookingDepositRefundPolicyResponse> findAllActivePublic() {
+        return policyRepository.findAllByDeletedFalseAndActiveTrueOrderByIdAsc().stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Override
     public List<BookingDepositRefundPolicyResponse> findAll() {
         return policyRepository.findAllByDeletedFalseOrderByIdAsc().stream()
                 .map(this::toResponse)

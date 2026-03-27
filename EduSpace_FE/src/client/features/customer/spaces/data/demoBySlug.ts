@@ -27,10 +27,10 @@ export const DEMO_SPACE_BY_SLUG: Record<string, SpaceDetails> = {
       'Phòng họp hiện đại, máy chiếu 4K, bảng tương tác. (Dữ liệu demo — chạy room-service + đăng nhập để lấy API thật.)',
     additionalInfo: 'EduSpace Demo Campus',
     amenitiesDetailed: [
-      { icon: Wifi, name: 'Wi-Fi' },
-      { icon: Projector, name: 'Máy chiếu' },
-      { icon: Wind, name: 'Điều hòa' },
-      { icon: Coffee, name: 'Trà cà phê' },
+      { icon: Wifi, name: 'Wi-Fi', type: 'BASIC' },
+      { icon: Projector, name: 'Máy chiếu', type: 'EQUIPMENT' },
+      { icon: Wind, name: 'Điều hòa', type: 'BASIC' },
+      { icon: Coffee, name: 'Trà cà phê', type: 'SERVICE' },
     ],
     reviews: [
       {

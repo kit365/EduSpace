@@ -12,6 +12,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import lombok.Getter;
@@ -62,16 +63,16 @@ public class BookingEntity {
     private LocalDateTime endDateTime;
 
     @Column(name = "total_price")
-    private java.math.BigDecimal totalPrice;
+    private BigDecimal totalPrice;
 
     @Column(name = "voucher_code", length = 50)
     private String voucherCode;
 
-    @Column(name = "discount_amount")
-    private java.math.BigDecimal discountAmount;
+    @Column(name = "discount_amount", precision = 12, scale = 2)
+    private BigDecimal discountAmount;
 
-    @Column(name = "final_price")
-    private java.math.BigDecimal finalPrice;
+    @Column(name = "final_price", precision = 12, scale = 2)
+    private BigDecimal finalPrice;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)

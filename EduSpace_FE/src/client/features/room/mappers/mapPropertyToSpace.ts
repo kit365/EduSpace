@@ -226,6 +226,8 @@ export function roomAndPropertyToSpaceDetails(
     .map((a) => ({
       id: a.amenityId,
       name: a.amenityName,
+      type: a.amenityType,
+      price: (a as any).price ?? 0,
       icon: AMENITY_ICON_MAP[a.amenityIcon.toLowerCase()] || Building2,
     }));
 

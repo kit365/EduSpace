@@ -61,20 +61,48 @@ public class SecurityConfig {
             return false;
         }
         String pl = p.toLowerCase(Locale.ROOT);
-        return pl.startsWith("/api/v1/auth/")
-                || "/api/v1/auth".equals(pl)
-                // Public room/property APIs are permitAll. Ignore stale bearer to avoid false 401.
-                || "/api/v1/properties".equals(pl)
-                || pl.startsWith("/api/v1/properties/")
-                || "/api/v1/rooms".equals(pl)
-                || pl.startsWith("/api/v1/rooms/")
-                || "/api/v1/amenities".equals(pl)
-                || pl.startsWith("/api/v1/amenities/")
-                || "/api/v1/room-categories".equals(pl)
-                || pl.startsWith("/api/v1/room-categories/")
-                || "/api/v1/reviews".equals(pl)
-                || pl.startsWith("/api/v1/reviews/")
-                || pl.startsWith("/v3/api-docs")
+        String method = exchange.getRequest().getMethod().name();
+
+        if (pl.startsWith("/api/v1/auth/") || "/api/v1/auth".equals(pl)) {
+            return true;
+        }
+
+        // Public room/property APIs are permitAll. Ignore stale bearer to avoid false 401.
+        if ("/api/v1/properties".equals(pl) || pl.startsWith("/api/v1/properties/")) {
+            return true;
+        }
+        if ("/api/v1/rooms".equals(pl) || pl.startsWith("/api/v1/rooms/")) {
+            return true;
+        }
+        if ("/api/v1/amenities".equals(pl) || pl.startsWith("/api/v1/amenities/")) {
+            return true;
+        }
+        if ("/api/v1/room-categories".equals(pl) || pl.startsWith("/api/v1/room-categories/")) {
+            return true;
+        }
+        if ("/api/v1/reviews".equals(pl) || pl.startsWith("/api/v1/reviews/")) {
+            return true;
+        }
+
+        // Booking creation + deposit payment — permit all (guests too)
+        if ("POST".equalsIgnoreCase(method)) {
+            if ("/api/v1/bookings".equals(pl)
+                    || "/api/v1/bookings/deposit-intent".equals(pl)
+                    || pl.matches("/api/v1/bookings/deposit-intent/[^/]+/payos")
+                    || pl.matches("/api/v1/bookings/deposit-intent/[^/]+/confirm")
+                    || "/api/v1/payment/payos/webhook".equals(pl)) {
+                return true;
+            }
+        }
+        if ("GET".equalsIgnoreCase(method)) {
+            if (pl.matches("/api/v1/bookings/deposit-intent/[^/]+/status")
+                    || pl.startsWith("/api/v1/bookings/by-code/")
+                    || "/api/v1/bookings/public/deposit-refund-policies".equals(pl)) {
+                return true;
+            }
+        }
+
+        return pl.startsWith("/v3/api-docs")
                 || pl.contains("/v3/api-docs")
                 || pl.startsWith("/swagger-ui")
                 || pl.startsWith("/swagger-resources")
@@ -138,6 +166,16 @@ public class SecurityConfig {
 
                         // Booking lookup by code (account-service bank flow)
                         .pathMatchers(HttpMethod.GET, "/api/v1/bookings/by-code/**").permitAll()
+                        .pathMatchers(HttpMethod.GET, "/api/v1/bookings/public/deposit-refund-policies").permitAll()
+
+                        // Booking creation + deposit payment — permit all roles including guests
+                        .pathMatchers(HttpMethod.POST, "/api/v1/bookings").permitAll()
+                        .pathMatchers(HttpMethod.POST, "/api/v1/bookings/deposit-intent").permitAll()
+                        .pathMatchers(HttpMethod.POST, "/api/v1/bookings/deposit-intent/*/payos").permitAll()
+                        .pathMatchers(HttpMethod.POST, "/api/v1/bookings/deposit-intent/*/confirm").permitAll()
+                        .pathMatchers(HttpMethod.GET, "/api/v1/bookings/deposit-intent/*/status").permitAll()
+                        // PayOS webhook
+                        .pathMatchers(HttpMethod.POST, "/api/v1/payment/payos/webhook").permitAll()
 
                         // Conversation Service endpoints - allow guests to start support chats
                         .pathMatchers("/api/v1/conversations/**", "/api/v1/messages/**", "/ws/**").permitAll()

@@ -103,6 +103,10 @@ export interface CreateBookingReq {
     durationUnit: 'MINUTE' | 'HOUR';
     /** Tùy chọn: tiện ích bổ sung cho booking (lưu ở `extra_booking_amenities`). */
     extraAmenities?: BookingExtraAmenityLine[];
+    totalPrice?: number;
+    finalPrice?: number;
+    discountAmount?: number;
+    voucherCode?: string;
     paymentMethod?: 'card' | 'bank' | 'momo';
     contactInfo?: {
         fullName: string;
