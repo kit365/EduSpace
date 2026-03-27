@@ -1,5 +1,6 @@
 package com.eduspace.accountservice.model.mapper;
 
+import com.eduspace.accountservice.common.enums.VerificationStatus;
 import com.eduspace.accountservice.model.dto.request.user.UpdateProfileRequest;
 import com.eduspace.accountservice.model.dto.response.PublicUserProfileResponse;
 import com.eduspace.accountservice.model.dto.response.user.UserResponse;
@@ -88,7 +89,8 @@ public class UserMapper {
             permissions.addAll(extraPermissionNames);
         }
 
-        EkycVerificationEntity latestKyc = findLatestVerified(entity.getEkycVerifications());
+        EkycVerificationEntity latestKyc = findLatestVerified(entity.getId());
+        EkycVerificationEntity latestAny = findLatestAny(entity.getId());
 
         return UserResponse.builder()
                 .id(entity.getId())
@@ -124,48 +126,47 @@ public class UserMapper {
                 .dob(latestKyc != null ? latestKyc.getDob() : null)
                 .verifiedAddress(latestKyc != null ? latestKyc.getAddress() : null)
                 .idCardFrontUrl(latestKyc != null ? latestKyc.getIdCardFrontUrl() : null)
-                .ocrData(mapOcrData(entity.getEkycVerifications()))
-                .faceMatchPercentage(mapFaceMatch(entity.getEkycVerifications()))
+                .ocrData(mapOcrData(latestAny))
+                .faceMatchPercentage(mapFaceMatch(latestAny))
                 .build();
     }
 
-    private EkycVerificationEntity findLatestVerified(java.util.List<EkycVerificationEntity> verifications) {
-        if (verifications == null || verifications.isEmpty()) {
+    private EkycVerificationEntity findLatestVerified(String userId) {
+        if (userId == null || userId.isBlank()) {
             return null;
         }
-        return verifications.stream()
-                .filter(e -> com.eduspace.accountservice.common.enums.VerificationStatus.VERIFIED.equals(e.getStatus()))
-                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
-                .findFirst()
+        return ekycVerificationRepository
+                .findFirstByUserIdAndStatusOrderByCreatedAtDesc(userId, VerificationStatus.VERIFIED)
                 .orElse(null);
     }
 
-    private UserResponse.OcrData mapOcrData(java.util.List<EkycVerificationEntity> verifications) {
-        if (verifications == null || verifications.isEmpty()) {
+    private EkycVerificationEntity findLatestAny(String userId) {
+        if (userId == null || userId.isBlank()) {
             return null;
         }
-        return verifications.stream()
-                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
-                .findFirst()
-                .map(e -> UserResponse.OcrData.builder()
-                        .name(e.getOcrName())
-                        .idNumber(e.getOcrIdNumber())
-                        .dob(e.getOcrDob())
-                        .address(e.getOcrAddress())
-                        .build())
+        return ekycVerificationRepository
+                .findFirstByUserIdOrderByCreatedAtDesc(userId)
                 .orElse(null);
     }
 
-    private Double mapFaceMatch(java.util.List<EkycVerificationEntity> verifications) {
-        if (verifications == null || verifications.isEmpty()) {
+    private UserResponse.OcrData mapOcrData(EkycVerificationEntity verification) {
+        if (verification == null) {
             return null;
         }
-        return verifications.stream()
-                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
-                .findFirst()
-                .map(EkycVerificationEntity::getFaceDistance)
-                .map(d -> Math.max(0, Math.min(100, 100 * (1 - d))))
-                .orElse(null);
+        return UserResponse.OcrData.builder()
+                .name(verification.getOcrName())
+                .idNumber(verification.getOcrIdNumber())
+                .dob(verification.getOcrDob())
+                .address(verification.getOcrAddress())
+                .build();
+    }
+
+    private Double mapFaceMatch(EkycVerificationEntity verification) {
+        if (verification == null || verification.getFaceDistance() == null) {
+            return null;
+        }
+        double d = verification.getFaceDistance();
+        return Math.max(0, Math.min(100, 100 * (1 - d)));
     }
 
     public PublicUserProfileResponse toPublicUserProfile(UserEntity entity) {
