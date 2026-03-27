@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { User, Lock, Bell, CreditCard, Loader2, FileText } from 'lucide-react';
+import { User, Lock, Bell, CreditCard, Loader2, FileText, Users, UserPlus, Download, Trash2, ClipboardList } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CustomerLayout } from '../../../../layouts/CustomerLayout';
-import { ProfileHeader, PersonalInfoTab, SecurityTab, NotificationsTab, PaymentMethodsTab } from '../components';
+import { PersonalInfoTab, SecurityTab, NotificationsTab, PaymentMethodsTab, HostPartnerApplicationTab } from '../components';
+import { TeamsTab, TeamMemberTab, DataExportTab, DeleteAccountTab } from '../components/PlaceholderTabs';
 import { NOTIFICATION_SETTINGS, PAYMENT_METHODS } from '../data/mockData';
 import { NotificationSettings } from '../types';
 import { useProfile } from '../hooks/useProfile';
@@ -15,13 +16,6 @@ export function ProfilePage() {
   const [activeTab, setActiveTab] = useState('personal');
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(NOTIFICATION_SETTINGS);
 
-  const tabs = [
-    { id: 'personal', label: t('customer.profile.sidebar.identity'), icon: User },
-    { id: 'security', label: t('customer.profile.sidebar.security'), icon: Lock },
-    { id: 'notifications', label: t('customer.profile.sidebar.alerts'), icon: Bell },
-    { id: 'payment', label: t('customer.profile.sidebar.billing'), icon: CreditCard }
-  ];
-
   if (loading || !profile) {
     return (
       <CustomerLayout>
@@ -32,20 +26,32 @@ export function ProfilePage() {
     );
   }
 
+  const hasHostPrivileges = ['ADMIN', 'SUPER_ADMIN', 'HOST'].includes(profile.role?.toString().toUpperCase() || '');
+
+  const tabs = [
+    { id: 'personal', label: t('customer.profile.sidebar.myProfile'), icon: User },
+    ...(!hasHostPrivileges ? [{ id: 'hostPartner', label: t('customer.profile.sidebar.hostApplication', 'Đơn đối tác'), icon: ClipboardList }] : []),
+    { id: 'security', label: t('customer.profile.sidebar.security'), icon: Lock },
+    { id: 'teams', label: t('customer.profile.sidebar.teams'), icon: Users },
+    { id: 'teamMember', label: t('customer.profile.sidebar.teamMember'), icon: UserPlus },
+    { id: 'notifications', label: t('customer.profile.sidebar.alerts'), icon: Bell },
+    { id: 'payment', label: t('customer.profile.sidebar.billing'), icon: CreditCard },
+    { id: 'dataExport', label: t('customer.profile.sidebar.dataExport'), icon: Download },
+  ];
+  const deleteAccountLabel = t('customer.profile.sidebar.deleteAccount');
+
   return (
     <CustomerLayout>
-      <div className="bg-slate-50 min-h-screen py-12 animate-in fade-in duration-700">
+      <div className="bg-[#F8F8F8] min-h-screen py-8 animate-in fade-in duration-700">
         <div className="max-w-6xl mx-auto px-4">
-
-          {/* Profile Header */}
-          <div className="mb-12">
-            <ProfileHeader profile={profile} />
-          </div>
+          <h1 className="text-2xl font-bold text-[#333333] mb-8">
+            {t('customer.profile.accountSettings')}
+          </h1>
 
           <div className="flex gap-8">
-            {/* Sidebar Tabs */}
-            <div className="w-72 space-y-3 shrink-0">
-              <div className="bg-white p-4 rounded-[32px] border border-slate-100 shadow-sm">
+            {/* Sidebar Tabs - fixed 14px font, min-height, visible hover */}
+            <div className="w-56 space-y-1 shrink-0">
+              <nav className="bg-white rounded-xl border border-gray-100 shadow-sm p-2">
                 {tabs.map((tab) => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
@@ -53,48 +59,64 @@ export function ProfilePage() {
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all duration-300 font-black text-sm uppercase tracking-widest ${isActive
-                        ? 'bg-gray-900 text-white shadow-2xl shadow-gray-200 translate-x-2'
-                        : 'text-gray-400 hover:text-gray-900 hover:bg-slate-50'
+                      type="button"
+                      data-active={isActive ? 'true' : 'false'}
+                      className={`profile-tab w-full flex items-center gap-3 px-4 min-h-[44px] rounded-lg text-left cursor-pointer select-none transition-colors duration-150 ${isActive
+                        ? 'bg-[#E8F4FD] text-[#0056B3]'
+                        : 'text-[#666666]'
                         }`}
                     >
-                      <Icon className={`w-5 h-5 ${isActive ? 'text-red-500' : ''}`} />
-                      {tab.label}
+                      <Icon className={`w-5 h-5 shrink-0 flex-shrink-0 ${isActive ? 'text-[#0056B3]' : 'text-gray-400'}`} />
+                      <span className="truncate">{tab.label}</span>
                     </button>
                   );
                 })}
-              </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('deleteAccount')}
+                  data-delete
+                  data-active={activeTab === 'deleteAccount' ? 'true' : 'false'}
+                  className={`profile-tab w-full flex items-center gap-3 px-4 min-h-[44px] rounded-lg text-left cursor-pointer select-none transition-colors duration-150 mt-1 ${activeTab === 'deleteAccount' ? 'bg-red-50 text-red-600' : 'text-red-600'}`}
+                >
+                  <Trash2 className="w-5 h-5 shrink-0 flex-shrink-0" />
+                  <span className="truncate">{deleteAccountLabel}</span>
+                </button>
+              </nav>
 
               <button
+                type="button"
                 onClick={() => navigate('/transactions')}
-                className="w-full flex items-center gap-4 px-6 py-4 mt-3 rounded-2xl transition-all duration-300 font-black text-sm uppercase tracking-widest bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-100"
+                data-transactions
+                className="profile-tab w-full flex items-center gap-3 px-4 min-h-[44px] rounded-xl cursor-pointer select-none text-[#666666] border border-gray-100 transition-colors duration-150"
               >
-                <FileText className="w-5 h-5 text-indigo-500" />
-                {t('customer.profile.sidebar.transactions')}
+                <FileText className="w-5 h-5 shrink-0 flex-shrink-0 text-gray-400" />
+                <span className="truncate">{t('customer.profile.sidebar.transactions')}</span>
               </button>
 
-              <div className="bg-gradient-to-br from-red-500 to-orange-600 p-8 rounded-[32px] text-white shadow-xl shadow-red-100 overflow-hidden relative group">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700" />
-                <h3 className="text-xl font-black mb-2 relative z-10">{t('customer.profile.premium.title')}</h3>
-                <p className="text-xs font-bold text-red-100 mb-6 relative z-10 opacity-80 uppercase tracking-tighter leading-relaxed">
+              <div className="bg-gradient-to-br from-red-500 to-orange-600 p-6 rounded-xl text-white shadow-sm">
+                <h3 className="text-lg font-bold mb-2">{t('customer.profile.premium.title')}</h3>
+                <p className="text-xs text-white/90 mb-4 leading-relaxed">
                   {t('customer.profile.premium.description')}
                 </p>
-                <button className="w-full bg-white text-gray-900 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-gray-100 transition-all shadow-lg active:scale-95 relative z-10">
+                <button className="w-full bg-white text-gray-900 py-2.5 rounded-lg font-semibold text-sm hover:bg-gray-100 transition-all">
                   {t('customer.profile.premium.upgrade')}
                 </button>
               </div>
             </div>
 
-            {/* Main Content Area */}
-            <div className="flex-1 bg-white rounded-[40px] border border-slate-100 shadow-2xl shadow-slate-200/50 p-12 min-h-[600px]">
-              <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+            {/* Main Content Area - no animation on wrapper to avoid re-trigger when profile updates */}
+            <div className="flex-1 bg-white rounded-xl border border-gray-100 shadow-sm p-10 min-h-[600px]">
+              <div key={activeTab}>
                 {activeTab === 'personal' && (
                   <PersonalInfoTab
                     profile={profile}
                     onUpdate={updateProfile}
                   />
                 )}
+                {activeTab === 'hostPartner' && <HostPartnerApplicationTab />}
                 {activeTab === 'security' && <SecurityTab />}
+                {activeTab === 'teams' && <TeamsTab />}
+                {activeTab === 'teamMember' && <TeamMemberTab />}
                 {activeTab === 'notifications' && (
                   <NotificationsTab
                     settings={notificationSettings}
@@ -102,6 +124,8 @@ export function ProfilePage() {
                   />
                 )}
                 {activeTab === 'payment' && <PaymentMethodsTab methods={PAYMENT_METHODS} />}
+                {activeTab === 'dataExport' && <DataExportTab />}
+                {activeTab === 'deleteAccount' && <DeleteAccountTab />}
               </div>
             </div>
           </div>

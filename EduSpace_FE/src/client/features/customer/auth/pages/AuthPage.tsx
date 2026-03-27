@@ -6,10 +6,18 @@ import { LoginForm, SignupForm } from '../components';
 import { LoginFormData, SignupFormData } from '../types';
 import { useLogin, useRegister } from '../hooks/useAuth';
 import { CustomerLayout } from '../../../../layouts/CustomerLayout';
+import { canAccessAdminPortal, getRealmRolesFromAccessToken } from '@/utils/keycloakTokenRoles';
 
 export function AuthPage() {
   const navigate = useNavigate();
-  const onAuthSuccess = () => navigate('/');
+  const onAuthSuccess = (accessToken?: string) => {
+    const roles = getRealmRolesFromAccessToken(accessToken);
+    if (canAccessAdminPortal(roles)) {
+      navigate('/admin');
+      return;
+    }
+    navigate('/');
+  };
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [showOtp, setShowOtp] = useState(false);
   const [loginData, setLoginData] = useState<LoginFormData | null>(null);
@@ -30,18 +38,24 @@ export function AuthPage() {
       {
         onSuccess: (res) => {
           toast.success(res.message || 'Login successful!');
-          onAuthSuccess();
+          onAuthSuccess(res?.data?.access_token);
         },
         onError: (err: any) => {
           const code = err.response?.data?.code;
           if (code === 'REQUIRE_2FA') {
             setShowOtp(true);
             setLoginData(data);
-            toast.info('Please enter your 2FA code');
+            toast.info('Vui lòng nhập mã xác thực 2 bước của bạn.');
           } else if (code === 'INVALID_2FA_CODE') {
-            toast.error('Invalid 2FA code. Please try again.');
+            toast.error('Mã xác thực không đúng. Vui lòng thử lại.');
+          } else if (code === 'EMAIL_NOT_VERIFIED') {
+            toast.error('Email chưa được xác thực. Vui lòng kiểm tra hộp thư và xác thực email trước khi đăng nhập.');
+          } else if (code === 'KEYCLOAK_UNAVAILABLE') {
+            toast.error('Hệ thống xác thực đang không khả dụng. Vui lòng thử lại sau.');
+          } else if (code === 'UNAUTHORIZED' || err.response?.status === 401) {
+            toast.error('Email hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại.');
           } else {
-            toast.error(err.response?.data?.message || err.message || 'Login failed');
+            toast.error(err.response?.data?.message || err.message || 'Đăng nhập thất bại. Vui lòng thử lại.');
           }
         },
       }
@@ -62,10 +76,32 @@ export function AuthPage() {
     }
 
     register(
-      { email: data.email, password: data.password, fullName: data.name },
+      {
+        email: data.email,
+        password: data.password,
+        fullName: data.name,
+        ...(data.userType === 'host' && {
+          hostPartnerApplication: {
+            applicantType: data.hostApplicantType,
+            phone: data.hostPhone.trim() || undefined,
+            address: data.hostAddress.trim(),
+            documentFrontUrl: data.kycFrontUrl.trim() || undefined,
+            documentBackUrl: data.kycBackUrl.trim() || undefined,
+            businessLicenseUrl:
+              data.hostApplicantType === 'BUSINESS' ? data.kycLicenseUrl.trim() || undefined : undefined,
+          },
+        }),
+      },
       {
         onSuccess: (res) => {
-          toast.success(res.message || 'Registration successful! Please login.');
+          if (data.userType === 'host') {
+            toast.success(
+              res.message ||
+                'Đã tạo tài khoản & gửi đơn đối tác. Kiểm tra email để xác thực — bạn vẫn là khách cho đến khi admin duyệt.',
+            );
+          } else {
+            toast.success(res.message || 'Registration successful! Please login.');
+          }
           setMode('login');
         },
         onError: (err: any) => {

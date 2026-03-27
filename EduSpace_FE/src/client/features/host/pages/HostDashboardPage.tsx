@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { Plus, TrendingUp, BarChart3, PieChart as PieChartIcon, Activity } from 'lucide-react';
+import { Plus, BarChart3, PieChart as PieChartIcon, Activity } from 'lucide-react';
 import { StatsCards, CalendarManagement, PendingRequests } from '../components';
 import { DASHBOARD_STATS, BOOKING_REQUESTS, CALENDAR_EVENTS } from '../data/mockData';
 import { RentalLayout } from '../../../layouts/RentalLayout';

@@ -1,16 +1,18 @@
 import { useTranslation } from 'react-i18next';
-import { Star, Users, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Star, Users, Loader2, Heart, ArrowRight } from 'lucide-react';
 import { Space } from '../../../../../types/space';
 import { formatCurrency } from '../../../../../utils';
 import { useTopRatedSpaces } from '../../spaces/hooks/useSpaces';
 
 interface TopRatedSpacesProps {
-  onSpaceClick: (spaceId: number) => void;
+  onSpaceClick: (space: Space) => void;
 }
 
 export function TopRatedSpaces({ onSpaceClick }: TopRatedSpacesProps) {
   const { data: spaces, loading } = useTopRatedSpaces();
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
   if (loading) {
     return (
@@ -28,18 +30,19 @@ export function TopRatedSpaces({ onSpaceClick }: TopRatedSpacesProps) {
           <p className="text-gray-500 text-lg font-medium">{t('customer.home.topRated.subtitle')}</p>
         </div>
         <div className="flex gap-3">
-          <button className="w-14 h-14 rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex items-center justify-center text-gray-400 hover:text-gray-900">
-            ←
-          </button>
-          <button className="w-14 h-14 rounded-2xl bg-gray-900 text-white shadow-xl hover:bg-red-500 hover:-translate-y-1 transition-all flex items-center justify-center">
-            →
+          <button
+            onClick={() => navigate('/search')}
+            className="text-red-500 hover:text-red-600 flex items-center gap-1 font-semibold transition-colors"
+          >
+            {t('customer.home.categories.viewAll')}
+            <ArrowRight className="w-4 h-4 ml-1 hover:translate-x-1 transition-transform" />
           </button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
         {spaces.map((space) => (
-          <SpaceCard key={space.id} space={space} onClick={() => onSpaceClick(space.id)} />
+          <SpaceCard key={space.id} space={space} onClick={() => onSpaceClick(space)} />
         ))}
       </div>
     </section>
@@ -64,53 +67,60 @@ function SpaceCard({ space, onClick }: SpaceCardProps) {
     return badgeMap[badge] || badge;
   };
 
+  const badgeLabel = space.instantBook ? 'INSTANT BOOK' : getBadgeText(space.badge ?? null);
+
   return (
     <div
       onClick={onClick}
-      className="bg-white rounded-[32px] overflow-hidden border border-slate-50 shadow-sm hover:shadow-2xl transition-all duration-500 cursor-pointer group hover:-translate-y-2"
+      className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition cursor-pointer group h-full flex flex-col"
     >
-      <div className="relative h-56">
+      <div className="relative">
         <img
-          src={space.image}
+          src={space.image || '/placeholder-space.jpg'}
           alt={space.name}
-          className="w-full h-full object-cover group-hover:scale-110 transition duration-700"
+          className="w-full h-64 object-cover group-hover:scale-105 transition duration-300"
+          onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/600x400/e2e8f0/64748b?text=EduSpace'; }}
         />
-        {space.badge && (
-          <div className="absolute top-4 left-4 bg-gray-900/80 backdrop-blur-md text-white px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg">
-            {getBadgeText(space.badge)}
+        {badgeLabel && (
+          <div className="absolute top-3 left-3 bg-red-500 text-white px-3 py-1 rounded text-xs">
+            {badgeLabel}
           </div>
         )}
-        <button className="absolute top-4 right-4 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-2xl flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-xl">
-          ♡
+        <button className="absolute top-3 right-3 w-9 h-9 bg-white rounded-full flex items-center justify-center hover:bg-gray-100">
+          <Heart className="w-5 h-5 text-gray-600" />
         </button>
       </div>
 
-      <div className="p-8">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-xs font-black text-gray-400 uppercase tracking-widest">{space.location}</span>
-        </div>
-        <h3 className="text-lg font-black text-gray-900 mb-4 group-hover:text-red-500 transition-colors leading-tight h-12 line-clamp-2">
-          {space.name}
-        </h3>
-
-        <div className="flex items-center gap-4 text-sm font-bold text-gray-500 mb-6 bg-slate-50 p-4 rounded-2xl">
-          <span className="flex items-center gap-2">
-            <Users className="w-4 h-4 text-gray-400" /> {space.capacity} {t('customer.home.topRated.pax')}
-          </span>
-          <div className="w-1 h-1 bg-gray-300 rounded-full" />
-          <span>{space.size} m²</span>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <div>
-            <span className="text-2xl font-black text-gray-900">
-              {formatCurrency(space.price)}
-            </span>
-            <span className="text-sm font-bold text-gray-400"> {t('customer.home.topRated.perHour')}</span>
+      <div className="p-5 flex flex-col flex-1">
+        <div className="flex-1">
+          <div className="flex items-start justify-between mb-2">
+            <div className="flex-1">
+              <h3
+                title={space.name}
+                className="font-semibold text-lg mb-1 line-clamp-1 min-h-[28px]"
+              >
+                {space.name}
+              </h3>
+              <p className="text-gray-600 text-sm line-clamp-1 min-h-[20px]">{space.location}</p>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5 bg-amber-50 px-3 py-1.5 rounded-xl">
-            <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-            <span className="font-black text-amber-700">{space.rating}</span>
+
+          <div className="flex items-center gap-2 text-sm text-gray-600 mb-3 min-h-[20px]">
+            <Users className="w-4 h-4" />
+            <span>{space.capacity} {t('customer.home.topRated.pax')}</span>
+            <span>•</span>
+            <span>{space.size || 0} m²</span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between mt-3 pt-1">
+          <div>
+            <span className="text-2xl font-bold">{formatCurrency(space.price)}</span>
+            <span className="text-gray-500 text-sm"> {t('customer.home.topRated.perHour')}</span>
+          </div>
+          <div className="flex items-center gap-1.5 rounded-full bg-gray-900 px-3 py-1.5">
+            <Star className="w-4 h-4 fill-red-500 text-red-500" />
+            <span className="font-semibold text-white">{space.rating}</span>
           </div>
         </div>
       </div>

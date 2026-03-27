@@ -4,12 +4,17 @@ spring:
   profiles:
     active: dev
 
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 50MB
+
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/eduspace}
-          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/realms/eduspace/protocol/openid-connect/certs}
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:${KEYCLOAK_PORT:8180}/realms/eduspace}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:${KEYCLOAK_PORT:8180}/realms/eduspace/protocol/openid-connect/certs}
 
 
   messages:
@@ -21,7 +26,7 @@ spring:
       ddl-auto: validate
     properties:
       hibernate:
-        format_sql: true
+        "[format_sql]": true
 
   flyway:
     enabled: true
@@ -53,21 +58,71 @@ spring:
     encoding: UTF-8
     check-template-location: true
 
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:19092}
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP:account-service-group}
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        "[spring.json.trusted.packages]": "com.eduspace.*"
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
 eureka:
   client:
     service-url:
-      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:${DISCOVERY_SERVER_PORT:8761}/eureka/}
   instance:
     prefer-ip-address: true
 
 app:
+  internal:
+    # Khóa gọi nội bộ (booking-service → mail xác nhận). Đặt qua INTERNAL_ACCOUNT_API_KEY trong .env
+    api-key: ${INTERNAL_ACCOUNT_API_KEY:dev-internal-key-change-me}
   mail:
     from: ${SPRING_MAIL_FROM:noreply@eduspace.id.vn}
     display-name: ${SPRING_MAIL_DISPLAY_NAME:EduSpace Support}
-  frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  frontend-url: ${FRONTEND_URL:http://localhost:${FRONTEND_PORT:5173}}
   verification:
     token-expiry-hours: 24
+  kafka:
+    # Assign-staff saga: must match conversation-service topic names. Staff assignment uses Redis
+    # support:admin:presence (see SupportStaffPresenceService) and ADMIN/SUPER_ADMIN users in DB.
+    topics:
+      assign-staff-request: ${KAFKA_TOPIC_ASSIGN_STAFF_REQUEST:eduspace.assign-staff.request}
+      assign-staff-result: ${KAFKA_TOPIC_ASSIGN_STAFF_RESULT:eduspace.assign-staff.result}
+      ekyc-result: ${KAFKA_TOPIC_EKYC_RESULT:eduspace.ekyc.result}
+  support-presence:
+    # Keep this slightly above FE heartbeat interval (30s) to avoid false offline,
+    # while minimizing stale "online" assignments after admin disconnect/logout.
+    window-ms: ${SUPPORT_PRESENCE_WINDOW_MS:35000}
+  kyc-ai:
+    base-url: ${APP_KYC_AI_BASE_URL:http://localhost:8000}
+    api-key: ${APP_KYC_AI_API_KEY:dev-kyc-ai-secret}
+    face-distance-threshold: ${APP_KYC_AI_FACE_THRESHOLD:0.55}
+    liveness-min-score: ${APP_KYC_AI_LIVENESS_MIN:0.08}
+
+integration:
+  booking-service:
+    # Server-to-server lookup (by booking code). Dev: direct to booking-service port; prod: internal URL.
+    base-url: ${BOOKING_SERVICE_BASE_URL:lb://BOOKING-SERVICE}
 
 springdoc:
   swagger-ui:
     persist-authorization: true
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      dashboardService:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        permittedNumberOfCallsInHalfOpenState: 3
+        slidingWindowType: TIME_BASED
+        minimumNumberOfCalls: 5
+        waitDurationInOpenState: 50s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10

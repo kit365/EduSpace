@@ -1,6 +1,6 @@
 package com.eduspace.accountservice.business.serviceimpl;
 
-import com.eduspace.accountservice.model.dto.response.LoginResponse;
+import com.eduspace.accountservice.model.dto.response.auth.LoginResponse;
 import com.eduspace.accountservice.common.enums.Role;
 import com.eduspace.accountservice.business.service.KeycloakUserService;
 import jakarta.ws.rs.core.Response;
@@ -18,7 +18,15 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
+
+import com.eduspace.accountservice.exception.AppException;
+import com.eduspace.accountservice.exception.ErrorCode;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.List;
 
@@ -26,6 +34,8 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class KeycloakUserServiceImpl implements KeycloakUserService {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final Keycloak keycloak;
     private final RestTemplate restTemplate;
@@ -49,11 +59,16 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
+        String usernameForToken = resolveUsernameForPasswordGrant(email);
+        if (!usernameForToken.equalsIgnoreCase(email.trim())) {
+            log.info("Keycloak password grant: dùng username '{}' (đăng nhập bằng email '{}')", usernameForToken, email);
+        }
+
         MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
         map.add("grant_type", "password");
         map.add("client_id", clientId);
         map.add("client_secret", clientSecret);
-        map.add("username", email);
+        map.add("username", usernameForToken);
         map.add("password", password);
         map.add("scope", "openid");
 
@@ -65,16 +80,79 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
 
         try {
             return restTemplate.postForObject(tokenUrl, request, LoginResponse.class);
-        } catch (org.springframework.web.client.HttpClientErrorException e) {
-            log.error("Authentication failed for user: {}. Status: {}, Body: {}", email, e.getStatusCode(),
+        } catch (HttpClientErrorException e) {
+            log.error(
+                    "Keycloak password grant failed (đăng nhập bằng username gửi lên Keycloak: {}). HTTP {} Body: {}",
+                    usernameForToken,
+                    e.getStatusCode(),
                     e.getResponseBodyAsString());
-            throw new com.eduspace.accountservice.exception.AppException(
-                    com.eduspace.accountservice.exception.ErrorCode.UNAUTHORIZED);
+            String keycloakHint = parseKeycloakErrorBody(e.getResponseBodyAsString());
+            throw new AppException(ErrorCode.UNAUTHORIZED, keycloakHint);
+        } catch (ResourceAccessException e) {
+            log.error("Cannot reach Keycloak at {} (token URL). User: {}. {}", serverUrl, email, e.getMessage());
+            throw new AppException(ErrorCode.KEYCLOAK_UNAVAILABLE);
         } catch (Exception e) {
+            Throwable c = e.getCause();
+            if (c instanceof java.net.ConnectException || c instanceof java.net.UnknownHostException) {
+                log.error("Cannot reach Keycloak at {}. User: {}", serverUrl, email, e);
+                throw new AppException(ErrorCode.KEYCLOAK_UNAVAILABLE);
+            }
             log.error("Authentication failed for user: {}. Error: {}", email, e.getMessage());
-            throw new com.eduspace.accountservice.exception.AppException(
-                    com.eduspace.accountservice.exception.ErrorCode.UNAUTHORIZED);
+            throw new AppException(ErrorCode.UNAUTHORIZED);
         }
+    }
+
+    /**
+     * Keycloak token endpoint returns JSON: {@code {"error":"invalid_grant","error_description":"..."}}.
+     */
+    /**
+     * Token endpoint thường nhận trường {@code username}. Nếu trong Keycloak username khác email
+     * (vd. username {@code admin}, email {@code admin@eduspace.vn}), gửi đúng username lấy từ Admin API
+     * tránh {@code invalid_grant} dù đã mở login bằng email trên realm.
+     */
+    private String resolveUsernameForPasswordGrant(String email) {
+        if (email == null || email.isBlank()) {
+            return "";
+        }
+        try {
+            List<UserRepresentation> byEmail = keycloak.realm(realm).users().searchByEmail(email.trim(), true);
+            if (byEmail != null && !byEmail.isEmpty()) {
+                String u = byEmail.get(0).getUsername();
+                if (u != null && !u.isBlank()) {
+                    return u.trim();
+                }
+            }
+            List<UserRepresentation> users = keycloak.realm(realm).users().search(email.trim(), true);
+            if (users != null && !users.isEmpty()) {
+                String u = users.get(0).getUsername();
+                if (u != null && !u.isBlank()) {
+                    return u.trim();
+                }
+            }
+        } catch (RuntimeException ex) {
+            log.warn("Không tra được username Keycloak cho email {}, dùng luôn email làm username. {}", email, ex.getMessage());
+        }
+        return email.trim();
+    }
+
+    private static String parseKeycloakErrorBody(String body) {
+        if (body == null || body.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode n = OBJECT_MAPPER.readTree(body);
+            String desc = n.path("error_description").asText(null);
+            if (desc != null && !desc.isBlank()) {
+                return desc;
+            }
+            String err = n.path("error").asText(null);
+            if (err != null && !err.isBlank()) {
+                return err;
+            }
+        } catch (Exception ignored) {
+            // fall through
+        }
+        return null;
     }
 
     @Override
@@ -98,22 +176,59 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
             String keycloakUserId = CreatedResponseUtil.getCreatedId(response);
             log.info("Created user in Keycloak: {} (ID: {})", email, keycloakUserId);
             try {
-                assignRole(keycloakUserId, Role.STUDENT.getName());
+                assignRole(keycloakUserId, Role.GUEST.getName());
             } catch (Exception e) {
-                log.warn("Failed to assign role {} to user {}. Will retry later. Error: {}", Role.STUDENT.getName(),
+                log.warn("Failed to assign role {} to user {}. Will retry later. Error: {}", Role.GUEST.getName(),
                         email,
                         e.getMessage());
             }
             return keycloakUserId;
         }
 
+        // Email/username already exists — treat as success and resolve id (avoids noisy startup errors).
+        if (response.getStatus() == 409) {
+            String errorBody = response.readEntity(String.class);
+            response.close();
+            log.info("User already exists in Keycloak for {} (409). Resolving id by email. Body: {}", email, errorBody);
+            String existingKeycloakId = findUserIdByEmail(email).orElseThrow(() -> new RuntimeException(
+                    "User exists in Keycloak but id could not be resolved for email: " + email));
+
+            // Important: when local user isn't found but keycloak user already exists,
+            // we must update credentials so invited temporary password works.
+            try {
+                CredentialRepresentation resetCredential = new CredentialRepresentation();
+                resetCredential.setType(CredentialRepresentation.PASSWORD);
+                resetCredential.setValue(password);
+                resetCredential.setTemporary(false);
+                keycloak.realm(realm).users().get(existingKeycloakId).resetPassword(resetCredential);
+            } catch (Exception e) {
+                log.warn("Failed to reset password for existing Keycloak user {} (id={}): {}",
+                        email,
+                        existingKeycloakId,
+                        e.getMessage());
+            }
+
+            return existingKeycloakId;
+        }
+
         String errorBody = response.readEntity(String.class);
+        response.close();
         log.error("Failed to create user in Keycloak. Status: {}, Body: {}", response.getStatus(), errorBody);
         throw new RuntimeException("Failed to create user in Keycloak: " + errorBody);
     }
 
     @Override
     public void assignRole(String userId, String roleName) {
+        try {
+            // Check if role exists
+            keycloak.realm(realm).roles().get(roleName).toRepresentation();
+        } catch (jakarta.ws.rs.NotFoundException e) {
+            log.info("Role '{}' not found in Keycloak. Creating it now...", roleName);
+            RoleRepresentation newRole = new RoleRepresentation();
+            newRole.setName(roleName);
+            keycloak.realm(realm).roles().create(newRole);
+        }
+
         RoleRepresentation role = keycloak.realm(realm)
                 .roles()
                 .get(roleName)
@@ -127,6 +242,25 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
                 .add(List.of(role));
 
         log.info("Assigned role '{}' to user '{}'", roleName, userId);
+    }
+
+    @Override
+    public void removeRealmRole(String userId, String roleName) {
+        try {
+            RoleRepresentation role = keycloak.realm(realm)
+                    .roles()
+                    .get(roleName)
+                    .toRepresentation();
+            keycloak.realm(realm)
+                    .users()
+                    .get(userId)
+                    .roles()
+                    .realmLevel()
+                    .remove(List.of(role));
+            log.info("Removed realm role '{}' from user '{}'", roleName, userId);
+        } catch (jakarta.ws.rs.NotFoundException e) {
+            log.warn("Role '{}' not found or not assigned for user '{}': {}", roleName, userId, e.getMessage());
+        }
     }
 
     @Override
@@ -154,15 +288,26 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
         map.add("grant_type", "refresh_token");
         map.add("client_id", clientId);
         map.add("client_secret", clientSecret);
-        map.add("refresh_token", refreshToken);
+        map.add("refresh_token", sanitizeRefreshToken(refreshToken));
 
         HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(map, headers);
 
         try {
             return restTemplate.postForObject(tokenUrl, request, LoginResponse.class);
+        } catch (HttpClientErrorException e) {
+            log.error("Token refresh failed. Status: {}, Body: {}", e.getStatusCode(), e.getResponseBodyAsString());
+            String keycloakHint = parseKeycloakErrorBody(e.getResponseBodyAsString());
+            throw new AppException(ErrorCode.UNAUTHORIZED, keycloakHint);
+        } catch (ResourceAccessException e) {
+            log.error("Cannot reach Keycloak at {} (refresh). {}", serverUrl, e.getMessage());
+            throw new AppException(ErrorCode.KEYCLOAK_UNAVAILABLE);
         } catch (Exception e) {
+            Throwable c = e.getCause();
+            if (c instanceof java.net.ConnectException || c instanceof java.net.UnknownHostException) {
+                throw new AppException(ErrorCode.KEYCLOAK_UNAVAILABLE);
+            }
             log.error("Token refresh failed. Error: {}", e.getMessage());
-            throw new RuntimeException("Refresh token failed: " + e.getMessage());
+            throw new AppException(ErrorCode.UNAUTHORIZED);
         }
     }
 
@@ -176,7 +321,7 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
         MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
         map.add("client_id", clientId);
         map.add("client_secret", clientSecret);
-        map.add("refresh_token", refreshToken);
+        map.add("refresh_token", sanitizeRefreshToken(refreshToken));
 
         HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(map, headers);
 
@@ -189,6 +334,17 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
         }
     }
 
+    private String sanitizeRefreshToken(String refreshToken) {
+        if (refreshToken == null) {
+            return null;
+        }
+        String sanitized = refreshToken.trim();
+        if (sanitized.regionMatches(true, 0, "Bearer ", 0, 7)) {
+            sanitized = sanitized.substring(7).trim();
+        }
+        return sanitized;
+    }
+
     @Override
     public void deleteUser(String keycloakUserId) {
         keycloak.realm(realm).users().get(keycloakUserId).remove();
@@ -197,6 +353,11 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
 
     @Override
     public java.util.Optional<String> findUserIdByEmail(String email) {
+        // Prefer email-specific search — search(String, boolean) matches username/display fields and can miss users.
+        List<UserRepresentation> byEmail = keycloak.realm(realm).users().searchByEmail(email, true);
+        if (byEmail != null && !byEmail.isEmpty()) {
+            return java.util.Optional.of(byEmail.get(0).getId());
+        }
         List<UserRepresentation> users = keycloak.realm(realm).users().search(email, true);
         if (users != null && !users.isEmpty()) {
             return java.util.Optional.of(users.get(0).getId());
@@ -209,10 +370,12 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
         try {
             // Verify old password
             authenticate(email, oldPassword, null);
-        } catch (Exception e) {
+        } catch (AppException e) {
+            if (e.getErrorCode() == ErrorCode.KEYCLOAK_UNAVAILABLE) {
+                throw e;
+            }
             log.error("Invalid old password for user: {}", email);
-            throw new com.eduspace.accountservice.exception.AppException(
-                    com.eduspace.accountservice.exception.ErrorCode.UNAUTHORIZED);
+            throw new AppException(ErrorCode.UNAUTHORIZED);
         }
 
         // Set new password
@@ -227,6 +390,20 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
         } catch (Exception e) {
             log.error("Failed to update password for user: {}", email, e);
             throw new RuntimeException("PASSWORD_UPDATE_FAILED");
+        }
+    }
+
+    @Override
+    public void resetPassword(String keycloakUserId, String newPassword, boolean temporary) {
+        CredentialRepresentation credential = new CredentialRepresentation();
+        credential.setType(CredentialRepresentation.PASSWORD);
+        credential.setValue(newPassword);
+        credential.setTemporary(temporary);
+        try {
+            keycloak.realm(realm).users().get(keycloakUserId).resetPassword(credential);
+        } catch (Exception e) {
+            log.error("Failed to reset password for keycloak user {}", keycloakUserId, e);
+            throw e;
         }
     }
 }

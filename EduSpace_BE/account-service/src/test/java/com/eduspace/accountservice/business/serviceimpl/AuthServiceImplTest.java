@@ -6,12 +6,13 @@ import com.eduspace.accountservice.business.service.KeycloakUserService;
 import com.eduspace.accountservice.common.enums.Role;
 import com.eduspace.accountservice.exception.AppException;
 import com.eduspace.accountservice.exception.ErrorCode;
-import com.eduspace.accountservice.model.dto.request.LoginRequest;
-import com.eduspace.accountservice.model.dto.request.RegisterRequest;
-import com.eduspace.accountservice.model.dto.response.LoginResponse;
+import com.eduspace.accountservice.model.dto.request.auth.LoginRequest;
+import com.eduspace.accountservice.model.dto.request.auth.RegisterRequest;
+import com.eduspace.accountservice.model.dto.response.auth.LoginResponse;
 import com.eduspace.accountservice.model.entity.RoleEntity;
 import com.eduspace.accountservice.model.entity.UserEntity;
 import com.eduspace.accountservice.model.mapper.UserMapper;
+import com.eduspace.accountservice.persistence.repository.HostPartnerApplicationRepository;
 import com.eduspace.accountservice.persistence.repository.RoleRepository;
 import com.eduspace.accountservice.persistence.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,6 +50,8 @@ class AuthServiceImplTest {
     private StringRedisTemplate redisTemplate;
     @Mock
     private ValueOperations<String, String> valueOperations;
+    @Mock
+    private HostPartnerApplicationRepository hostPartnerApplicationRepository;
 
     @InjectMocks
     private AuthServiceImpl authServiceImpl; // Target implementation
@@ -115,18 +118,24 @@ class AuthServiceImplTest {
 
         RoleEntity role = new RoleEntity();
         role.setId(1L);
-        role.setName(Role.STUDENT.getName());
+        role.setName(Role.GUEST.getName());
 
         when(userRepository.existsByEmail("test@email.com")).thenReturn(false);
         when(keycloakUserService.createUser(anyString(), anyString(), anyString())).thenReturn("keycloak-id");
-        when(roleRepository.findByName(Role.STUDENT.getName())).thenReturn(Optional.of(role));
+        when(roleRepository.findByName(Role.GUEST.getName())).thenReturn(Optional.of(role));
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(userRepository.save(any(UserEntity.class))).thenAnswer(inv -> {
+            UserEntity u = inv.getArgument(0);
+            ReflectionTestUtils.setField(u, "id", "user-uuid-test");
+            return u;
+        });
 
         // Act
         authService.register(request);
 
         // Assert
         verify(userRepository).save(any(UserEntity.class));
+        verify(hostPartnerApplicationRepository, never()).save(any());
         verify(emailService).sendVerificationEmail(eq("test@email.com"), eq("Full Name"), anyString());
     }
 

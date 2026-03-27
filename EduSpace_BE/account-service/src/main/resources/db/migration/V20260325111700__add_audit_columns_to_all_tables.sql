@@ -1,0 +1,37 @@
+-- Users
+ALTER TABLE users ADD COLUMN IF NOT EXISTS created_by VARCHAR(255);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_by VARCHAR(255);
+
+-- Roles
+ALTER TABLE roles ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW();
+ALTER TABLE roles ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW();
+ALTER TABLE roles ADD COLUMN IF NOT EXISTS created_by VARCHAR(255);
+ALTER TABLE roles ADD COLUMN IF NOT EXISTS updated_by VARCHAR(255);
+
+-- Permissions
+ALTER TABLE permissions ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW();
+ALTER TABLE permissions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW();
+ALTER TABLE permissions ADD COLUMN IF NOT EXISTS created_by VARCHAR(255);
+ALTER TABLE permissions ADD COLUMN IF NOT EXISTS updated_by VARCHAR(255);
+
+-- Host Partner Applications
+ALTER TABLE host_partner_applications ADD COLUMN IF NOT EXISTS created_by VARCHAR(255);
+ALTER TABLE host_partner_applications ADD COLUMN IF NOT EXISTS updated_by VARCHAR(255);
+
+-- Loyalty Config
+ALTER TABLE loyalty_config ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW();
+ALTER TABLE loyalty_config ADD COLUMN IF NOT EXISTS created_by VARCHAR(255);
+ALTER TABLE loyalty_config ADD COLUMN IF NOT EXISTS updated_by VARCHAR(255);
+
+-- Reward Catalog
+ALTER TABLE reward_catalog ADD COLUMN IF NOT EXISTS created_by VARCHAR(255);
+ALTER TABLE reward_catalog ADD COLUMN IF NOT EXISTS updated_by VARCHAR(255);
+
+-- Point Earning Rules
+ALTER TABLE point_earning_rules ADD COLUMN IF NOT EXISTS created_by VARCHAR(255);
+ALTER TABLE point_earning_rules ADD COLUMN IF NOT EXISTS updated_by VARCHAR(255);
+
+-- Point Transactions
+ALTER TABLE point_transactions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW();
+ALTER TABLE point_transactions ADD COLUMN IF NOT EXISTS created_by VARCHAR(255);
+ALTER TABLE point_transactions ADD COLUMN IF NOT EXISTS updated_by VARCHAR(255);

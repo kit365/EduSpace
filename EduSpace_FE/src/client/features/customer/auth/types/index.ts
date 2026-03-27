@@ -8,10 +8,20 @@ export interface LoginRequest {
   otp?: string;
 }
 
+export interface RegisterHostPartnerPart {
+  applicantType: string;
+  phone?: string;
+  address: string;
+  documentFrontUrl?: string;
+  documentBackUrl?: string;
+  businessLicenseUrl?: string;
+}
+
 export interface RegisterRequest {
   email: string;
   password: string;
   fullName: string;
+  hostPartnerApplication?: RegisterHostPartnerPart;
 }
 
 export interface RefreshTokenRequest {
@@ -45,6 +55,12 @@ export interface SignupFormData {
   confirmPassword: string;
   userType: 'guest' | 'host';
   agreeToTerms: boolean;
+  hostApplicantType: 'INDIVIDUAL' | 'BUSINESS';
+  hostPhone: string;
+  hostAddress: string;
+  kycFrontUrl: string;
+  kycBackUrl: string;
+  kycLicenseUrl: string;
 }
 
 export interface AuthUser {

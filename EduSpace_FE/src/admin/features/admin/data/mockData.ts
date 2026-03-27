@@ -1,8 +1,6 @@
 import { User, Shield, CreditCard, Activity, AlertTriangle, CheckCircle } from 'lucide-react';
-import type { User as UserType } from '../../../../types/user';
+import type { User as UserType } from '@/types/user';
 import type { Transaction, SystemWallet, PayoutRequest } from '../../../../types/finance';
-import type { Dispute } from '../../../../types/dispute';
-
 // ─── DASHBOARD STATS ─────────────────────────────────────────
 export const ADMIN_STATS = [
   { label: 'Tổng người dùng', value: '1,234', change: '+12%', icon: User, color: 'text-blue-500', bg: 'bg-blue-50' },
@@ -155,39 +153,6 @@ export const MOCK_PAYOUT_REQUESTS: PayoutRequest[] = [
     bankInfo: 'MB Bank ****1234', status: 'processing',
     requestedAt: '2024-12-14T10:00:00'
   }
-];
-
-// ─── DISPUTES ─────────────────────────────────────────────────
-export const MOCK_DISPUTES: Dispute[] = [
-  {
-    id: 'DSP-001', bookingId: 'BK-2024-0012',
-    reporterId: '4', reporterName: 'Phạm Đức Anh', reporterRole: 'renter',
-    againstId: '5', againstName: 'Hoàng Lan Anh', againstRole: 'host',
-    category: 'room_mismatch', title: 'Phòng không đúng mô tả',
-    description: 'Phòng đăng là 30 chỗ ngồi nhưng thực tế chỉ có 15. Máy chiếu không hoạt động.',
-    evidence: ['evidence_1.jpg', 'evidence_2.jpg'],
-    status: 'open', priority: 'high',
-    createdAt: '2024-12-14T09:00:00', updatedAt: '2024-12-14T09:00:00'
-  },
-  {
-    id: 'DSP-002', bookingId: 'BK-2024-0008',
-    reporterId: '2', reporterName: 'Trần Thị Bích Ngọc', reporterRole: 'host',
-    againstId: '1', againstName: 'Nguyễn Văn Minh', againstRole: 'renter',
-    category: 'behavior', title: 'Renter gây hư hỏng thiết bị',
-    description: 'Khách đã làm hỏng bảng trắng điện tử và không chịu bồi thường. Thiệt hại ước tính 5 triệu VNĐ.',
-    status: 'under_review', priority: 'medium',
-    createdAt: '2024-12-10T15:00:00', updatedAt: '2024-12-12T10:00:00'
-  },
-  {
-    id: 'DSP-003', bookingId: 'BK-2024-0005',
-    reporterId: '1', reporterName: 'Nguyễn Văn Minh', reporterRole: 'renter',
-    againstId: '2', againstName: 'Trần Thị Bích Ngọc', againstRole: 'host',
-    category: 'cancellation', title: 'Host huỷ phòng sát giờ',
-    description: 'Host huỷ phòng 30 phút trước giờ buổi dạy bắt đầu. Không có phòng thay thế. Đã mất học viên.',
-    status: 'resolved_refund', priority: 'critical', resolution: 'Hoàn tiền 100% và cảnh cáo Host.',
-    resolvedBy: 'Lê Hoàng Quân', refundAmount: 2_400_000,
-    createdAt: '2024-12-01T07:00:00', updatedAt: '2024-12-02T14:00:00', resolvedAt: '2024-12-02T14:00:00'
-  },
 ];
 
 // ─── KYC PENDING REVIEWS ──────────────────────────────────────

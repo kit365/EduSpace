@@ -1,0 +1,24 @@
+package com.eduspace.roomservice.model.dto.response;
+
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.experimental.FieldDefaults;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE)
+public class RoomAmenityResponse {
+
+    Integer roomId;
+    Integer amenityId;
+    String amenityName;
+    String amenityIcon;
+    Integer quantity;
+    String notes;
+    String type;
+}

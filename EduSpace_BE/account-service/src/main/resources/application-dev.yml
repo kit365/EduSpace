@@ -1,35 +1,63 @@
 server:
-  port: 8081
+  port: ${ACCOUNT_SERVICE_PORT:8081}
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/eduspace_account
-    username: eduspace
-    password: eduspace_dev_123
+    # Use env-driven credentials to avoid local hardcoded mismatch.
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://127.0.0.1:${POSTGRES_ACCOUNT_HOST_PORT:5432}/eduspace_account}
+    username: ${SPRING_DATASOURCE_USERNAME:${POSTGRES_USER:eduspace}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${POSTGRES_PASSWORD:eduspace_dev_123}}
     driver-class-name: org.postgresql.Driver
 
   jpa:
-    show-sql: true
+    show-sql: false
+    open-in-view: false
+
+  flyway:
+    # Keep dev startup stable when local schema_history contains old removed versions.
+    # Dev-only: ignore missing and checksum drift from locally edited old migrations.
+    ignore-migration-patterns: "*:missing"
+    validate-on-migrate: false
 
   data:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      repositories:
+        enabled: false
 
-  # OAuth2 Resource Server (Keycloak)
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://localhost:8180/realms/eduspace
-          jwk-set-uri: http://localhost:8180/realms/eduspace/protocol/openid-connect/certs
+          issuer-uri: http://localhost:${KEYCLOAK_PORT:8180}/realms/eduspace
+          jwk-set-uri: http://localhost:${KEYCLOAK_PORT:8180}/realms/eduspace/protocol/openid-connect/certs
 
-# Keycloak Admin Client
+  # Không chạy Kafka local → consumer reconnect spam. Bật lại khi đã có broker (vd. docker compose up kafka):
+  #   KAFKA_LISTENER_AUTO_STARTUP=true
+  kafka:
+    listener:
+      auto-startup: ${KAFKA_LISTENER_AUTO_STARTUP:false}
+
+logging:
+  level:
+    "[com.eduspace.accountservice.business.serviceimpl.EmailServiceImpl]": INFO
+    # Bật khi cần log SMTP chi tiết: SPRING_MAIL_DEBUG=true hoặc thêm org.springframework.mail: DEBUG
+
+eureka:
+  client:
+    # Dev local thường chạy rời rạc từng service; mặc định tắt để tránh spam
+    # Connection refused khi discovery-server chưa bật.
+    enabled: ${EUREKA_CLIENT_ENABLED:false}
+    register-with-eureka: ${EUREKA_CLIENT_ENABLED:false}
+    fetch-registry: ${EUREKA_CLIENT_ENABLED:false}
+  instance:
+    prefer-ip-address: true
+
 keycloak:
-  server-url: ${KEYCLOAK_SERVER_URL:http://localhost:8180}
+  server-url: ${KEYCLOAK_SERVER_URL:http://localhost:${KEYCLOAK_PORT:8180}}
   realm: ${KEYCLOAK_REALM:eduspace}
   client-id: ${KEYCLOAK_CLIENT_ID:eduspace-be}
   client-secret: ${KEYCLOAK_CLIENT_SECRET:eduspace-secret}
-
 
 

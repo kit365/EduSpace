@@ -1,26 +1,32 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Space } from '../../../../../types/space';
-import { favoriteService } from '../services/favoriteService';
+import { favoriteService, subscribeFavoriteChanges } from '../services/favoriteService';
 
 export function useFavorites() {
-    const [favorites, setFavorites] = useState<Space[]>([]);
+    const [favorites, setFavorites] = useState<Space[]>(() => favoriteService.getAllSync());
     const [loading, setLoading] = useState(true);
 
+    const refresh = useCallback(() => {
+        setFavorites(favoriteService.getAllSync());
+    }, []);
+
     useEffect(() => {
-        const fetch = async () => {
+        const load = async () => {
             const data = await favoriteService.getFavorites();
             setFavorites(data);
             setLoading(false);
         };
-        fetch();
+        load();
     }, []);
 
+    useEffect(() => subscribeFavoriteChanges(refresh), [refresh]);
+
     const removeFavorite = async (id: number) => {
-        const success = await favoriteService.toggleFavorite(id);
+        const success = await favoriteService.removeFavorite(id);
         if (success) {
-            setFavorites(prev => prev.filter(f => f.id !== id));
+            refresh();
         }
     };
 
-    return { favorites, loading, removeFavorite };
+    return { favorites, loading, removeFavorite, refresh };
 }

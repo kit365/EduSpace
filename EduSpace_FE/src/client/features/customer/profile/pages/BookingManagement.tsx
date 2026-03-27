@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { CustomerLayout } from '../../../../layouts/CustomerLayout';
 import { Calendar, Clock, MapPin, ChevronRight, Star, MessageSquare, ShieldCheck, Search, Filter, Loader2, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import { formatCurrency } from '../../../../../utils';
-import { SubmitReviewReq } from '../../../../../types/api';
+import { ApiResponse, SubmitReviewReq } from '@/types';
 
 type BookingStatus = 'upcoming' | 'completed' | 'cancelled';
 

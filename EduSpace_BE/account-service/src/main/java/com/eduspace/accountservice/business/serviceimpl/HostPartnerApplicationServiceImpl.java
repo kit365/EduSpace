@@ -1,0 +1,512 @@
+package com.eduspace.accountservice.business.serviceimpl;
+
+import com.eduspace.accountservice.business.service.HostPartnerApplicationService;
+import com.eduspace.accountservice.business.service.KeycloakUserService;
+import com.eduspace.accountservice.common.enums.PartnerAppStatus;
+import com.eduspace.accountservice.common.enums.HostPartnerApplicationUserStatus;
+import com.eduspace.accountservice.common.enums.VerificationStatus;
+import com.eduspace.accountservice.common.enums.Role;
+import com.eduspace.accountservice.exception.AppException;
+import com.eduspace.accountservice.exception.ErrorCode;
+import com.eduspace.accountservice.model.dto.request.hostapplication.RejectHostPartnerApplicationRequest;
+import com.eduspace.accountservice.model.dto.request.hostapplication.SubmitHostPartnerApplicationRequest;
+import com.eduspace.accountservice.model.dto.response.hostapplication.HostPartnerApplicationAdminResponse;
+import com.eduspace.accountservice.model.dto.response.hostapplication.MyHostApplicationStatusResponse;
+import com.eduspace.accountservice.model.dto.response.hostapplication.PendingBranchUpdateResponse;
+import com.eduspace.accountservice.model.entity.HostPartnerApplicationEntity;
+import com.eduspace.accountservice.model.entity.RoleEntity;
+import com.eduspace.accountservice.model.entity.UserEntity;
+import com.eduspace.accountservice.persistence.repository.UserRepository;
+import com.eduspace.accountservice.persistence.repository.HostPartnerApplicationRepository;
+import com.eduspace.accountservice.persistence.repository.RoleRepository;
+import com.eduspace.accountservice.business.service.EkycVerificationService;
+import com.eduspace.accountservice.business.service.PdfService;
+import com.eduspace.accountservice.model.dto.response.ekyc.EkycVerifyResponse;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class HostPartnerApplicationServiceImpl implements HostPartnerApplicationService {
+
+    private final HostPartnerApplicationRepository applicationRepository;
+    private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
+    private final KeycloakUserService keycloakUserService;
+    private final PdfService pdfService;
+    private final EkycVerificationService ekycVerificationService;
+
+    private static boolean isHostPartnerRole(String roleName) {
+        if (roleName == null) {
+            return false;
+        }
+        return "HOST".equalsIgnoreCase(roleName);
+    }
+
+    private static boolean userIsHostPartner(UserEntity u) {
+        return u.getRoles().stream().map(RoleEntity::getName).anyMatch(HostPartnerApplicationServiceImpl::isHostPartnerRole);
+    }
+
+    private static boolean isBranchApplication(String applicantType) {
+        return applicantType != null && "BRANCH".equalsIgnoreCase(applicantType.trim());
+    }
+
+    /**
+     * Giống {@link com.eduspace.accountservice.presentation.controller.UserController}: một số JWT không có {@code sub},
+     * tra user theo email claim.
+     */
+    private UserEntity resolveUserFromJwt(Jwt jwt) {
+        if (jwt == null) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+
+        String sub = jwt.getSubject();
+        String email = jwt.getClaimAsString("email");
+        String preferredUsername = jwt.getClaimAsString("preferred_username");
+        String username = jwt.getClaimAsString("username");
+
+        String candidateEmail = StringUtils.hasText(email) ? email : (StringUtils.hasText(preferredUsername) ? preferredUsername : username);
+        if (StringUtils.hasText(candidateEmail)) {
+            Optional<UserEntity> byEmail = userRepository.findByEmail(candidateEmail.trim());
+            if (byEmail.isPresent()) {
+                return byEmail.get();
+            }
+        }
+
+        // Fallback to Keycloak user id (sub) if email resolution failed.
+        if (StringUtils.hasText(sub)) {
+            Optional<UserEntity> byKeycloakId = userRepository.findByKeycloakId(sub);
+            if (byKeycloakId.isPresent()) {
+                return byKeycloakId.get();
+            }
+        }
+
+        log.warn("Cannot resolve local user from JWT. sub={}, email={}, preferred_username={}, username={}",
+                sub, email, preferredUsername, username);
+        throw new AppException(ErrorCode.USER_NOT_FOUND);
+    }
+
+    @Override
+    public MyHostApplicationStatusResponse getMyStatus(Jwt jwt) {
+        UserEntity user = resolveUserFromJwt(jwt);
+
+        if (userIsHostPartner(user)) {
+            return MyHostApplicationStatusResponse.builder()
+                    .status(HostPartnerApplicationUserStatus.APPROVED)
+                    .build();
+        }
+
+        Optional<HostPartnerApplicationEntity> pending = applicationRepository
+                .findByUserIdAndStatus(user.getId(), com.eduspace.accountservice.common.enums.PartnerAppStatus.PENDING);
+        if (pending.isPresent()) {
+            HostPartnerApplicationEntity app = pending.get();
+            return MyHostApplicationStatusResponse.builder()
+                    .status(HostPartnerApplicationUserStatus.PENDING)
+                    .applicationId(app.getId())
+                    .submittedAt(app.getCreatedAt())
+                    .build();
+        }
+
+        List<HostPartnerApplicationEntity> rejected = applicationRepository
+                .findByUserIdAndStatusOrderByCreatedAtDesc(user.getId(), com.eduspace.accountservice.common.enums.PartnerAppStatus.REJECTED);
+        if (!rejected.isEmpty()) {
+            HostPartnerApplicationEntity last = rejected.get(0);
+            return MyHostApplicationStatusResponse.builder()
+                    .status(HostPartnerApplicationUserStatus.REJECTED)
+                    .applicationId(last.getId())
+                    .rejectedReason(last.getAdminNote())
+                    .submittedAt(last.getCreatedAt())
+                    .build();
+        }
+
+        return MyHostApplicationStatusResponse.builder()
+                .status(HostPartnerApplicationUserStatus.NONE)
+                .build();
+    }
+
+    @Override
+    public List<PendingBranchUpdateResponse> listMyPendingBranchUpdates(Jwt jwt) {
+        UserEntity user = resolveUserFromJwt(jwt);
+        List<HostPartnerApplicationEntity> pendingBranches = applicationRepository
+                .findByUserIdAndStatusOrderByCreatedAtDesc(user.getId(), PartnerAppStatus.PENDING)
+                .stream()
+                .filter(e -> isBranchApplication(e.getApplicantType()))
+                .toList();
+
+        Map<Integer, PendingBranchUpdateResponse> dedup = new LinkedHashMap<>();
+        for (HostPartnerApplicationEntity app : pendingBranches) {
+            Map<String, String> meta = parseMessageMeta(app.getMessage());
+            String action = normalize(meta.get("action"));
+            if (!"update".equals(action)) {
+                continue;
+            }
+            Integer propertyId = parseInteger(meta.get("propertyid"));
+            if (propertyId == null || dedup.containsKey(propertyId)) {
+                continue;
+            }
+            dedup.put(propertyId, PendingBranchUpdateResponse.builder()
+                    .propertyId(propertyId)
+                    .submittedAt(app.getCreatedAt())
+                    .build());
+        }
+        return dedup.values().stream().toList();
+    }
+
+    @Override
+    @Transactional
+    public void submit(Jwt jwt, SubmitHostPartnerApplicationRequest request) {
+        UserEntity user = resolveUserFromJwt(jwt);
+        String applicantType = trimToNull(request.getApplicantType());
+        String fullName = trimToNull(request.getFullName());
+        String email = trimToNull(request.getEmail());
+        String phone = trimToNull(request.getPhone());
+        String address = trimToNull(request.getAddress());
+        String message = trimToNull(request.getMessage());
+
+        if (!StringUtils.hasText(applicantType) || !StringUtils.hasText(fullName) || !StringUtils.hasText(email)) {
+            throw new AppException(ErrorCode.INVALID_KEY);
+        }
+        if (applicantType.length() > 32 || fullName.length() > 255 || (phone != null && phone.length() > 50)) {
+            throw new AppException(ErrorCode.INVALID_KEY);
+        }
+
+        // Enforce KYC requirement
+        if (user.getVerificationStatus() != VerificationStatus.VERIFIED) {
+            throw new AppException(ErrorCode.EKYC_REQUIRED);
+        }
+
+        boolean branchApplication = isBranchApplication(applicantType);
+
+        if (userIsHostPartner(user) && !branchApplication) {
+            throw new AppException(ErrorCode.HOST_ALREADY_PARTNER);
+        }
+
+        if (!branchApplication) {
+            if (applicationRepository.findByUserIdAndStatus(user.getId(), PartnerAppStatus.PENDING).isPresent()) {
+                throw new AppException(ErrorCode.HOST_APPLICATION_PENDING_EXISTS);
+            }
+        } else {
+            // For BRANCH applications, allow multiple pending requests as long as branch identity differs.
+            List<HostPartnerApplicationEntity> pendingBranches = applicationRepository
+                    .findByUserIdAndStatusOrderByCreatedAtDesc(user.getId(), PartnerAppStatus.PENDING)
+                    .stream()
+                    .filter(e -> isBranchApplication(e.getApplicantType()))
+                    .toList();
+
+            String reqName = normalize(fullName);
+            String reqPhone = normalize(phone);
+            String reqEmail = normalize(email);
+            String reqAddress = normalize(address);
+
+            boolean duplicated = pendingBranches.stream().anyMatch(e ->
+                    Objects.equals(normalize(e.getFullName()), reqName)
+                            && Objects.equals(normalize(e.getPhone()), reqPhone)
+                            && Objects.equals(normalize(e.getEmail()), reqEmail)
+                            && Objects.equals(normalize(e.getAddress()), reqAddress));
+
+            if (duplicated) {
+                throw new AppException(ErrorCode.HOST_APPLICATION_PENDING_EXISTS);
+            }
+        }
+
+        HostPartnerApplicationEntity entity = HostPartnerApplicationEntity.builder()
+                .userId(user.getId())
+                .applicantType(applicantType)
+                .fullName(fullName)
+                .phone(phone)
+                .email(email)
+                .address(address)
+                .message(message)
+                .documentFrontUrl(trimToNull(request.getDocumentFrontUrl()))
+                .documentBackUrl(trimToNull(request.getDocumentBackUrl()))
+                .businessLicenseUrl(trimToNull(request.getBusinessLicenseUrl()))
+                .status(PartnerAppStatus.PENDING)
+                .bankAccountNumber(trimToNull(request.getBankAccountNumber()))
+                .bankName(trimToNull(request.getBankName()))
+                .bankAccountHolder(trimToNull(request.getBankAccountHolder()))
+                .taxId(trimToNull(request.getTaxId()))
+                .build();
+
+        // Generate PDF Contract
+        try {
+            byte[] pdfBytes = generateContractPdf(user, request);
+            entity.setContractPdf(pdfBytes);
+        } catch (Exception e) {
+            log.error("Failed to generate contract PDF for user {}: {}", user.getId(), e.getMessage());
+            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
+        }
+
+        try {
+            applicationRepository.save(entity);
+        } catch (DataIntegrityViolationException ex) {
+            // Guard concurrent requests that pass pre-check at the same time.
+            throw new AppException(ErrorCode.HOST_APPLICATION_PENDING_EXISTS);
+        }
+
+        if (!branchApplication) {
+            applyHostPartnerApplicationToUser(
+                    user,
+                    applicantType,
+                    fullName,
+                    phone,
+                    address,
+                    entity.getDocumentFrontUrl(),
+                    entity.getDocumentBackUrl(),
+                    entity.getBusinessLicenseUrl(),
+                    PartnerAppStatus.PENDING);
+            userRepository.save(user);
+        }
+    }
+
+    @Override
+    public byte[] getContractPdf(UUID applicationId) {
+        HostPartnerApplicationEntity app = applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new AppException(ErrorCode.HOST_APPLICATION_NOT_FOUND));
+        
+        if (app.getContractPdf() == null) {
+            throw new AppException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
+        
+        return app.getContractPdf();
+    }
+
+    @Override
+    public List<HostPartnerApplicationAdminResponse> listPendingForAdmin() {
+        return applicationRepository.findByStatusOrderByCreatedAtDesc(PartnerAppStatus.PENDING).stream()
+                .map(this::toAdminResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public void approve(UUID applicationId, String adminKeycloakId) {
+        HostPartnerApplicationEntity app = applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new AppException(ErrorCode.HOST_APPLICATION_NOT_FOUND));
+        if (app.getStatus() != PartnerAppStatus.PENDING) {
+            throw new AppException(ErrorCode.HOST_APPLICATION_BAD_STATE);
+        }
+
+        UserEntity user = userRepository.findById(app.getUserId())
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        boolean branchApplication = isBranchApplication(app.getApplicantType());
+        if (!branchApplication) {
+            RoleEntity hostRole = roleRepository.findByName(Role.HOST.getName())
+                    .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND));
+
+            applyHostPartnerApplicationToUser(
+                    user,
+                    app.getApplicantType(),
+                    app.getFullName(),
+                    app.getPhone(),
+                    app.getAddress(),
+                    app.getDocumentFrontUrl(),
+                    app.getDocumentBackUrl(),
+                    app.getBusinessLicenseUrl(),
+                    PartnerAppStatus.APPROVED);
+
+            boolean hasHost = user.getRoles().stream().anyMatch(r -> Role.HOST.getName().equalsIgnoreCase(r.getName()));
+            if (!hasHost) {
+                user.getRoles().add(hostRole);
+            }
+            userRepository.save(user);
+        }
+
+        app.setStatus(PartnerAppStatus.APPROVED);
+        app.setReviewedAt(LocalDateTime.now());
+        app.setReviewedBy(adminKeycloakId);
+        applicationRepository.save(app);
+
+        if (!branchApplication) {
+            try {
+                keycloakUserService.assignRole(user.getKeycloakId(), Role.HOST.getName());
+            } catch (jakarta.ws.rs.NotFoundException ex) {
+                log.warn("Keycloak id stale when approving host app. userId={}, email={}", user.getId(), user.getEmail());
+                String resolvedKeycloakId = keycloakUserService.findUserIdByEmail(user.getEmail())
+                        .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+                if (!resolvedKeycloakId.equals(user.getKeycloakId())) {
+                    user.setKeycloakId(resolvedKeycloakId);
+                    userRepository.save(user);
+                }
+                keycloakUserService.assignRole(resolvedKeycloakId, Role.HOST.getName());
+            } catch (Exception e) {
+                log.error("Keycloak assign HOST failed for user {}: {}", user.getKeycloakId(), e.getMessage());
+            }
+        }
+    }
+
+    @Override
+    @Transactional
+    public void reject(UUID applicationId, String adminKeycloakId, RejectHostPartnerApplicationRequest request) {
+        HostPartnerApplicationEntity app = applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new AppException(ErrorCode.HOST_APPLICATION_NOT_FOUND));
+        if (app.getStatus() != PartnerAppStatus.PENDING) {
+            throw new AppException(ErrorCode.HOST_APPLICATION_BAD_STATE);
+        }
+        app.setStatus(PartnerAppStatus.REJECTED);
+        app.setAdminNote(request.getAdminNote());
+        app.setReviewedAt(LocalDateTime.now());
+        app.setReviewedBy(adminKeycloakId);
+        applicationRepository.save(app);
+    }
+
+    /**
+     * Đồng bộ dữ liệu đơn đăng ký host vào bảng {@code users} (host_type, SĐT, location, giấy tờ, trạng thái xác minh).
+     * Đơn chi nhánh ({@code BRANCH}) không cập nhật hồ sơ host tổng quát.
+     */
+    private void applyHostPartnerApplicationToUser(
+            UserEntity user,
+            String applicantType,
+            String fullName,
+            String phone,
+            String address,
+            String documentFrontUrl,
+            String documentBackUrl,
+            String businessLicenseUrl,
+            PartnerAppStatus phase) {
+        if (user == null || isBranchApplication(applicantType)) {
+            return;
+        }
+        if (StringUtils.hasText(phone)) {
+            user.setPhoneNumber(phone.trim());
+        }
+        if (StringUtils.hasText(address)) {
+            user.setLocation(address.trim());
+        }
+        if (StringUtils.hasText(fullName)) {
+            user.setFullName(fullName.trim());
+        }
+        if (StringUtils.hasText(applicantType)) {
+            user.setHostType(applicantType.trim());
+        }
+        if (StringUtils.hasText(applicantType) && "BUSINESS".equalsIgnoreCase(applicantType.trim())
+                && StringUtils.hasText(fullName)) {
+            user.setOrganizationName(fullName.trim());
+        }
+    }
+
+    private static String trimToNull(String s) {
+        if (s == null || s.isBlank()) {
+            return null;
+        }
+        return s.trim();
+    }
+
+    private static String normalize(String s) {
+        if (s == null) {
+            return null;
+        }
+        String out = s.trim().toLowerCase();
+        return out.replaceAll("\\s+", " ");
+    }
+
+    private static Integer parseInteger(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private static Map<String, String> parseMessageMeta(String message) {
+        Map<String, String> out = new LinkedHashMap<>();
+        if (!StringUtils.hasText(message)) {
+            return out;
+        }
+        String[] parts = message.split("\\|");
+        for (String rawPart : parts) {
+            String part = rawPart == null ? "" : rawPart.trim();
+            int idx = part.indexOf('=');
+            if (idx <= 0 || idx >= part.length() - 1) {
+                continue;
+            }
+            String key = normalize(part.substring(0, idx));
+            String value = part.substring(idx + 1).trim();
+            if (key != null && StringUtils.hasText(value)) {
+                out.put(key, value);
+            }
+        }
+        return out;
+    }
+
+    private HostPartnerApplicationAdminResponse toAdminResponse(HostPartnerApplicationEntity e) {
+        return HostPartnerApplicationAdminResponse.builder()
+                .id(e.getId())
+                .userId(e.getUserId())
+                .applicantType(e.getApplicantType())
+                .fullName(e.getFullName())
+                .phone(e.getPhone())
+                .email(e.getEmail())
+                .address(e.getAddress())
+                .message(e.getMessage())
+                .status(e.getStatus().name())
+                .adminNote(e.getAdminNote())
+                .createdAt(e.getCreatedAt())
+                .reviewedAt(e.getReviewedAt())
+                .reviewedBy(e.getReviewedBy())
+                .bankAccountNumber(e.getBankAccountNumber())
+                .bankName(e.getBankName())
+                .bankAccountHolder(e.getBankAccountHolder())
+                .taxId(e.getTaxId())
+                .documentFrontUrl(e.getDocumentFrontUrl())
+                .documentBackUrl(e.getDocumentBackUrl())
+                .businessLicenseUrl(e.getBusinessLicenseUrl())
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public HostPartnerApplicationAdminResponse findByUserId(String userId) {
+        return applicationRepository.findFirstByUserIdOrderByCreatedAtDesc(userId)
+                .map(this::toAdminResponse)
+                .orElseThrow(() -> new AppException(ErrorCode.HOST_APPLICATION_NOT_FOUND));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countPendingApplications() {
+        return applicationRepository.countByStatus(PartnerAppStatus.PENDING);
+    }
+
+    private byte[] generateContractPdf(UserEntity user, SubmitHostPartnerApplicationRequest request) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        
+        // Get verified data from eKYC service
+        Optional<EkycVerifyResponse.OcrPayload> ocrOpt = ekycVerificationService.getLatestVerifiedOcrData(user.getId());
+        
+        String idNumber = ocrOpt.map(EkycVerifyResponse.OcrPayload::idNumber).orElse("---");
+        String dob = ocrOpt.map(EkycVerifyResponse.OcrPayload::dob).orElse("---");
+        String address = ocrOpt.map(EkycVerifyResponse.OcrPayload::address).orElse(user.getStreetAddress());
+
+        data.put("contractNumber", "ESP-" + System.currentTimeMillis() / 1000);
+        data.put("fullName", request.getFullName());
+        data.put("idNumber", idNumber);
+        data.put("dob", dob);
+        data.put("address", address);
+        data.put("phone", request.getPhone());
+        data.put("email", request.getEmail());
+        data.put("taxId", request.getTaxId() != null ? request.getTaxId() : "---");
+        data.put("bankAccount", request.getBankAccountNumber());
+        data.put("bankName", request.getBankName());
+        data.put("signDate", LocalDateTime.now().toString());
+
+        return pdfService.generatePdfFromTemplate("pdf/host_contract", data);
+    }
+}

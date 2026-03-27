@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <style>
+        body {
+            font-family: "Times New Roman", Times, serif;
+            font-size: 13pt;
+            line-height: 1.5;
+            color: #000000;
+            margin: 0;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+        }
+        @page {
+            size: A4;
+            margin: 20mm 15mm 20mm 30mm; /* Standard margins: Top 20, Right 15, Bottom 20, Left 30 */
+        }
+        .header-container {
+            width: 100%;
+            margin-bottom: 30px;
+        }
+        .header-left {
+            width: 45%;
+            float: left;
+            text-align: center;
+            font-size: 12pt;
+        }
+        .header-right {
+            width: 55%;
+            float: right;
+            text-align: center;
+        }
+        .quoc-hieu {
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 12pt;
+            margin-bottom: 2px;
+        }
+        .tieu-ngu {
+            font-weight: bold;
+            font-size: 13pt;
+            margin-bottom: 5px;
+        }
+        .tieu-ngu-underline {
+            width: 160px;
+            height: 1px;
+            background: #000;
+            margin: 0 auto;
+        }
+        .company-name {
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 12pt;
+        }
+        .contract-no {
+            font-size: 12pt;
+            margin-top: 5px;
+        }
+        .contract-no-underline {
+            width: 80px;
+            height: 1px;
+            background: #000;
+            margin: 5px auto 0 auto;
+        }
+        
+        .title-container {
+            clear: both;
+            text-align: center;
+            margin-top: 40px;
+            margin-bottom: 30px;
+        }
+        .main-title {
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 16pt;
+            margin-bottom: 8px;
+        }
+        .trich-yeu {
+            font-weight: bold;
+            font-size: 14pt;
+            font-style: italic;
+        }
+        
+        .date-place {
+            text-align: right;
+            font-style: italic;
+            margin-bottom: 25px;
+            font-size: 13pt;
+        }
+        
+        .legal-basis {
+            font-style: italic;
+            font-size: 13pt;
+            text-align: justify;
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+        .legal-basis p { margin: 5px 0; }
+        
+        .section-title {
+            font-weight: bold;
+            font-size: 13pt;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+        
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        .info-table td {
+            padding: 3px 0;
+            vertical-align: top;
+        }
+        .label { width: 180px; font-weight: bold; }
+        .colon { width: 20px; }
+        
+        .article { margin-bottom: 15px; text-align: justify; }
+        .article-title { font-weight: bold; margin-bottom: 5px; }
+        
+        .footer {
+            margin-top: 50px;
+            width: 100%;
+            page-break-inside: avoid;
+        }
+        .sig-box {
+            width: 50%;
+            float: left;
+            text-align: center;
+        }
+        .sig-label {
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        .sig-sub {
+            font-style: italic;
+            font-size: 11pt;
+            margin-bottom: 80px;
+        }
+        .sig-name {
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 13pt;
+        }
+        
+        .clear { clear: both; }
+        
+        .watermark {
+            text-align: center;
+            font-style: italic;
+            font-size: 10pt;
+            margin-top: 50px;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header-container">
+        <div class="header-left">
+            <div class="company-name">CÔNG TY TNHH EDUSPACE</div>
+            <div class="contract-no">Số: <span th:text="${contractNumber}">---</span>/HĐNT</div>
+            <div class="contract-no-underline"></div>
+        </div>
+        <div class="header-right">
+            <div class="quoc-hieu">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+            <div class="tieu-ngu">Độc lập - Tự do - Hạnh phúc</div>
+            <div class="tieu-ngu-underline"></div>
+        </div>
+        <div class="clear"></div>
+    </div>
+
+    <div class="title-container">
+        <div class="main-title">HỢP ĐỒNG NGUYÊN TẮC</div>
+        <div class="trich-yeu">(V/v: Hợp tác cung cấp không gian và dịch vụ giáo dục)</div>
+    </div>
+
+    <div class="date-place">
+        Thành phố Hồ Chí Minh, ngày <span th:text="${#calendars.format(#calendars.createNow(), 'dd')}">--</span> tháng <span th:text="${#calendars.format(#calendars.createNow(), 'MM')}">--</span> năm <span th:text="${#calendars.format(#calendars.createNow(), 'yyyy')}">----</span>
+    </div>
+
+    <div class="legal-basis">
+        <p>- Căn cứ Bộ luật Dân sự số 91/2015/QH13 được Quốc hội nước CHXHCN Việt Nam thông qua ngày 24/11/2015;</p>
+        <p>- Căn cứ Luật Thương mại số 36/2005/QH11 do Quốc hội nước CHXHCN Việt Nam thông qua ngày 14/06/2005;</p>
+        <p>- Căn cứ nhu cầu và khả năng của hai Bên.</p>
+    </div>
+
+    <p class="text-justify">Chúng tôi gồm:</p>
+
+    <div class="section-title">BÊN A (Bên nhận dịch vụ): CÔNG TY TNHH EDUSPACE</div>
+    <table class="info-table">
+        <tr><td class="label">Địa chỉ trụ sở</td><td class="colon">:</td><td>Khu Công Nghệ Cao, Quận 9, TP. Hồ Chí Minh</td></tr>
+        <tr><td class="label">Mã số thuế</td><td class="colon">:</td><td>0312345678</td></tr>
+        <tr><td class="label">Đại diện</td><td class="colon">:</td><td>Ông <span class="bold">NGÔ TUẤN KIỆT</span> – Chức vụ: <span class="bold">Giám đốc</span></td></tr>
+    </table>
+
+    <div class="section-title">BÊN B (Bên cung cấp dịch vụ): ĐỐI TÁC HOST</div>
+    <table class="info-table">
+        <tr><td class="label">Họ và tên</td><td class="colon">:</td><td class="bold uppercase" th:text="${fullName}">NGUYỄN VĂN A</td></tr>
+        <tr><td class="label">Ngày sinh</td><td class="colon">:</td><td th:text="${dob}">--/--/----</td></tr>
+        <tr><td class="label">Số CCCD/CMND</td><td class="colon">:</td><td th:text="${idNumber}">---</td></tr>
+        <tr><td class="label">Địa chỉ</td><td class="colon">:</td><td th:text="${address}">---</td></tr>
+        <tr><td class="label">Điện thoại</td><td class="colon">:</td><td th:text="${phone}">---</td></tr>
+        <tr><td class="label">Tài khoản</td><td class="colon">:</td><td><span th:text="${bankAccount}">---</span> tại <span th:text="${bankName}">---</span></td></tr>
+    </table>
+
+    <p class="text-justify italic" style="margin: 20px 0;">Hai bên thống nhất ký kết Hợp đồng nguyên tắc với các điều khoản sau đây:</p>
+
+    <div class="article">
+        <div class="article-title">Điều 1: Nội dung hợp tác</div>
+        <div class="text-justify">Bên B đồng ý niêm yết và cung cấp không gian học tập trên nền tảng EduSpace do Bên A vận hành. Bên A đóng vai trò trung gian kết nối và thu hộ phí dịch vụ từ khách hàng.</div>
+    </div>
+
+    <div class="article">
+        <div class="article-title">Điều 2: Phí dịch vụ và Thanh toán</div>
+        <div class="text-justify">2.1. Phí dịch vụ nền tảng là 10% tính trên tổng giá trị mỗi đơn đặt phòng thành công.<br/>
+        2.2. Doanh thu (sau khi trừ phí) được đối soát và thanh toán vào ngày 05 hàng tháng.</div>
+    </div>
+
+    <div class="article">
+        <div class="article-title">Điều 3: Quyền và Nghĩa vụ các bên</div>
+        <div class="text-justify">Bên B cam kết tính hợp pháp của không gian, an toàn PCCC và chất lượng phục vụ. Bên A cam kết vận hành hệ thống ổn định và bảo mật thông tin giao dịch.</div>
+    </div>
+
+    <div class="article">
+        <div class="article-title">Điều 4: Hiệu lực hợp đồng</div>
+        <div class="text-justify">Hợp đồng có hiệu lực kể từ thời điểm Bên B xác nhận điện tử trên hệ thống và có giá trị pháp lý theo Luật Giao dịch điện tử.</div>
+    </div>
+
+    <div class="footer">
+        <div class="sig-box">
+            <div class="sig-label">ĐẠI DIỆN BÊN A</div>
+            <div class="sig-sub">(Ký, ghi rõ họ tên và đóng dấu)</div>
+            <div class="sig-name" style="color: #cc0000; margin-top: 10px;">NGÔ TUẤN KIỆT</div>
+        </div>
+        <div class="sig-box">
+            <div class="sig-label">ĐẠI DIỆN BÊN B</div>
+            <div class="sig-sub">(Đã ký xác nhận điện tử/eKYC)</div>
+            <div class="sig-name" th:text="${fullName}">NGUYỄN VĂN A</div>
+        </div>
+        <div class="clear"></div>
+    </div>
+
+    <div class="watermark">
+        Hợp đồng này được lập dưới dạng văn bản điện tử và được lưu trữ trên hệ thống EduSpace.<br/>
+        Xác thực hệ thống: <span th:text="${contractNumber}">---</span> | Ngày ký: <span th:text="${signDate}">--:-- --/--/----</span>
+    </div>
+</body>
+</html>

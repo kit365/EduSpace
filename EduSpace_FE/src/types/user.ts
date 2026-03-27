@@ -1,14 +1,6 @@
-/**
- * EduSpace User Roles
- * - admin: System operator, approves hosts & listings
- * - host: Space provider, needs KYC verification
- * - staff: Created by Host, handles check-in & on-site payments
- * - renter: Teachers, tutors, speakers looking to rent spaces
- */
-export type UserRole = 'admin' | 'host' | 'staff' | 'renter';
-
-export type KycStatus = 'not_submitted' | 'pending' | 'verified' | 'rejected';
-export type AccountStatus = 'active' | 'pending' | 'suspended' | 'banned';
+export type UserRole = 'admin' | 'super_admin' | 'host' | 'manager' | 'guest' | 'staff' | 'renter';
+export type KycStatus = 'not_submitted' | 'PENDING' | 'VERIFIED' | 'REJECTED' | 'FAILED' | 'verified' | 'rejected' | 'pending';
+export type AccountStatus = 'active' | 'pending' | 'suspended' | 'banned' | 'blocked';
 
 export interface User {
     id: string;
@@ -18,39 +10,61 @@ export interface User {
     avatar?: string;
     role: UserRole;
     accountStatus: AccountStatus;
-
-    // KYC fields (primarily for Host)
     kycStatus: KycStatus;
     isVerified: boolean;
-    verificationDocs?: string[];  // Cloudinary links: CCCD, Business License
-
-    // Host-specific
-    commissionRate?: number;      // Override system default (e.g., VIP host = 8% instead of 10%)
-    parentHostId?: string;        // For Staff: links to their Host employer
-
-    // Metadata
+    verificationDocs?: string[];
+    commissionRate?: number;
     joinedAt: string;
     lastLoginAt?: string;
     bio?: string;
     location?: string;
+    parentHostId?: string;
+    ocrData?: {
+        name: string;
+        idNumber: string;
+        dob: string;
+        address: string;
+    };
+    faceMatchPercentage?: number;
 }
 
-export interface Staff {
-    id: string;
-    name: string;
-    email: string;
-    phone: string;
-    hostId: string;              // The Host who created this staff
-    hostName: string;
+export interface Staff extends User {
     role: 'staff';
+    hostId: string;
+    hostName: string;
     permissions: StaffPermission[];
-    accountStatus: AccountStatus;
-    joinedAt: string;
 }
 
 export type StaffPermission =
-    | 'check_in'            // Can check-in guests
-    | 'collect_payment'     // Can collect remaining payments
-    | 'manage_schedule'     // Can update room availability
-    | 'view_bookings'       // Can view booking list
-    | 'add_services';       // Can add extra services & charges
+    | 'check_in'
+    | 'collect_payment'
+    | 'manage_schedule'
+    | 'view_bookings'
+    | 'add_services';
+
+export interface Permission {
+    id: number;
+    name: string;
+    description: string;
+    groupName: string;
+}
+
+export interface Role {
+    id: string;
+    name: string;
+    userCount: number;
+    permissions: Permission[];
+}
+
+export interface PermissionTemplate {
+    id: number;
+    name: string;
+    description?: string | null;
+    permissions: Permission[];
+}
+
+export interface AuthResponse {
+    user: User;
+    accessToken: string;
+    refreshToken: string;
+}

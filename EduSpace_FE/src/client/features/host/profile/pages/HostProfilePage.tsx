@@ -1,25 +1,73 @@
-import { useState } from 'react';
-import { Camera, CheckCircle, Save, User, MapPin, Mail, Phone, Building2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Camera, CheckCircle, Save, User, MapPin, Mail, Phone, Building2, Loader2 } from 'lucide-react';
 import { RentalLayout } from '../../../../layouts/RentalLayout';
+import { useProfile } from '../../../customer/profile/hooks/useProfile';
+import { formatJoinDate } from '@/utils/format';
+import { toast } from 'sonner';
+import { useAuthStore } from '@/stores/authStore';
+import { getRealmRolesFromAccessToken, normalizeRoleName } from '@/utils/keycloakTokenRoles';
 
 export function HostProfilePage() {
+    const { profile, loading, updateProfile } = useProfile();
+    const accessToken = useAuthStore((s) => s.accessToken);
     const [isEditing, setIsEditing] = useState(false);
-
-    // Mock data for Host
-    const [profile, setProfile] = useState({
-        name: 'Bích Ngọc',
-        email: 'ngoc.bich@example.com',
-        phone: '+84 987 654 321',
-        bio: 'Chuyên cung cấp phòng học chất lượng cao khu vực Cầu Giấy. Hơn 5 năm kinh nghiệm quản lý giáo dục.',
-        location: 'Cầu Giấy, Hà Nội',
-        company: 'EduSpace Premium Partner',
-        joinedAt: 'Tháng 5, 2022',
+    const [formData, setFormData] = useState({
+        name: '',
+        organizationName: '',
+        email: '',
+        phone: '',
+        location: '',
+        bio: ''
     });
 
-    const handleSave = () => {
-        setIsEditing(false);
-        // In real app, call API to save
+    useEffect(() => {
+        if (profile) {
+            setFormData({
+                name: profile.name || '',
+                organizationName: profile.organizationName || '',
+                email: profile.email || '',
+                phone: profile.phone || '',
+                location: profile.location || '',
+                bio: profile.bio || ''
+            });
+        }
+    }, [profile]);
+
+    if (loading) {
+        return (
+            <RentalLayout title="Cài đặt Profile Host">
+                <div className="flex items-center justify-center min-h-[400px]">
+                    <Loader2 className="w-8 h-8 animate-spin text-red-500" />
+                </div>
+            </RentalLayout>
+        );
+    }
+
+    if (!profile) return null;
+
+    const handleSave = async () => {
+        try {
+            await updateProfile({
+                name: formData.name,
+                organizationName: formData.organizationName,
+                email: formData.email,
+                phone: formData.phone,
+                location: formData.location,
+                bio: formData.bio
+            });
+            setIsEditing(false);
+            toast.success('Cập nhật profile thành công!');
+        } catch (error) {
+            toast.error('Cập nhật profile thất bại');
+        }
     };
+
+    const initials = profile.name
+        ? profile.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+        : 'H';
+    const normalizedRoles = getRealmRolesFromAccessToken(accessToken).map(normalizeRoleName);
+    const isManagerOnly = normalizedRoles.includes('MANAGER') && !normalizedRoles.includes('HOST');
+    const roleLabel = isManagerOnly ? 'Manager' : 'Host';
 
     return (
         <RentalLayout title="Cài đặt Profile Host">
@@ -28,9 +76,17 @@ export function HostProfilePage() {
                 {/* Header Section */}
                 <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm flex items-start gap-8">
                     <div className="relative shrink-0">
-                        <div className="w-32 h-32 bg-gradient-to-br from-gray-800 to-black rounded-full flex items-center justify-center text-white font-black text-4xl shadow-xl">
-                            BN
-                        </div>
+                        {profile.avatar ? (
+                            <img
+                                src={profile.avatar}
+                                alt={profile.name}
+                                className="w-32 h-32 rounded-full object-cover shadow-xl"
+                            />
+                        ) : (
+                            <div className="w-32 h-32 bg-gradient-to-br from-gray-800 to-black rounded-full flex items-center justify-center text-white font-black text-4xl shadow-xl">
+                                {initials}
+                            </div>
+                        )}
                         <button className="absolute bottom-0 right-0 w-10 h-10 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600 transition shadow-lg border-4 border-white">
                             <Camera className="w-4 h-4" />
                         </button>
@@ -40,9 +96,9 @@ export function HostProfilePage() {
                         <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-3">
                                 <h1 className="text-3xl font-black text-gray-900 tracking-tight">{profile.name}</h1>
-                                <CheckCircle className="w-6 h-6 text-green-500" />
+                                {profile.verified && <CheckCircle className="w-6 h-6 text-green-500" />}
                                 <span className="px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-black uppercase tracking-wider border border-amber-100 flex items-center gap-1.5">
-                                    <Building2 className="w-3.5 h-3.5" /> Hoster
+                                    <Building2 className="w-3.5 h-3.5" /> {roleLabel}
                                 </span>
                             </div>
 
@@ -64,12 +120,12 @@ export function HostProfilePage() {
                         </div>
 
                         <p className="text-gray-500 font-medium mb-6 max-w-2xl leading-relaxed">
-                            {profile.bio}
+                            {profile.bio || 'Chưa có giới thiệu.'}
                         </p>
 
                         <div className="flex items-center gap-6 text-sm">
                             <div className="flex items-center gap-2 text-gray-500 font-medium pb-2 border-b-2 border-transparent">
-                                Ngày tham gia: <span className="text-gray-900 font-bold">{profile.joinedAt}</span>
+                                Ngày tham gia: <span className="text-gray-900 font-bold">{formatJoinDate(profile.memberSince)}</span>
                             </div>
                         </div>
                     </div>
@@ -87,8 +143,8 @@ export function HostProfilePage() {
                             {isEditing ? (
                                 <input
                                     type="text"
-                                    value={profile.name}
-                                    onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
                                 />
                             ) : (
@@ -105,13 +161,13 @@ export function HostProfilePage() {
                             {isEditing ? (
                                 <input
                                     type="text"
-                                    value={profile.company}
-                                    onChange={(e) => setProfile({ ...profile, company: e.target.value })}
+                                    value={formData.organizationName}
+                                    onChange={(e) => setFormData({ ...formData, organizationName: e.target.value })}
                                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
                                 />
                             ) : (
                                 <div className="px-4 py-3 bg-gray-50/50 border border-transparent rounded-xl font-semibold text-gray-900">
-                                    {profile.company}
+                                    {profile.organizationName || 'N/A'}
                                 </div>
                             )}
                         </div>
@@ -123,8 +179,8 @@ export function HostProfilePage() {
                             {isEditing ? (
                                 <input
                                     type="email"
-                                    value={profile.email}
-                                    onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                                    value={formData.email}
+                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
                                 />
                             ) : (
@@ -141,8 +197,8 @@ export function HostProfilePage() {
                             {isEditing ? (
                                 <input
                                     type="text"
-                                    value={profile.phone}
-                                    onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                                    value={formData.phone}
+                                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
                                 />
                             ) : (
@@ -159,13 +215,13 @@ export function HostProfilePage() {
                             {isEditing ? (
                                 <input
                                     type="text"
-                                    value={profile.location}
-                                    onChange={(e) => setProfile({ ...profile, location: e.target.value })}
+                                    value={formData.location}
+                                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
                                 />
                             ) : (
                                 <div className="px-4 py-3 bg-gray-50/50 border border-transparent rounded-xl font-semibold text-gray-900">
-                                    {profile.location}
+                                    {profile.location || 'Chưa cập nhật'}
                                 </div>
                             )}
                         </div>
@@ -176,14 +232,14 @@ export function HostProfilePage() {
                             </label>
                             {isEditing ? (
                                 <textarea
-                                    value={profile.bio}
-                                    onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
+                                    value={formData.bio}
+                                    onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
                                     rows={4}
                                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all resize-none"
                                 />
                             ) : (
                                 <div className="px-4 py-3 bg-gray-50/50 border border-transparent rounded-xl font-semibold text-gray-900 leading-relaxed min-h-[100px]">
-                                    {profile.bio}
+                                    {profile.bio || 'Chưa có giới thiệu.'}
                                 </div>
                             )}
                         </div>

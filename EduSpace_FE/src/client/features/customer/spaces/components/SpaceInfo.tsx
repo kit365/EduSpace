@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Star, Users, Maximize } from 'lucide-react';
+import { Users, Maximize } from 'lucide-react';
 import { SpaceAmenity } from '../../../../../types/space';
 
 interface SpaceInfoProps {
@@ -9,68 +9,73 @@ interface SpaceInfoProps {
   description: string;
   additionalInfo: string;
   amenities: SpaceAmenity[];
+  showQuickInfo?: boolean;
 }
 
-export function SpaceInfo({ rating, capacity, size, description, additionalInfo, amenities }: SpaceInfoProps) {
+export function SpaceInfo({ capacity, size, description, additionalInfo, amenities }: SpaceInfoProps) {
   const { t } = useTranslation();
 
   return (
-    <div className="col-span-2">
-      {/* Quick Info */}
-      <div className="flex items-center gap-6 pb-6 border-b border-gray-200 mb-6">
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-            <Star className="w-5 h-5 text-red-500" />
-          </div>
-          <div>
-            <div className="font-semibold">{rating}</div>
-            <div className="text-sm text-gray-600">{t('customer.spaceDetail.rating')}</div>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-            <Users className="w-5 h-5 text-red-500" />
-          </div>
-          <div>
-            <div className="font-semibold">{capacity}</div>
-            <div className="text-sm text-gray-600">{t('customer.spaceDetail.capacity')}</div>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-            <Maximize className="w-5 h-5 text-red-500" />
-          </div>
-          <div>
-            <div className="font-semibold">{size}m²</div>
-            <div className="text-sm text-gray-600">{t('customer.spaceDetail.size')}</div>
-          </div>
-        </div>
-      </div>
-
+    <div className="space-y-12">
       {/* About this space */}
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-4">{t('customer.spaceDetail.aboutSpace')}</h2>
-        <p className="text-gray-700 leading-relaxed mb-4">{description}</p>
-        <p className="text-gray-700 leading-relaxed">{additionalInfo}</p>
-      </div>
+      <section>
+        <h2 className="text-2xl font-black text-gray-900 mb-6 uppercase tracking-widest text-xs">{t('customer.spaceDetail.aboutSpace')}</h2>
+        <div className="prose prose-slate max-w-none">
+          <p className="text-lg text-gray-600 leading-relaxed mb-6 font-medium">{description}</p>
+          {additionalInfo && (
+            <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
+               <p className="text-gray-500 text-sm leading-relaxed italic">{additionalInfo}</p>
+            </div>
+          )}
+        </div>
+      </section>
 
-      {/* Amenities */}
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-4">{t('customer.spaceDetail.amenities')}</h2>
-        <div className="grid grid-cols-2 gap-4">
+      {/* What this place offers / Space Details */}
+      <section>
+        <h2 className="text-2xl font-black text-gray-900 mb-8 uppercase tracking-widest text-xs">
+          {t('customer.spaceDetail.whatOffers')}
+        </h2>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6">
+          {/* Capacity Stat */}
+          <div className="flex items-center gap-4 p-4 rounded-2xl border border-gray-100 bg-white hover:shadow-md transition-shadow">
+            <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center">
+              <Users className="w-6 h-6 text-red-500" />
+            </div>
+            <div>
+              <p className="font-black text-gray-900">{capacity} {t('customer.spaceDetail.guests')}</p>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">{t('customer.spaceDetail.capacity')}</p>
+            </div>
+          </div>
+
+          {/* Size Stat */}
+          <div className="flex items-center gap-4 p-4 rounded-2xl border border-gray-100 bg-white hover:shadow-md transition-shadow">
+            <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
+              <Maximize className="w-6 h-6 text-blue-500" />
+            </div>
+            <div>
+              <p className="font-black text-gray-900">{size} m²</p>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">{t('customer.spaceDetail.size')}</p>
+            </div>
+          </div>
+
+          {/* Amenities Mapping */}
           {amenities.map((amenity, index) => {
             const Icon = amenity.icon;
             return (
-              <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                  <Icon className="w-5 h-5 text-red-500" />
+              <div key={index} className="flex items-center gap-4 p-4 rounded-2xl border border-gray-100 bg-white hover:shadow-md transition-shadow text-gray-500 hover:text-gray-900">
+                <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center transition-colors">
+                  <Icon className="w-6 h-6" />
                 </div>
-                <span className="text-gray-700">{amenity.name}</span>
+                <div>
+                  <p className="font-black">{amenity.name}</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest opacity-40">{t('customer.spaceDetail.amenity')}</p>
+                </div>
               </div>
             );
           })}
         </div>
-      </div>
+      </section>
     </div>
   );
 }

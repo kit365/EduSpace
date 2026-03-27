@@ -1,10 +1,12 @@
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { CustomerLayout } from '../../../../layouts/CustomerLayout';
 import { Star, MapPin, Users, Heart, Loader2 } from 'lucide-react';
 import { formatCurrency } from '../../../../../utils';
 import { useFavorites } from '../hooks/useFavorites';
 
 export function FavoritesPage() {
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const { favorites, loading, removeFavorite } = useFavorites();
 
@@ -23,11 +25,13 @@ export function FavoritesPage() {
             <div className="max-w-7xl mx-auto px-4 py-12 animate-in fade-in duration-500">
                 <div className="flex justify-between items-end mb-8">
                     <div>
-                        <h1 className="text-4xl font-black text-gray-900 mb-2">My Favorites</h1>
-                        <p className="text-lg text-gray-500">Spaces you've saved for later</p>
+                        <h1 className="text-4xl font-black text-gray-900 mb-2">
+                            {t('customer.favoritesPage.title')}
+                        </h1>
+                        <p className="text-lg text-gray-500">{t('customer.favoritesPage.subtitle')}</p>
                     </div>
                     <div className="text-sm font-black text-red-500 bg-red-50 border border-red-100 px-6 py-2 rounded-2xl shadow-sm">
-                        {favorites.length} spaces saved
+                        {t('customer.favoritesPage.savedBadge', { count: favorites.length })}
                     </div>
                 </div>
 
@@ -42,7 +46,7 @@ export function FavoritesPage() {
                                     <img
                                         src={space.image}
                                         alt={space.name}
-                                        onClick={() => navigate(`/spaces/${space.id}`)}
+                                        onClick={() => navigate(`/${encodeURIComponent(String(space.slug ?? space.id))}`)}
                                         className="w-full h-full object-cover group-hover:scale-110 transition duration-700 cursor-pointer"
                                     />
                                     <button
@@ -67,7 +71,7 @@ export function FavoritesPage() {
                                         <span className="text-sm font-bold text-gray-400">{space.location}</span>
                                     </div>
                                     <h3
-                                        onClick={() => navigate(`/spaces/${space.id}`)}
+                                        onClick={() => navigate(`/${encodeURIComponent(String(space.slug ?? space.id))}`)}
                                         className="text-xl font-black mb-4 group-hover:text-red-500 transition-colors cursor-pointer leading-tight h-14 line-clamp-2"
                                     >
                                         {space.name}
@@ -76,7 +80,9 @@ export function FavoritesPage() {
                                     <div className="flex items-center gap-6 text-sm text-gray-500 mb-6 bg-gray-50 p-4 rounded-2xl">
                                         <div className="flex items-center gap-2">
                                             <Users className="w-4 h-4 text-gray-400" />
-                                            <span className="font-bold">{space.capacity} pax</span>
+                                            <span className="font-bold">
+                                                {space.capacity} {t('customer.home.topRated.pax')}
+                                            </span>
                                         </div>
                                         <div className="w-1 h-1 bg-gray-300 rounded-full" />
                                         <span className="font-bold">{space.size} m²</span>
@@ -87,7 +93,10 @@ export function FavoritesPage() {
                                             <span className="text-2xl font-black text-gray-900">
                                                 {formatCurrency(space.price)}
                                             </span>
-                                            <span className="text-sm text-gray-400 font-bold"> / hr</span>
+                                            <span className="text-sm text-gray-400 font-bold">
+                                                {' '}
+                                                {t('common.perHour')}
+                                            </span>
                                         </div>
                                         <div className="flex items-center gap-1.5 bg-amber-50 px-3 py-1.5 rounded-xl">
                                             <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
@@ -103,15 +112,17 @@ export function FavoritesPage() {
                         <div className="w-24 h-24 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
                             <Heart className="w-10 h-10 text-red-200" />
                         </div>
-                        <h2 className="text-3xl font-black text-gray-900 mb-3">Your wishlist is empty</h2>
+                        <h2 className="text-3xl font-black text-gray-900 mb-3">
+                            {t('customer.favoritesPage.emptyTitle')}
+                        </h2>
                         <p className="text-gray-500 mb-10 max-w-sm mx-auto font-medium">
-                            Explore amazing educational spaces and save your favorites to compare later.
+                            {t('customer.favoritesPage.emptyDesc')}
                         </p>
                         <button
                             onClick={() => navigate('/search')}
                             className="bg-gray-900 text-white px-10 py-4 rounded-2xl font-black hover:bg-red-500 transition-all shadow-xl active:scale-95"
                         >
-                            Browse Spaces
+                            {t('customer.favoritesPage.browseSpaces')}
                         </button>
                     </div>
                 )}

@@ -9,8 +9,10 @@ class CommonTest {
 
     @Test
     void roleEnum_Works() {
-        assertThat(Role.STUDENT.getName()).isEqualTo("STUDENT");
-        assertThat(Role.TUTOR.getName()).isEqualTo("TUTOR");
+        assertThat(Role.GUEST.getName()).isEqualTo("GUEST");
+        assertThat(Role.HOST.getName()).isEqualTo("HOST");
+        assertThat(Role.MANAGER.getName()).isEqualTo("MANAGER");
+        assertThat(Role.STAFF.getName()).isEqualTo("STAFF");
         assertThat(Role.ADMIN.getName()).isEqualTo("ADMIN");
     }
 }

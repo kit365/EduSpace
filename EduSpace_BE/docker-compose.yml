@@ -1,3 +1,4 @@
+
 services:
   # ═══════════════════════════════════════════════════════════════
   # DATABASE PER SERVICE — Mỗi service 1 container PostgreSQL riêng
@@ -13,7 +14,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: eduspace_account
     ports:
-      - "5432:5432"
+      - "${POSTGRES_ACCOUNT_HOST_PORT:-5432}:5432"
     volumes:
       - account-pgdata:/var/lib/postgresql/data
     networks:
@@ -29,7 +30,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: eduspace_booking
     ports:
-      - "5433:5432"
+      - "${POSTGRES_BOOKING_HOST_PORT:-5433}:5432"
     volumes:
       - booking-pgdata:/var/lib/postgresql/data
     networks:
@@ -45,9 +46,25 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: eduspace_room
     ports:
-      - "5434:5432"
+      - "${POSTGRES_ROOM_HOST_PORT:-5434}:5432"
     volumes:
       - room-pgdata:/var/lib/postgresql/data
+    networks:
+      - eduspace-network
+
+  # DB của Conversation Service
+  conversation-db:
+    image: postgres:16-alpine
+    container_name: conversation-db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: eduspace_conversation
+    ports:
+      - "${POSTGRES_CONVERSATION_HOST_PORT:-5435}:5432"
+    volumes:
+      - conversation-pgdata:/var/lib/postgresql/data
     networks:
       - eduspace-network
 
@@ -61,9 +78,37 @@ services:
     container_name: eduspace-redis
     restart: always
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redisdata:/data
+    networks:
+      - eduspace-network
+
+  # Kafka (Redpanda) — Saga/event bus
+  kafka:
+    image: redpandadata/redpanda:v24.3.6
+    container_name: eduspace-kafka
+    restart: always
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp
+      - "1"
+      - --memory
+      - 1G
+      - --reserve-memory
+      - 0M
+      - --node-id
+      - "0"
+      - --check=false
+      - --kafka-addr
+      - internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr
+      - internal://kafka:9092,external://localhost:19092
+    ports:
+      - "9092:9092"
+      - "19092:19092"
     networks:
       - eduspace-network
 
@@ -75,7 +120,7 @@ services:
     environment:
       POSTGRES_DB: keycloak
       POSTGRES_USER: keycloak
-      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak_dev_123}
     volumes:
       - keycloakdata:/var/lib/postgresql/data
     networks:
@@ -90,8 +135,9 @@ services:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
       KC_DB_USERNAME: keycloak
-      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak_dev_123}
       KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
       KC_HTTP_ENABLED: "true"
       KC_PROXY_HEADERS: xforwarded
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER}
@@ -112,7 +158,7 @@ services:
       dockerfile: Dockerfile
     container_name: discovery-server
     ports:
-      - "8761:8761"
+      - "${DISCOVERY_SERVER_PORT:-8761}:8761"
     networks:
       - eduspace-network
 
@@ -132,6 +178,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://account-db:5432/eduspace_account
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       KEYCLOAK_SERVER_URL: http://keycloak:8080
@@ -141,15 +188,39 @@ services:
       KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/eduspace
       KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/eduspace/protocol/openid-connect/certs
       EUREKA_SERVER_URL: http://discovery-server:8761/eureka/
-      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST}
-      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT}
+      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-smtp.gmail.com}
+      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-587}
       SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME}
       SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD}
+      SPRING_MAIL_FROM: ${SPRING_MAIL_FROM}
+      SPRING_MAIL_DISPLAY_NAME: ${SPRING_MAIL_DISPLAY_NAME:-EduSpace Support}
+      SPRING_MAIL_DEBUG: ${SPRING_MAIL_DEBUG:-false}
+      APP_KYC_AI_BASE_URL: http://eduspace-ai:8000
+      APP_KYC_AI_API_KEY: ${KYC_AI_API_KEY:-dev-kyc-ai-secret}
     depends_on:
       - account-db
       - redis
       - keycloak
       - discovery-server
+      - eduspace-ai
+    networks:
+      - eduspace-network
+
+  # Local AI inference (FastAPI) — internal only; not routed through API Gateway
+  eduspace-ai:
+    build:
+      context: ./eduspace-ai-service
+      dockerfile: Dockerfile
+    container_name: eduspace-ai
+    restart: unless-stopped
+    environment:
+      KYC_AI_API_KEY: ${KYC_AI_API_KEY:-dev-kyc-ai-secret}
+      LOG_LEVEL: info
+      KYC_AI_CORS_ORIGINS: ${KYC_AI_CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000}
+    ports:
+      - "${KYC_AI_PORT:-8000}:8000"
+    expose:
+      - "8000"
     networks:
       - eduspace-network
 
@@ -162,6 +233,7 @@ services:
     ports:
       - "${BOOKING_SERVICE_PORT}:8082"
     environment:
+      EUREKA_CLIENT_ENABLED: "true"
       SPRING_DATASOURCE_URL: jdbc:postgresql://booking-db:5432/eduspace_booking
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
@@ -175,6 +247,54 @@ services:
     networks:
       - eduspace-network
 
+  # Conversation Service → conversation-db:5432/eduspace_conversation
+  conversation-service:
+    build:
+      context: ./conversation-service
+      dockerfile: Dockerfile
+    container_name: conversation-service
+    ports:
+      - "${CONVERSATION_SERVICE_PORT:-8084}:8083"
+    environment:
+      SERVER_PORT: 8083
+      SPRING_DATASOURCE_URL: jdbc:postgresql://conversation-db:5432/eduspace_conversation
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/eduspace
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/eduspace/protocol/openid-connect/certs
+      EUREKA_SERVER_URL: http://discovery-server:8761/eureka/
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MEDIA_PUBLIC_BASE_URL: http://localhost:${GATEWAY_PORT}
+      AZURE_COMMUNICATION_CONNECTION_STRING: ${AZURE_COMMUNICATION_CONNECTION_STRING}
+      AZURE_COMMUNICATION_ENDPOINT: ${AZURE_COMMUNICATION_ENDPOINT}
+      AZURE_COMMUNICATION_ACCESS_KEY: ${AZURE_COMMUNICATION_ACCESS_KEY}
+    depends_on:
+      - conversation-db
+      - kafka
+      - keycloak
+      - discovery-server
+    networks:
+      - eduspace-network
+
+  # Room Service → room-db:5432/eduspace_room
+  room-service:
+    build:
+      context: ./room-service
+      dockerfile: Dockerfile
+    container_name: room-service
+    ports:
+      - "${ROOM_SERVICE_PORT:-8083}:8083"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://room-db:5432/eduspace_room
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      EUREKA_SERVER_URL: http://discovery-server:8761/eureka/
+    depends_on:
+      - room-db
+      - discovery-server
+    networks:
+      - eduspace-network
+
   # API Gateway
   api-gateway:
     build:
@@ -184,6 +304,8 @@ services:
     ports:
       - "${GATEWAY_PORT}:8080"
     environment:
+      # Không dùng profile dev trong container (dev trỏ localhost — sai trong Docker). Mặc định yaml dùng lb:// + Eureka.
+      SPRING_PROFILES_ACTIVE: prod
       EUREKA_SERVER_URL: http://discovery-server:8761/eureka/
       KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/eduspace
       KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/eduspace/protocol/openid-connect/certs
@@ -204,5 +326,6 @@ volumes:
   account-pgdata:
   booking-pgdata:
   room-pgdata:
+  conversation-pgdata:
   redisdata:
   keycloakdata:

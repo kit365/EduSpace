@@ -18,16 +18,38 @@ export const en = {
         reupload: "Reupload",
         save: "Save",
         book: "Book",
+        addToFavorites: "Add to favorites",
+        removeFromFavorites: "Remove from favorites",
         seats: "seats",
         perHour: "/ hr",
+        propertyTypes: {
+            commercialBuilding: "Commercial Building",
+            centerCoworking: "Center / Coworking",
+            independentSpace: "Independent Space"
+        },
+        roomTypes: {
+            meetingRoom: "Meeting Room",
+            classroom: "Classroom / Training Room",
+            eventSpace: "Event Space",
+            studio: "Studio",
+            coworking: "Coworking / Private Office"
+        },
         sortBy: "Sort by:",
         recommended: "Recommended",
         priceLowHigh: "Price: Low → High",
         priceHighLow: "Price: High → Low",
         rating: "Rating",
+        capacityLowHigh: "Capacity: Low → High",
+        capacityHighLow: "Capacity: High → Low",
         verifiedSpace: "VERIFIED SPACE",
         spacesFound: "spaces in Ho Chi Minh City",
-        showingResults: "Showing results for"
+        showingResults: "Showing results for",
+        error: {
+            title: "Data Error",
+            fetchUsers: "Could not fetch user list",
+            fetchRoles: "Could not fetch role list",
+            system: "A system error occurred"
+        }
     },
     host: {
         register: {
@@ -77,7 +99,9 @@ export const en = {
             },
             basics: {
                 title: "Basic Information",
-                description: "Link your room with a physical facility.",
+                description: "Select a branch and enter the room name — address comes from the branch.",
+                roomName: "Room name",
+                roomNamePlaceholder: "e.g. VIP Meeting Room, Hall A",
                 facilityName: "Facility Name",
                 facilityPlaceholder: "e.g., EduSpace Saigon Hub",
                 spaceType: "Space Type",
@@ -91,6 +115,10 @@ export const en = {
                 description: "Help students find your exact location.",
                 streetAddress: "Street Address",
                 streetAddressPlaceholder: "Enter full address...",
+                roomNumber: "Room number / code",
+                roomNumberPlaceholder: "e.g. A101, P.305",
+                addressSyncedFromBranch: "Address is taken from the selected branch to stay in sync with the branch profile.",
+                branchHasNoAddress: "This branch has no address on file — update it on the Branches page, or enter a temporary address below.",
                 area: "Area (m²)",
                 guests: "Capacity",
                 floor: "Floor Number"
@@ -98,9 +126,15 @@ export const en = {
             pricing: {
                 title: "Schedule & Pricing",
                 description: "Manage hourly rates and weekend surcharges.",
-                sessionAvailability: "Session Availability",
+                sessionAvailability: "Operating hours",
+                open24Hours: "Open 24/7 (overnight)",
+                openTime: "Opening time",
+                closeTime: "Closing time",
                 hourlyBaseRate: "Hourly Base Rate",
                 pricePlaceholder: "Price per hour",
+                dailyRate: "Daily rate",
+                dailyPlaceholder: "Full-day rental price (VND)",
+                dailyHint: "Stored on the room record (price_per_day). Separate from per-slot pricing.",
                 weekendMarkup: "Weekend Markup",
                 markupDescription: "Extra fee for Saturday & Sunday bookings. Helps cover peak operational costs.",
                 slots: {
@@ -136,12 +170,32 @@ export const en = {
                 goToPortal: "Go to Host Portal"
             },
             publishing: "Publishing your listing...",
-            cancelListing: "Cancel Registration"
+            cancelListing: "Cancel Registration",
+            validation: {
+                selectBranch: "Please select a branch.",
+                roomNameRequired: "Please enter the room name.",
+                roomTypeRequired: "Please choose a space type.",
+                titleRequired: "Please enter the public display title.",
+                addressRequired: "Branch address is missing — update it on the Branches page or ensure the branch has an address.",
+                roomNumberRequired: "Please enter the room number / code.",
+                sizeRequired: "Please enter area (m²) greater than 0.",
+                capacityRequired: "Please enter capacity greater than 0.",
+                floorRequired: "Please enter a valid floor number (≥ 0).",
+                openTimeRequired: "Please select opening time.",
+                closeTimeRequired: "Please select closing time.",
+                basePriceRequired: "Please enter an hourly rate greater than 0.",
+                pricePerDayRequired: "Please enter a daily rate greater than 0.",
+                imagesRequired: "Please add at least one photo.",
+                fixCurrentStep: "Please complete all required fields in this step before continuing.",
+                fixBeforePublish: "Some information is missing in \"{{step}}\". Please fill in the highlighted fields."
+            }
         }
     },
     customer: {
         nav: {
             findSpace: "Find Space",
+            favorites: "Favorites",
+            myBookings: "My Bookings",
             listSpace: "List Your Space",
             forHosts: "For Hosts",
             help: "Help"
@@ -186,6 +240,7 @@ export const en = {
             topRated: {
                 title: "Top Rated Spaces",
                 subtitle: "Highly recommended classrooms by our community of teachers.",
+                viewDetails: "View Details",
                 perHour: "/ hr",
                 pax: "pax",
                 verified: "Verified",
@@ -215,7 +270,9 @@ export const en = {
             capacity: "Capacity",
             size: "Size",
             aboutSpace: "About this space",
+            whatOffers: "What this place offers",
             amenities: "Amenities",
+            amenity: "amenity",
             location: "Location",
             reviews: "Reviews",
             seeAllReviews: "See all {{count}} reviews",
@@ -230,12 +287,44 @@ export const en = {
             hours: "hours",
             cleaningFee: "Cleaning fee",
             serviceFee: "Service fee",
-            total: "Total"
+            total: "Total",
+            gallery: {
+                viewAllPhotos: "See all photos ({{count}})"
+            },
+            tabs: {
+                details: "Property details",
+                policies: "Policies",
+                reviews: "Reviews",
+                messages: "Messages"
+            },
+            policiesTitle: "Booking Policies",
+            policyCancellation: "Free cancellation within 24 hours after booking.",
+            policyCheckIn: "Please check in within your selected time slot to guarantee room access.",
+            contactHostTitle: "Contact Host",
+            contactHostDesc: "Need more information about amenities, schedule, or booking support? Message the host directly.",
+            contactHostBtn: "Message host",
+            contactHostUnavailable: "This space does not have host contact information yet.",
+            verifiedHost: "Verified Host",
+            pricing: {
+                open24Hours: "Open 24/7",
+                perHour: "/ hour",
+                total: "Total"
+            },
+            status: {
+                open: "Open Now",
+                closed: "Closed",
+                opensAt: "Opens at {{time}}",
+                closesAt: "Closes at {{time}}",
+                open24_7: "Active 24/7"
+            }
         },
         search: {
             title: "Search Spaces",
             filters: "Filters",
             clearAll: "Clear All",
+            resultsFound: "results found",
+            sortCapacityLowHigh: "Capacity: Low → High",
+            sortCapacityHighLow: "Capacity: High → Low",
             district: "District",
             timeSlots: "Time Slots",
             priceRange: "Price Range (VNĐ/hr)",
@@ -275,16 +364,28 @@ export const en = {
             },
             roomTypeOptions: {
                 classroom: "Classroom",
-                auditorium: "Auditorium",
                 meeting: "Meeting Room",
-                studio: "Studio"
+                eventSpace: "Event Space",
+                studio: "Studio",
+                coworking: "Coworking / Private Office"
             }
+        },
+        favoritesPage: {
+            title: "My Favorites",
+            subtitle: "Spaces you've saved for later.",
+            savedBadge_one: "{{count}} space saved",
+            savedBadge_other: "{{count}} spaces saved",
+            emptyTitle: "Your wishlist is empty",
+            emptyDesc:
+                "Explore amazing educational spaces and save your favorites to compare later.",
+            browseSpaces: "Browse Spaces"
         },
         ekyc: {
             title: "Identity Verification (eKYC)",
             description: "To ensure safety for the EduSpace community, please verify your identity with ID/Passport.",
             start: "Start Verification",
             steps: {
+                info: "Basic Info",
                 front: "ID Front",
                 back: "ID Back",
                 selfie: "Portrait Photo",
@@ -325,7 +426,17 @@ export const en = {
             payment: {
                 onlineTitle: "Online Payment",
                 submit: "Confirm & Pay",
-                escrowNote: "Your payment is held in escrow and only released after check-in."
+                escrowNote: "Your payment is held in escrow and only released after check-in.",
+                payDeposit: "Pay deposit (PayOS)",
+                redirecting: "Redirecting to PayOS..."
+            },
+            depositReturn: {
+                title: "Deposit payment result",
+                waiting: "Confirming transaction...",
+                success: "Deposit paid successfully.",
+                bookingCode: "Booking code",
+                pending: "Not confirmed yet. Please wait or refresh.",
+                goBookings: "View bookings"
             },
             success: "Booking Successful! 🎉"
         },
@@ -343,12 +454,27 @@ export const en = {
             }
         },
         profile: {
+            accountSettings: "Account Settings",
             sidebar: {
+                myProfile: "My Profile",
                 identity: "Identity",
                 security: "Security",
-                alerts: "Alerts",
+                teams: "Teams",
+                teamMember: "Team Member",
+                alerts: "Notifications",
                 billing: "Billing",
+                dataExport: "Data Export",
+                deleteAccount: "Delete Account",
                 transactions: "Transaction History"
+            },
+            address: {
+                title: "Address",
+                cityState: "Province/City",
+                district: "District",
+                ward: "Ward",
+                streetAddress: "Street address",
+                postalCode: "Postal Code",
+                taxId: "TAX ID"
             },
             premium: {
                 title: "Premium Host",
@@ -358,8 +484,10 @@ export const en = {
             header: {
                 roles: {
                     renter: "Student / Learner",
+                    guest: "Guest",
                     host: "Hoster",
                     staff: "Staff",
+                    manager: "Manager",
                     admin: "Admin"
                 },
                 memberSince: "Member since",
@@ -368,8 +496,11 @@ export const en = {
                 recently: "recently"
             },
             personal: {
+                myProfile: "My Profile",
+                firstName: "First Name",
+                lastName: "Last Name",
                 title: "Personal Information",
-                edit: "Edit Profile",
+                edit: "Edit",
                 fullName: "Full Name",
                 email: "Email Address",
                 phone: "Phone Number",
@@ -448,6 +579,9 @@ export const en = {
                 default: "Default",
                 remove: "Remove",
                 noMethods: "You haven't added any payment methods yet."
+            },
+            support: {
+                chatWithStaff: "Chat with support staff",
             }
         }
     },
@@ -470,5 +604,153 @@ export const en = {
         allRightsReserved: "All rights reserved",
         privacyPolicy: "Privacy Policy",
         cookiePolicy: "Cookie Policy"
+    },
+    admin_sidebar: {
+        dashboard: "Dashboard",
+        messages: "Messages",
+        finance: "Finance & Payouts",
+        approvals: "Approvals & KYC",
+        hosts: "Host Management",
+        users: "User Management",
+        roles: "Role & Perms",
+        logs: "Audit Logs",
+        settings: "System Settings",
+        points: "Points & Rewards",
+        depositPolicies: "Deposits & Refunds",
+        signOut: "Sign Out",
+        adminPortal: "Admin Portal",
+        systemControl: "System Control"
+    },
+    depositPolicies: {
+        title: "Deposit & refund policies",
+        subtitle: "Configure deposit % and refund windows",
+        add: "Add policy",
+        name: "Policy name",
+        description: "Description",
+        depositPct: "Deposit %",
+        default: "Default",
+        active: "Active",
+        actions: "Actions",
+        create: "Create policy",
+        edit: "Edit policy",
+        defaultPolicy: "Default policy",
+        displayOrder: "Display order",
+        saved: "Policy saved",
+        deleted: "Policy deleted",
+        confirmDelete: "Delete this policy?"
+    },
+    bookingAdmin: {
+        refundsTitle: "Refund requests by booking",
+        bookingIdPlaceholder: "Booking ID",
+        loadRefunds: "Load list",
+        refundStatus: "Status",
+        refundAmount: "Amount",
+        refundReason: "Reason",
+        handleRefund: "Handle",
+        approve: "Approve refund",
+        reject: "Reject",
+        adminNote: "Admin note",
+        transactionId: "Refund transaction ID",
+        refundHandled: "Updated"
+    },
+    admin_management: {
+        title: "User Management",
+        subtitle: "Manage system roles and permissions",
+        searchPlaceholder: "Search by name or email...",
+        filter: {
+            title: "Filter",
+            options: "Filter Options",
+            reset: "Reset",
+            apply: "Apply",
+            role: "Role",
+            status: "Account Status",
+            kyc: "eKYC Status",
+            sort: "Sort By"
+        },
+        roles: {
+            all: "All Roles",
+            super_admin: "Super Admin",
+            admin: "Admin",
+            manager: "Manager",
+            host: "Host",
+            guest: "Guest",
+            staff: "Staff",
+            renter: "Customer"
+        },
+        status: {
+            all: "All Statuses",
+            active: "Active",
+            suspended: "Suspended",
+            pending: "Pending",
+            blocked: "Blocked"
+        }
+    },
+    points: {
+        title: "Points & Rewards",
+        subtitle: "Earning rules, reward catalog and transactions",
+        tabs: {
+            rules: "Point Rules",
+            rewards: "Reward Catalog",
+            transactions: "Transactions"
+        },
+        rules: {
+            actionName: "Action",
+            pointsEarned: "Points earned",
+            description: "Description",
+            isActive: "Active",
+            addRule: "Add rule",
+            editRule: "Edit rule",
+            deleteRule: "Delete rule",
+            noRules: "No rules yet",
+            emptyRuleCta: "No earning rules yet. Create your first rule!",
+            refresh: "Refresh"
+        },
+        rewards: {
+            name: "Reward name",
+            pointsRequired: "Points required",
+            stock: "Stock",
+            imageUrl: "Image URL",
+            addReward: "Add reward",
+            editReward: "Edit reward",
+            deleteReward: "Delete reward",
+            noRewards: "No rewards yet",
+            emptyRewardCta: "No rewards in catalog yet. Add your first reward!",
+            unlimited: "Unlimited"
+        },
+        transactions: {
+            userId: "User ID",
+            load: "Load",
+            userFullName: "User",
+            points: "Points",
+            type: "Type",
+            typeEarn: "Earn",
+            typeRedeem: "Redeem",
+            reason: "Reason",
+            date: "Date",
+            noTransactions: "No transactions"
+        },
+        error: {
+            fetchRules: "Could not load rules",
+            fetchRewards: "Could not load reward catalog",
+            fetchTransactions: "Could not load transactions",
+            fetchConfig: "Could not load config",
+            updateConfig: "Could not update config"
+        },
+        success: {
+            ruleCreated: "Rule created",
+            ruleUpdated: "Rule updated",
+            ruleDeleted: "Rule deleted",
+            rewardCreated: "Reward created",
+            rewardUpdated: "Reward updated",
+            rewardDeleted: "Reward deleted",
+            configUpdated: "Conversion rate updated"
+        },
+        confirmDelete: "Are you sure you want to delete?",
+        globalSettings: "Global Settings",
+        conversionRate: "Conversion rate (Points → VNĐ)",
+        conversionRateLink: "Edit conversion rate in System Settings",
+        conversionLabel: "1 Point =",
+        conversionSuffix: "VNĐ",
+        saveConfig: "Save"
     }
 };

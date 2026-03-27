@@ -185,3 +185,41 @@
 html {
   font-size: var(--font-size);
 }
+
+/* Profile sidebar tabs: fixed font size + visible hover */
+button.profile-tab {
+  font-size: 0.875rem !important;
+  line-height: 1.25rem !important;
+  font-weight: 500;
+}
+button.profile-tab span {
+  font-size: 0.875rem !important;
+  font-weight: 500;
+}
+button.profile-tab[data-active="false"]:hover {
+  background-color: #e5e7eb !important;
+  color: #333333 !important;
+}
+button.profile-tab[data-active="true"]:hover {
+  background-color: #c5dcf7 !important;
+}
+button.profile-tab[data-delete]:hover {
+  background-color: #fee2e2 !important;
+}
+button.profile-tab[data-delete][data-active="true"]:hover {
+  background-color: #fecaca !important;
+}
+button.profile-tab[data-transactions]:hover {
+  background-color: #e5e7eb !important;
+  color: #333333 !important;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+.animate-shake {
+  animation: shake 0.2s ease-in-out 0s 2;
+}

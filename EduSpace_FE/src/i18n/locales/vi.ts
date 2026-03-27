@@ -18,16 +18,38 @@ export const vi = {
         reupload: "Tải lại",
         save: "Lưu",
         book: "Đặt ngay",
+        addToFavorites: "Thêm vào yêu thích",
+        removeFromFavorites: "Bỏ khỏi yêu thích",
         seats: "chỗ",
         perHour: "/ giờ",
+        propertyTypes: {
+            commercialBuilding: "Tòa nhà thương mại",
+            centerCoworking: "Trung tâm / Không gian chung",
+            independentSpace: "Mặt bằng độc lập"
+        },
+        roomTypes: {
+            meetingRoom: "Phòng họp",
+            classroom: "Phòng học / Đào tạo",
+            eventSpace: "Hội trường / Sự kiện",
+            studio: "Phòng quay / Studio",
+            coworking: "Coworking / Văn phòng riêng"
+        },
         sortBy: "Sắp xếp:",
         recommended: "Đề xuất",
         priceLowHigh: "Giá: Thấp → Cao",
         priceHighLow: "Giá: Cao → Thấp",
         rating: "Đánh giá",
+        capacityLowHigh: "Sức chứa: Thấp → Cao",
+        capacityHighLow: "Sức chứa: Cao → Thấp",
         verifiedSpace: "ĐÃ XÁC THỰC",
         spacesFound: "không gian tại TP. Hồ Chí Minh",
-        showingResults: "Hiển thị kết quả cho"
+        showingResults: "Hiển thị kết quả cho",
+        error: {
+            title: "Lỗi dữ liệu",
+            fetchUsers: "Không thể lấy danh sách người dùng",
+            fetchRoles: "Không thể lấy danh sách vai trò",
+            system: "Đã xảy ra lỗi hệ thống"
+        }
     },
     host: {
         register: {
@@ -77,7 +99,9 @@ export const vi = {
             },
             basics: {
                 title: "Thông tin cơ bản",
-                description: "Liên kết phòng của bạn với một cơ sở vật lý.",
+                description: "Chọn chi nhánh và nhập tên phòng — địa chỉ lấy theo chi nhánh.",
+                roomName: "Tên phòng",
+                roomNamePlaceholder: "Ví dụ: Phòng họp VIP, Hội trường A",
                 facilityName: "Tên cơ sở",
                 facilityPlaceholder: "ví dụ: EduSpace Sài Gòn Hub",
                 spaceType: "Loại không gian",
@@ -91,6 +115,10 @@ export const vi = {
                 description: "Giúp học viên tìm thấy vị trí chính xác của bạn.",
                 streetAddress: "Địa chỉ đường",
                 streetAddressPlaceholder: "Nhập địa chỉ đầy đủ...",
+                roomNumber: "Số phòng / mã phòng",
+                roomNumberPlaceholder: "Ví dụ: A101, P.305",
+                addressSyncedFromBranch: "Địa chỉ được lấy tự động từ chi nhánh đã chọn để đồng bộ với hồ sơ chi nhánh.",
+                branchHasNoAddress: "Chi nhánh chưa có địa chỉ trong hệ thống — vui lòng cập nhật địa chỉ ở trang Chi nhánh, hoặc nhập tạm bên dưới.",
                 area: "Diện tích (m²)",
                 guests: "Sức chứa",
                 floor: "Tầng số"
@@ -98,9 +126,15 @@ export const vi = {
             pricing: {
                 title: "Lịch trình & Giá",
                 description: "Quản lý giá theo giờ và phụ thu cuối tuần.",
-                sessionAvailability: "Khung giờ hoạt động",
+                sessionAvailability: "Lịch hoạt động",
+                open24Hours: "Hoạt động 24/7 (Mở cửa xuyên đêm)",
+                openTime: "Giờ mở cửa",
+                closeTime: "Giờ đóng cửa",
                 hourlyBaseRate: "Giá cơ bản theo giờ",
                 pricePlaceholder: "Giá mỗi giờ",
+                dailyRate: "Giá theo ngày",
+                dailyPlaceholder: "Nhập giá thuê cả ngày (VNĐ)",
+                dailyHint: "Giá này lưu trên hồ sơ phòng (price_per_day). Khác với giá từng khung slot.",
                 weekendMarkup: "Phụ thu cuối tuần",
                 markupDescription: "Giá phụ thu cho các đặt chỗ vào Thứ 7 & Chủ Nhật. Giúp bù đắp chi phí vận hành cao điểm.",
                 slots: {
@@ -136,12 +170,32 @@ export const vi = {
                 goToPortal: "Đi đến Cổng thông tin Host"
             },
             publishing: "Đang đăng tải danh sách...",
-            cancelListing: "Hủy đăng ký"
+            cancelListing: "Hủy đăng ký",
+            validation: {
+                selectBranch: "Vui lòng chọn chi nhánh.",
+                roomNameRequired: "Vui lòng nhập tên phòng.",
+                roomTypeRequired: "Vui lòng chọn loại không gian.",
+                titleRequired: "Vui lòng nhập tiêu đề hiển thị công khai.",
+                addressRequired: "Địa chỉ chi nhánh chưa có — cập nhật ở trang Chi nhánh hoặc đảm bảo chi nhánh có địa chỉ.",
+                roomNumberRequired: "Vui lòng nhập số phòng / mã phòng.",
+                sizeRequired: "Vui lòng nhập diện tích (m²) lớn hơn 0.",
+                capacityRequired: "Vui lòng nhập sức chứa lớn hơn 0.",
+                floorRequired: "Vui lòng nhập tầng (số hợp lệ, ≥ 0).",
+                openTimeRequired: "Vui lòng chọn giờ mở cửa.",
+                closeTimeRequired: "Vui lòng chọn giờ đóng cửa.",
+                basePriceRequired: "Vui lòng nhập giá theo giờ lớn hơn 0.",
+                pricePerDayRequired: "Vui lòng nhập giá theo ngày lớn hơn 0.",
+                imagesRequired: "Vui lòng thêm ít nhất một ảnh không gian.",
+                fixCurrentStep: "Vui lòng nhập đủ thông tin ở bước hiện tại trước khi tiếp tục.",
+                fixBeforePublish: "Thiếu thông tin ở mục \"{{step}}\". Vui lòng bổ sung các trường được đánh dấu."
+            }
         }
     },
     customer: {
         nav: {
             findSpace: "Tìm không gian",
+            favorites: "Yêu thích",
+            myBookings: "Lịch đặt",
             listSpace: "Đăng ký Host",
             forHosts: "Dành cho Host",
             help: "Trợ giúp"
@@ -186,6 +240,7 @@ export const vi = {
             topRated: {
                 title: "Không Gian Được Đánh Giá Cao",
                 subtitle: "Phòng học được cộng đồng giảng viên đánh giá cao nhất.",
+                viewDetails: "Xem chi tiết",
                 perHour: "/ giờ",
                 pax: "chỗ",
                 verified: "Đã xác thực",
@@ -215,7 +270,9 @@ export const vi = {
             capacity: "Sức chứa",
             size: "Diện tích",
             aboutSpace: "Giới thiệu không gian",
+            whatOffers: "Không gian này có gì?",
             amenities: "Tiện nghi",
+            amenity: "tiện ích",
             location: "Vị trí",
             reviews: "Đánh giá",
             seeAllReviews: "Xem tất cả {{count}} đánh giá",
@@ -223,6 +280,8 @@ export const vi = {
             date: "Ngày",
             checkIn: "Giờ vào",
             checkOut: "Giờ ra",
+            duration: "Thời lượng thuê",
+            durationHours: "{{count}} giờ",
             guests: "Số khách",
             notChargedYet: "Bạn chưa bị tính phí.",
             freeCancellation: "Hủy miễn phí trong 24 giờ.",
@@ -230,12 +289,45 @@ export const vi = {
             hours: "giờ",
             cleaningFee: "Phí vệ sinh",
             serviceFee: "Phí dịch vụ",
-            total: "Tổng cộng"
+            total: "Tổng cộng",
+            gallery: {
+                viewAllPhotos: "Xem thêm"
+            },
+            tabs: {
+                details: "Chi tiết không gian",
+                policies: "Chính sách",
+                reviews: "Đánh giá",
+                messages: "Tin nhắn"
+            },
+            policiesTitle: "Chính sách đặt chỗ",
+            policyCancellation: "Hủy miễn phí trong vòng 24 giờ sau khi đặt.",
+            policyCheckIn: "Vui lòng check-in đúng khung giờ đã chọn để đảm bảo quyền sử dụng phòng.",
+            contactHostTitle: "Liên hệ Host",
+            contactHostDesc: "Bạn cần thêm thông tin về tiện nghi, thời gian hoặc hỗ trợ đặt chỗ? Hãy nhắn trực tiếp cho host.",
+            contactHostBtn: "Nhắn host ngay",
+            contactHostUnavailable: "Phòng này hiện chưa có thông tin host để liên hệ.",
+            verifiedHost: "Chủ phòng đã xác thực",
+            pricing: {
+                open24Hours: "Mở cửa 24/7",
+                perHour: "/ giờ",
+                total: "Tổng cộng",
+                pricingRules: "Quy tắc định giá"
+            },
+            status: {
+                open: "Đang mở cửa",
+                closed: "Đã đóng cửa",
+                opensAt: "Mở lúc {{time}}",
+                closesAt: "Đóng lúc {{time}}",
+                open24_7: "Hoạt động 24/7"
+            }
         },
         search: {
             title: "Tìm kiếm không gian",
             filters: "Bộ lọc",
             clearAll: "Xoá tất cả",
+            resultsFound: "kết quả tìm thấy",
+            sortCapacityLowHigh: "Sức chứa: Thấp → Cao",
+            sortCapacityHighLow: "Sức chứa: Cao → Thấp",
             district: "Khu vực",
             timeSlots: "Khung giờ",
             priceRange: "Mức giá (VNĐ/giờ)",
@@ -275,16 +367,28 @@ export const vi = {
             },
             roomTypeOptions: {
                 classroom: "Phòng học",
-                auditorium: "Hội trường",
                 meeting: "Phòng họp",
-                studio: "Studio"
+                eventSpace: "Không gian sự kiện",
+                studio: "Studio",
+                coworking: "Coworking / Văn phòng riêng"
             }
+        },
+        favoritesPage: {
+            title: "Danh sách yêu thích",
+            subtitle: "Những không gian bạn đã lưu để xem sau.",
+            savedBadge_one: "{{count}} không gian đã lưu",
+            savedBadge_other: "{{count}} không gian đã lưu",
+            emptyTitle: "Danh sách yêu thích của bạn đang trống",
+            emptyDesc:
+                "Khám phá các không gian giáo dục tuyệt vời và lưu vào yêu thích để so sánh sau.",
+            browseSpaces: "Tìm không gian"
         },
         ekyc: {
             title: "Xác thực danh tính (eKYC)",
             description: "Để đảm bảo an toàn cho cộng đồng EduSpace, vui lòng xác thực danh tính bằng CMND/CCCD.",
             start: "Bắt đầu xác thực",
             steps: {
+                info: "Cung cấp thông tin",
                 front: "Mặt trước CMND/CCCD",
                 back: "Mặt sau CMND/CCCD",
                 selfie: "Ảnh chân dung",
@@ -325,7 +429,17 @@ export const vi = {
             payment: {
                 onlineTitle: "Thanh toán Online",
                 submit: "Xác nhận & Thanh toán",
-                escrowNote: "Tiền được giữ an toàn và chỉ chuyển cho Host sau khi bạn check-in."
+                escrowNote: "Tiền được giữ an toàn và chỉ chuyển cho Host sau khi bạn check-in.",
+                payDeposit: "Thanh toán cọc (PayOS)",
+                redirecting: "Đang chuyển tới cổng thanh toán PayOS..."
+            },
+            depositReturn: {
+                title: "Kết quả thanh toán cọc",
+                waiting: "Đang xác nhận giao dịch...",
+                success: "Đã thanh toán cọc thành công.",
+                bookingCode: "Mã booking",
+                pending: "Chưa nhận được xác nhận. Vui lòng đợi hoặc tải lại trang.",
+                goBookings: "Xem đơn đặt phòng"
             },
             success: "Đặt phòng thành công! 🎉"
         },
@@ -343,12 +457,27 @@ export const vi = {
             }
         },
         profile: {
+            accountSettings: "Cài đặt Tài khoản",
             sidebar: {
+                myProfile: "Hồ sơ của tôi",
                 identity: "Cá nhân",
                 security: "Bảo mật",
+                teams: "Nhóm",
+                teamMember: "Thành viên nhóm",
                 alerts: "Thông báo",
                 billing: "Thanh toán",
+                dataExport: "Xuất dữ liệu",
+                deleteAccount: "Xóa tài khoản",
                 transactions: "Lịch sử Giao dịch"
+            },
+            address: {
+                title: "Địa chỉ",
+                cityState: "Tỉnh/Thành phố",
+                district: "Quận/Huyện",
+                ward: "Phường/Xã",
+                streetAddress: "Địa chỉ cụ thể",
+                postalCode: "Mã bưu điện",
+                taxId: "Mã số thuế"
             },
             premium: {
                 title: "Premium Host",
@@ -358,8 +487,10 @@ export const vi = {
             header: {
                 roles: {
                     renter: "Học sinh / Sinh viên",
+                    guest: "Khách",
                     host: "Hoster",
                     staff: "Nhân viên",
+                    manager: "Quản lý",
                     admin: "Admin"
                 },
                 memberSince: "Thành viên từ",
@@ -368,6 +499,9 @@ export const vi = {
                 recently: "gần đây"
             },
             personal: {
+                myProfile: "Hồ sơ của tôi",
+                firstName: "Tên",
+                lastName: "Họ",
                 title: "Thông tin Cá nhân",
                 edit: "Chỉnh sửa",
                 fullName: "Họ và tên",
@@ -448,6 +582,9 @@ export const vi = {
                 default: "Mặc định",
                 remove: "Gỡ bỏ",
                 noMethods: "Bạn chưa thêm phương thức thanh toán nào."
+            },
+            support: {
+                chatWithStaff: "Chat với nhân viên hỗ trợ"
             }
         }
     },
@@ -470,5 +607,153 @@ export const vi = {
         allRightsReserved: "Mọi quyền được bảo lưu",
         privacyPolicy: "Chính sách bảo mật",
         cookiePolicy: "Chính sách cookie"
+    },
+    admin_sidebar: {
+        dashboard: "Dashboard",
+        messages: "Tin nhắn",
+        finance: "Tài chính & Thanh toán",
+        approvals: "Duyệt & KYC",
+        hosts: "Quản lý Host",
+        users: "Quản lý Người dùng",
+        roles: "Vai trò & Quyền",
+        logs: "Nhật ký hệ thống",
+        settings: "Cài đặt Hệ thống",
+        points: "Điểm thưởng & Quà",
+        depositPolicies: "Cọc & Hoàn tiền",
+        signOut: "Đăng xuất",
+        adminPortal: "Admin Portal",
+        systemControl: "Điều khiển Hệ thống"
+    },
+    depositPolicies: {
+        title: "Chính sách cọc & hoàn tiền",
+        subtitle: "Cấu hình % cọc và cửa sổ hoàn tiền (admin)",
+        add: "Thêm chính sách",
+        name: "Tên chính sách",
+        description: "Mô tả",
+        depositPct: "% cọc",
+        default: "Mặc định",
+        active: "Kích hoạt",
+        actions: "Thao tác",
+        create: "Tạo chính sách",
+        edit: "Sửa chính sách",
+        defaultPolicy: "Chính sách mặc định",
+        displayOrder: "Thứ tự hiển thị",
+        saved: "Đã lưu chính sách",
+        deleted: "Đã xóa chính sách",
+        confirmDelete: "Xóa chính sách này?"
+    },
+    bookingAdmin: {
+        refundsTitle: "Yêu cầu hoàn tiền theo booking",
+        bookingIdPlaceholder: "Nhập ID booking",
+        loadRefunds: "Tải danh sách",
+        refundStatus: "Trạng thái",
+        refundAmount: "Số tiền",
+        refundReason: "Lý do",
+        handleRefund: "Xử lý",
+        approve: "Duyệt hoàn",
+        reject: "Từ chối",
+        adminNote: "Ghi chú admin",
+        transactionId: "Mã giao dịch hoàn",
+        refundHandled: "Đã cập nhật"
+    },
+    admin_management: {
+        title: "Quản lý Người dùng",
+        subtitle: "Quản lý vai trò và phân quyền hệ thống",
+        searchPlaceholder: "Tìm tên hoặc email...",
+        filter: {
+            title: "Bộ lọc",
+            options: "Tùy chọn lọc",
+            reset: "Reset",
+            apply: "Áp dụng",
+            role: "Vai trò",
+            status: "Trạng thái tài khoản",
+            kyc: "Trạng thái eKYC",
+            sort: "Sắp xếp"
+        },
+        roles: {
+            all: "Tất cả",
+            super_admin: "Super Admin",
+            admin: "Admin",
+            manager: "Quản lý",
+            host: "Host",
+            guest: "Khách",
+            staff: "Nhân viên",
+            renter: "Khách hàng"
+        },
+        status: {
+            all: "Tất cả",
+            active: "Hoạt động",
+            suspended: "Tạm ngưng",
+            pending: "Chờ duyệt",
+            blocked: "Đã khóa"
+        }
+    },
+    points: {
+        title: "Điểm thưởng & Quà",
+        subtitle: "Quy tắc tích điểm, catalog quà và giao dịch",
+        tabs: {
+            rules: "Quy tắc điểm",
+            rewards: "Catalog quà",
+            transactions: "Giao dịch điểm"
+        },
+        rules: {
+            actionName: "Hành động",
+            pointsEarned: "Điểm được cộng",
+            description: "Mô tả",
+            isActive: "Đang bật",
+            addRule: "Thêm quy tắc",
+            editRule: "Sửa quy tắc",
+            deleteRule: "Xóa quy tắc",
+            noRules: "Chưa có quy tắc nào",
+            emptyRuleCta: "Chưa có quy tắc cộng điểm nào. Hãy tạo quy tắc đầu tiên!",
+            refresh: "Tải lại"
+        },
+        rewards: {
+            name: "Tên quà",
+            pointsRequired: "Điểm đổi",
+            stock: "Tồn kho",
+            imageUrl: "URL ảnh",
+            addReward: "Thêm quà",
+            editReward: "Sửa quà",
+            deleteReward: "Xóa quà",
+            noRewards: "Chưa có quà nào",
+            emptyRewardCta: "Chưa có quà nào trong catalog. Hãy thêm quà đầu tiên!",
+            unlimited: "Không giới hạn"
+        },
+        transactions: {
+            userId: "ID người dùng",
+            load: "Tải",
+            userFullName: "Người dùng",
+            points: "Điểm",
+            type: "Loại",
+            typeEarn: "Tích điểm",
+            typeRedeem: "Đổi quà",
+            reason: "Lý do",
+            date: "Ngày",
+            noTransactions: "Chưa có giao dịch"
+        },
+        error: {
+            fetchRules: "Không thể tải quy tắc",
+            fetchRewards: "Không thể tải catalog quà",
+            fetchTransactions: "Không thể tải giao dịch",
+            fetchConfig: "Không thể tải cấu hình",
+            updateConfig: "Không thể cập nhật cấu hình"
+        },
+        success: {
+            ruleCreated: "Đã thêm quy tắc",
+            ruleUpdated: "Đã cập nhật quy tắc",
+            ruleDeleted: "Đã xóa quy tắc",
+            rewardCreated: "Đã thêm quà",
+            rewardUpdated: "Đã cập nhật quà",
+            rewardDeleted: "Đã xóa quà",
+            configUpdated: "Đã cập nhật tỉ lệ quy đổi"
+        },
+        confirmDelete: "Bạn có chắc muốn xóa?",
+        globalSettings: "Cài đặt chung",
+        conversionRate: "Tỉ lệ quy đổi (Điểm → VNĐ)",
+        conversionRateLink: "Chỉnh tỉ lệ quy đổi tại Cài đặt hệ thống",
+        conversionLabel: "1 Điểm =",
+        conversionSuffix: "VNĐ",
+        saveConfig: "Lưu"
     }
 };

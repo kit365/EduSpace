@@ -5,9 +5,18 @@ import { BookingCard, BookingFilters as BookingFiltersComp } from '../components
 import { BookingFilters as BookingFiltersType } from '../types';
 import { CustomerLayout } from '../../../../layouts/CustomerLayout';
 import { useBookings } from '../hooks/useBookings';
+import { useAuthStore } from '@/stores/authStore';
+import { guestFeatureAllowed, guestPermissions } from '../../permissions/guestPermissions';
 
 export function BookingsPage() {
   const navigate = useNavigate();
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const hostPermissionsFromAccount = useAuthStore((s) => s.hostPermissionsFromAccount);
+  const allowCancelBooking = guestFeatureAllowed(
+    accessToken,
+    guestPermissions.manageOwnBookings,
+    hostPermissionsFromAccount,
+  );
   const { bookings, loading, cancelBooking } = useBookings();
   const [filters, setFilters] = useState<BookingFiltersType>({
     status: 'all',
@@ -149,6 +158,7 @@ export function BookingsPage() {
                         booking={booking}
                         onViewDetails={handleViewDetails}
                         onCancel={handleCancel}
+                        allowCancel={allowCancelBooking}
                       />
                     </div>
                   ))

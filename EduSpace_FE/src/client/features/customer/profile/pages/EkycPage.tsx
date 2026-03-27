@@ -1,249 +1,556 @@
-import { useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { CustomerLayout } from '../../../../layouts/CustomerLayout';
-import { Camera, Upload, CheckCircle2, XCircle, Loader2, ShieldCheck, ScanFace, CreditCard, ArrowRight, AlertTriangle } from 'lucide-react';
-import { EkycResult } from '../../../../../types/api';
+import { Camera, Upload, CheckCircle2, XCircle, Loader2, ShieldCheck, ScanFace, CreditCard, ArrowRight, AlertTriangle, ChevronLeft } from 'lucide-react';
+import { submitEkycVerification } from '../services/ekycService';
+import { profileService } from '../services/profileService';
 
-type EkycStep = 'intro' | 'front' | 'back' | 'selfie' | 'processing' | 'result';
+type EkycStep = 'intro' | 'info' | 'front' | 'back' | 'selfie' | 'processing' | 'result';
+
+async function getImageMeta(file: File): Promise<{ width: number; height: number } | null> {
+    return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+            const meta = { width: img.naturalWidth, height: img.naturalHeight };
+            URL.revokeObjectURL(url);
+            resolve(meta);
+        };
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            resolve(null);
+        };
+        img.src = url;
+    });
+}
 
 export function EkycPage() {
     const { t } = useTranslation();
+    const navigate = useNavigate();
     const [step, setStep] = useState<EkycStep>('intro');
-    const [frontImage, setFrontImage] = useState<string | null>(null);
-    const [backImage, setBackImage] = useState<string | null>(null);
-    const [selfieImage, setSelfieImage] = useState<string | null>(null);
-    const [verifyResult, setVerifyResult] = useState<EkycResult['status'] | null>(null);
-    const [ocrData, setOcrData] = useState<EkycResult['ocrData'] | null>(null);
+    const [frontFile, setFrontFile] = useState<File | null>(null);
+    const [backFile, setBackFile] = useState<File | null>(null);
+    const [selfieFile, setSelfieFile] = useState<File | null>(null);
+    const [frontPreview, setFrontPreview] = useState<string | null>(null);
+    const [backPreview, setBackPreview] = useState<string | null>(null);
+    const [selfiePreview, setSelfiePreview] = useState<string | null>(null);
+    const [verifyResult, setVerifyResult] = useState<'success' | 'failed' | null>(null);
+    const [ocrData, setOcrData] = useState<{
+        name: string | null;
+        idNumber: string | null;
+        dob: string | null;
+        address: string | null;
+        expiryDate: string | null;
+    } | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [basicInfo, setBasicInfo] = useState({
+        fullName: '',
+        dob: '',
+        phone: '',
+        address: ''
+    });
 
-    const handleImageUpload = (type: 'front' | 'back' | 'selfie') => {
-        // Simulate file upload
-        const mockImages: Record<string, string> = {
-            front: 'https://images.unsplash.com/photo-1633265486064-086b219458ec?w=400&h=250&fit=crop',
-            back: 'https://images.unsplash.com/photo-1633265486064-086b219458ec?w=400&h=250&fit=crop',
-            selfie: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=300&fit=crop',
+    useEffect(() => {
+        const loadProfile = async () => {
+            try {
+                const profile = await profileService.getProfile();
+                // Prioritize existing profile info, fallback to ocrData for auto-fill
+                setBasicInfo({
+                    fullName: profile.name || profile.ocrData?.name || '',
+                    dob: profile.dateOfBirth || profile.ocrData?.dob || '',
+                    phone: profile.phone || '',
+                    address: profile.streetAddress || profile.location || profile.ocrData?.address || ''
+                });
+            } catch (err) {
+                console.error('Failed to pre-fill eKYC info:', err);
+            }
         };
-        if (type === 'front') { setFrontImage(mockImages.front); setStep('back'); }
-        else if (type === 'back') { setBackImage(mockImages.back); setStep('selfie'); }
-        else { setSelfieImage(mockImages.selfie); handleVerify(); }
+        void loadProfile();
+    }, []);
+
+    const frontInputRef = useRef<HTMLInputElement>(null);
+    const backInputRef = useRef<HTMLInputElement>(null);
+    const selfieInputRef = useRef<HTMLInputElement>(null);
+
+    const pickFile = (type: 'front' | 'back' | 'selfie', file: File | null) => {
+        if (!file) return;
+        const url = URL.createObjectURL(file);
+        if (type === 'front') {
+            setFrontFile(file);
+            setFrontPreview(url);
+            setStep('back');
+        } else if (type === 'back') {
+            setBackFile(file);
+            setBackPreview(url);
+            setStep('selfie');
+        } else {
+            setSelfieFile(file);
+            setSelfiePreview(url);
+            void runVerify(file);
+        }
     };
 
-    const handleVerify = () => {
+    const runVerify = async (selfie: File) => {
+        if (!frontFile) return;
         setStep('processing');
-        // Simulate API call to VNPT eKYC / FPT.AI
-        setTimeout(() => {
-            setOcrData({
-                name: 'Nguyễn Văn An',
-                idNumber: '079200012345',
-                dob: '15/03/2000',
-                address: 'Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh',
-                expiryDate: '15/03/2030'
+        setErrorMessage(null);
+        try {
+            if (import.meta.env.DEV) {
+                try {
+                    const [frontMeta, selfieMeta, backMeta] = await Promise.all([
+                        getImageMeta(frontFile),
+                        getImageMeta(selfie),
+                        backFile ? getImageMeta(backFile) : Promise.resolve(null),
+                    ]);
+                    console.info('[eKYC debug] upload files', {
+                        front: {
+                            name: frontFile.name,
+                            type: frontFile.type,
+                            size: frontFile.size,
+                            width: frontMeta?.width ?? null,
+                            height: frontMeta?.height ?? null,
+                        },
+                        selfie: {
+                            name: selfie.name,
+                            type: selfie.type,
+                            size: selfie.size,
+                            width: selfieMeta?.width ?? null,
+                            height: selfieMeta?.height ?? null,
+                        },
+                        back: backFile
+                            ? {
+                                  name: backFile.name,
+                                  type: backFile.type,
+                                  size: backFile.size,
+                                  width: backMeta?.width ?? null,
+                                  height: backMeta?.height ?? null,
+                              }
+                            : null,
+                    });
+                } catch {
+                    // Debug log only; never block eKYC flow.
+                }
+            }
+            const data = await submitEkycVerification({
+                ...basicInfo,
+                front: frontFile,
+                back: backFile ?? undefined,
+                selfie,
             });
-            setVerifyResult('success');
+            if (data.status === 'success' && data.ocrData) {
+                setOcrData({
+                    name: data.ocrData.name,
+                    idNumber: data.ocrData.idNumber,
+                    dob: data.ocrData.dob,
+                    address: data.ocrData.address,
+                    expiryDate: data.ocrData.expiryDate,
+                });
+                setVerifyResult('success');
+            } else {
+                setOcrData(null);
+                setVerifyResult('failed');
+                setErrorMessage(data.message ?? t('customer.ekyc.failed'));
+            }
             setStep('result');
-        }, 3000);
+        } catch (e: any) {
+            setVerifyResult('failed');
+            setOcrData(null);
+            
+            // Extract localized message from backend if available
+            const backendMessage = e.response?.data?.message;
+            setErrorMessage(backendMessage ?? (e instanceof Error ? e.message : t('customer.ekyc.failed')));
+            
+            setStep('result');
+        }
     };
 
     const stepLabels = [
-        t('customer.ekyc.steps.front'),
-        t('customer.ekyc.steps.back'),
-        t('customer.ekyc.steps.selfie'),
-        t('customer.ekyc.steps.result')
+        t('customer.ekyc.steps.front') || 'ID Upload',
+        t('customer.ekyc.steps.selfie') || 'Face Match',
+        t('customer.ekyc.steps.result') || 'Result'
     ];
-    const stepIndex = step === 'front' ? 0 : step === 'back' ? 1 : step === 'selfie' ? 2 : step === 'result' || step === 'processing' ? 3 : -1;
+    const stepIndex = (step === 'front' || step === 'back') ? 0 : step === 'selfie' ? 1 : (step === 'result' || step === 'processing') ? 2 : -1;
 
     return (
         <CustomerLayout>
-            <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white py-12 animate-in fade-in duration-700">
+            <div className="min-h-screen bg-gradient-to-br from-blue-50/50 via-white to-indigo-50/30 py-16">
                 <div className="max-w-2xl mx-auto px-4">
-
-                    {/* Intro Screen */}
-                    {step === 'intro' && (
-                        <div className="text-center">
-                            <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-[32px] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-blue-200">
-                                <ShieldCheck className="w-12 h-12 text-white" />
-                            </div>
-                            <h1 className="text-4xl font-black text-gray-900 mb-4 tracking-tight">{t('customer.ekyc.title')}</h1>
-                            <p className="text-gray-500 font-medium max-w-lg mx-auto mb-10 leading-relaxed">
-                                {t('customer.ekyc.description')}
-                            </p>
-
-                            <div className="bg-white rounded-3xl border border-gray-100 p-8 mb-8 shadow-sm text-left">
-                                <h3 className="font-black text-gray-900 mb-6">EduSpace eKYC Protocol</h3>
-                                <div className="space-y-4">
-                                    {[
-                                        { icon: CreditCard, title: t('customer.ekyc.steps.front'), desc: 'OCR automatically extracts your information' },
-                                        { icon: CreditCard, title: t('customer.ekyc.steps.back'), desc: 'Verifying additional identity details' },
-                                        { icon: ScanFace, title: t('customer.ekyc.steps.selfie'), desc: 'Face matching using AI' },
-                                        { icon: CheckCircle2, title: t('customer.ekyc.steps.result'), desc: 'Powered by VNPT eKYC / FPT.AI' },
-                                    ].map((item, i) => (
-                                        <div key={i} className="flex items-start gap-4">
-                                            <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
-                                                <item.icon className="w-5 h-5 text-blue-500" />
-                                            </div>
-                                            <div>
-                                                <div className="font-bold text-gray-900 text-sm">{item.title}</div>
-                                                <div className="text-xs text-gray-400 font-medium">{item.desc}</div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="flex items-center gap-3 px-5 py-4 bg-amber-50 border border-amber-200 rounded-2xl mb-8 text-left">
-                                <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                                <p className="text-xs font-medium text-amber-700">Please prepare your valid ID and enable camera access.</p>
-                            </div>
-
-                            <button
-                                onClick={() => setStep('front')}
-                                className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-12 py-4 rounded-2xl font-black text-lg shadow-xl shadow-blue-200 hover:shadow-2xl transition-all active:scale-95 inline-flex items-center gap-3"
+                    <input
+                        ref={frontInputRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={(e) => pickFile('front', e.target.files?.[0] ?? null)}
+                    />
+                    <input
+                        ref={backInputRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={(e) => pickFile('back', e.target.files?.[0] ?? null)}
+                    />
+                    <input
+                        ref={selfieInputRef}
+                        type="file"
+                        accept="image/*"
+                        capture="user"
+                        className="hidden"
+                        onChange={(e) => pickFile('selfie', e.target.files?.[0] ?? null)}
+                    />
+                    <AnimatePresence mode="wait">
+                        {step === 'intro' ? (
+                            <motion.div 
+                                key="intro"
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                className="text-center"
                             >
-                                {t('customer.ekyc.start')}
-                                <ArrowRight className="w-5 h-5" />
-                            </button>
-                        </div>
-                    )}
-
-                    {/* Step Progress */}
-                    {step !== 'intro' && (
-                        <div className="mb-10">
-                            <div className="flex items-center justify-between mb-4">
-                                {stepLabels.map((label, i) => (
-                                    <div key={i} className="flex items-center gap-2 flex-1">
-                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-all ${i <= stepIndex ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-gray-200 text-gray-400'
-                                            }`}>
-                                            {i < stepIndex ? '✓' : i + 1}
-                                        </div>
-                                        <span className={`text-[10px] font-bold uppercase tracking-wider hidden sm:block ${i <= stepIndex ? 'text-blue-600' : 'text-gray-300'}`}>
-                                            {label}
-                                        </span>
-                                        {i < stepLabels.length - 1 && (
-                                            <div className={`flex-1 h-0.5 mx-2 rounded-full ${i < stepIndex ? 'bg-blue-500' : 'bg-gray-200'}`} />
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Upload Steps */}
-                    {(step === 'front' || step === 'back' || step === 'selfie') && (
-                        <div className="bg-white rounded-3xl border border-gray-100 p-10 shadow-lg text-center">
-                            <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                                {step === 'selfie' ? <ScanFace className="w-8 h-8 text-blue-500" /> : <CreditCard className="w-8 h-8 text-blue-500" />}
-                            </div>
-                            <h2 className="text-2xl font-black text-gray-900 mb-2">
-                                {step === 'front' ? t('customer.ekyc.steps.front') : step === 'back' ? t('customer.ekyc.steps.back') : t('customer.ekyc.steps.selfie')}
-                            </h2>
-                            <p className="text-sm text-gray-400 font-medium mb-8">
-                                {step === 'selfie'
-                                    ? 'Keep your face in frame, ensure good lighting and remove glasses.'
-                                    : 'Place ID card on a flat surface, ensure all 4 corners are visible.'}
-                            </p>
-
-                            {/* Upload area */}
-                            <div
-                                onClick={() => handleImageUpload(step)}
-                                className="w-full aspect-[16/10] bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-dashed border-gray-300 rounded-3xl flex flex-col items-center justify-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all group mb-6"
-                            >
-                                {step === 'selfie' ? (
-                                    <Camera className="w-16 h-16 text-gray-300 group-hover:text-blue-400 transition-colors mb-4" />
-                                ) : (
-                                    <Upload className="w-16 h-16 text-gray-300 group-hover:text-blue-400 transition-colors mb-4" />
-                                )}
-                                <span className="font-bold text-gray-400 group-hover:text-blue-500 transition-colors uppercase text-xs tracking-widest">
-                                    {step === 'selfie' ? 'Open Camera' : 'Upload Doc'}
-                                </span>
-                            </div>
-
-                            {/* Preview of previous steps */}
-                            {(frontImage || backImage) && (
-                                <div className="flex gap-4 justify-center">
-                                    {frontImage && (
-                                        <div className="w-24 h-16 bg-gray-100 rounded-xl overflow-hidden border-2 border-green-500 relative">
-                                            <img src={frontImage} alt="Mặt trước" className="w-full h-full object-cover" />
-                                            <CheckCircle2 className="w-4 h-4 text-green-500 absolute top-1 right-1" />
-                                        </div>
-                                    )}
-                                    {backImage && (
-                                        <div className="w-24 h-16 bg-gray-100 rounded-xl overflow-hidden border-2 border-green-500 relative">
-                                            <img src={backImage} alt="Mặt sau" className="w-full h-full object-cover" />
-                                            <CheckCircle2 className="w-4 h-4 text-green-500 absolute top-1 right-1" />
-                                        </div>
-                                    )}
+                                <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-[32px] flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-blue-200">
+                                    <ShieldCheck className="w-12 h-12 text-white" />
                                 </div>
-                            )}
-                        </div>
-                    )}
+                                <h1 className="text-4xl font-black text-gray-900 mb-4 tracking-tight">{t('customer.ekyc.title')}</h1>
+                                <p className="text-gray-500 font-medium max-w-lg mx-auto mb-10 leading-relaxed">
+                                    {t('customer.ekyc.description')}
+                                </p>
 
-                    {/* Processing */}
-                    {step === 'processing' && (
-                        <div className="bg-white rounded-3xl border border-gray-100 p-16 shadow-lg text-center">
-                            <div className="relative w-24 h-24 mx-auto mb-8">
-                                <div className="absolute inset-0 bg-blue-100 rounded-full animate-ping opacity-30" />
-                                <div className="relative w-24 h-24 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center z-10">
-                                    <Loader2 className="w-12 h-12 text-white animate-spin" />
-                                </div>
-                            </div>
-                            <h2 className="text-2xl font-black text-gray-900 mb-3">{t('common.loading')}</h2>
-                            <p className="text-sm text-gray-400 font-medium max-w-sm mx-auto">
-                                {t('customer.ekyc.processing')}
-                            </p>
-                        </div>
-                    )}
-
-                    {/* Result */}
-                    {step === 'result' && (
-                        <div className="space-y-6">
-                            <div className={`rounded-3xl p-10 text-center shadow-lg ${verifyResult === 'success'
-                                    ? 'bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200'
-                                    : 'bg-gradient-to-br from-red-50 to-rose-50 border border-red-200'
-                                }`}>
-                                <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl ${verifyResult === 'success' ? 'bg-green-500 shadow-green-200' : 'bg-red-500 shadow-red-200'
-                                    }`}>
-                                    {verifyResult === 'success'
-                                        ? <CheckCircle2 className="w-10 h-10 text-white" />
-                                        : <XCircle className="w-10 h-10 text-white" />
-                                    }
-                                </div>
-                                <h2 className="text-3xl font-black text-gray-900 mb-2">
-                                    {verifyResult === 'success' ? t('customer.ekyc.success') : t('customer.ekyc.failed')}
-                                </h2>
-                            </div>
-
-                            {/* OCR Data Display */}
-                            {ocrData && verifyResult === 'success' && (
-                                <div className="bg-white rounded-3xl border border-gray-100 p-8 shadow-sm">
-                                    <h3 className="font-black text-gray-900 mb-6 flex items-center gap-2">
-                                        <ShieldCheck className="w-5 h-5 text-green-500" />
-                                        {t('customer.ekyc.extractedInfo')}
-                                    </h3>
-                                    <div className="grid grid-cols-2 gap-6">
+                                <div className="bg-white/80 backdrop-blur-xl rounded-[40px] border border-white p-10 mb-8 shadow-2xl shadow-blue-100/50 text-left">
+                                    <h3 className="font-black text-gray-900 mb-8 text-xl">EduSpace eKYC Protocol</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                         {[
-                                            { label: 'Name', value: ocrData.name },
-                                            { label: 'ID Number', value: ocrData.idNumber },
-                                            { label: 'Date of Birth', value: ocrData.dob },
-                                            { label: 'Address', value: ocrData.address },
-                                        ].map((field, i) => (
-                                            <div key={i}>
-                                                <div className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-1">{field.label}</div>
-                                                <div className="text-sm font-bold text-gray-900 bg-gray-50 px-4 py-3 rounded-xl">{field.value}</div>
+                                            { icon: CreditCard, title: t('customer.ekyc.steps.front'), desc: 'OCR extracts your information' },
+                                            { icon: CreditCard, title: t('customer.ekyc.steps.back'), desc: 'Additional identity details' },
+                                            { icon: ScanFace, title: t('customer.ekyc.steps.selfie'), desc: 'Face matching security' },
+                                            { icon: CheckCircle2, title: t('customer.ekyc.steps.result'), desc: 'Instant verification' },
+                                        ].map((item, i) => (
+                                            <div key={i} className="flex items-start gap-4">
+                                                <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center flex-shrink-0 border border-blue-100/50 rotate-3 group-hover:rotate-0 transition-transform">
+                                                    <item.icon className="w-6 h-6 text-blue-600" />
+                                                </div>
+                                                <div>
+                                                    <div className="font-black text-gray-900 text-sm mb-1">{item.title}</div>
+                                                    <div className="text-[11px] text-gray-400 font-bold leading-tight uppercase tracking-tighter">{item.desc}</div>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
-                            )}
 
-                            {verifyResult === 'failed' && (
+                                <div className="flex items-center gap-4 px-6 py-5 bg-amber-50/50 border border-amber-100 rounded-3xl mb-10 text-left backdrop-blur-sm">
+                                    <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                                        <AlertTriangle className="w-5 h-5 text-amber-600" />
+                                    </div>
+                                    <p className="text-xs font-bold text-amber-800 leading-snug">
+                                        Please ensure good lighting and have your physical ID card ready before proceeding.
+                                    </p>
+                                </div>
+
                                 <button
-                                    onClick={() => { setStep('front'); setFrontImage(null); setBackImage(null); setSelfieImage(null); }}
-                                    className="w-full bg-gray-900 text-white py-4 rounded-2xl font-black shadow-xl hover:shadow-2xl transition-all active:scale-95"
+                                    type="button"
+                                    onClick={() => setStep('front')}
+                                    className="bg-gray-900 text-white px-12 py-5 rounded-3xl font-black text-lg shadow-2xl shadow-gray-200 hover:scale-105 active:scale-95 transition-all flex items-center gap-4 mx-auto"
                                 >
-                                    {t('customer.ekyc.retry')}
+                                    {t('customer.ekyc.start')}
+                                    <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center">
+                                        <ArrowRight className="w-5 h-5" />
+                                    </div>
                                 </button>
-                            )}
-                        </div>
-                    )}
+                            </motion.div>
+                        ) : (
+                            <motion.div
+                                key="main-card"
+                                initial={{ opacity: 0, scale: 0.98 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="bg-white rounded-[48px] border border-gray-100 shadow-[0_32px_128px_-32px_rgba(0,0,0,0.12)] overflow-hidden"
+                            >
+                                {/* Unified Card Header: Stepper */}
+                                <div className="bg-gray-50/50 border-b border-gray-100 p-10">
+                                    <div className="flex items-center justify-between relative px-4">
+                                        {stepLabels.map((label, i) => (
+                                            <div key={i} className="flex flex-col items-center relative z-10">
+                                                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-black transition-all duration-500 border-4 ${
+                                                    i < stepIndex 
+                                                        ? 'bg-blue-600 text-white border-blue-100 shadow-xl shadow-blue-100' 
+                                                        : i === stepIndex
+                                                            ? 'bg-white text-blue-600 border-blue-600 shadow-xl shadow-blue-100 scale-110'
+                                                            : 'bg-white text-gray-200 border-gray-100'
+                                                }`}>
+                                                    {i < stepIndex ? '✓' : i + 1}
+                                                </div>
+                                                <div className={`mt-3 text-[10px] font-black uppercase tracking-widest hidden sm:block ${
+                                                    i <= stepIndex ? 'text-blue-600' : 'text-gray-300'
+                                                }`}>
+                                                    {label}
+                                                </div>
+                                            </div>
+                                        ))}
+                                        <div className="absolute top-6 left-0 right-0 h-1 bg-gray-100/50 -z-10 mx-16 rounded-full overflow-hidden">
+                                            <motion.div 
+                                                className="h-full bg-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.5)]" 
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${(stepIndex / (stepLabels.length - 1)) * 100}%` }}
+                                                transition={{ duration: 0.8, ease: "circOut" }}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Card Body: Dynamic Content */}
+                                <div className="p-12">
+                                    <AnimatePresence mode="wait">
+                                        {step === 'info' && (
+                                            <motion.div 
+                                                key="info-step"
+                                                initial={{ opacity: 0, x: 20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                exit={{ opacity: 0, x: -20 }}
+                                                className="space-y-8"
+                                            >
+                                                <div>
+                                                    <h2 className="text-3xl font-black text-gray-900 mb-2">{t('customer.ekyc.steps.info')}</h2>
+                                                    <p className="text-gray-400 font-medium text-sm">Verify your details before we start the document scan.</p>
+                                                </div>
+                                                
+                                                <div className="space-y-6">
+                                                    <div className="group">
+                                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 block group-focus-within:text-blue-500 transition-colors">Họ và tên</label>
+                                                        <input 
+                                                            type="text" 
+                                                            className="w-full bg-gray-50 border-2 border-transparent focus:border-blue-500 focus:bg-white rounded-3xl px-8 py-5 font-black text-gray-900 transition-all outline-none text-lg shadow-sm"
+                                                            placeholder="NGUYEN VAN A"
+                                                            value={basicInfo.fullName}
+                                                            onChange={e => setBasicInfo({...basicInfo, fullName: e.target.value.toUpperCase()})}
+                                                        />
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-6">
+                                                        <div>
+                                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 block">Ngày sinh</label>
+                                                            <input 
+                                                                type="date" 
+                                                                className="w-full bg-gray-50 border-2 border-transparent focus:border-blue-500 focus:bg-white rounded-3xl px-8 py-5 font-black text-gray-900 transition-all outline-none shadow-sm"
+                                                                value={basicInfo.dob}
+                                                                onChange={e => setBasicInfo({...basicInfo, dob: e.target.value})}
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 block">Số điện thoại</label>
+                                                            <input 
+                                                                type="tel" 
+                                                                className="w-full bg-gray-50 border-2 border-transparent focus:border-blue-500 focus:bg-white rounded-3xl px-8 py-5 font-black text-gray-900 transition-all outline-none shadow-sm"
+                                                                placeholder="0912345678"
+                                                                value={basicInfo.phone}
+                                                                onChange={e => setBasicInfo({...basicInfo, phone: e.target.value})}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 block">Địa chỉ thường chú</label>
+                                                        <textarea 
+                                                            className="w-full bg-gray-50 border-2 border-transparent focus:border-blue-500 focus:bg-white rounded-3xl px-8 py-5 font-bold text-gray-900 transition-all outline-none min-h-[140px] shadow-sm resize-none"
+                                                            placeholder="Số 1, Đường ABC, Phường XYZ..."
+                                                            value={basicInfo.address}
+                                                            onChange={e => setBasicInfo({...basicInfo, address: e.target.value})}
+                                                        />
+                                                    </div>
+                                                    <button
+                                                        onClick={() => setStep('front')}
+                                                        disabled={!basicInfo.fullName || !basicInfo.dob || !basicInfo.phone || !basicInfo.address}
+                                                        className="w-full bg-blue-600 disabled:bg-gray-100 disabled:text-gray-400 text-white py-6 rounded-3xl font-black text-lg shadow-2xl shadow-blue-200 hover:scale-[1.02] active:scale-98 transition-all flex items-center justify-center gap-4 mt-8"
+                                                    >
+                                                        Tiếp tục bước 2
+                                                        <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center">
+                                                            <ArrowRight className="w-5 h-5 flex-shrink-0" />
+                                                        </div>
+                                                    </button>
+                                                </div>
+                                            </motion.div>
+                                        )}
+
+                                        {(step === 'front' || step === 'back' || step === 'selfie') && (
+                                            <motion.div 
+                                                key="upload-step"
+                                                initial={{ opacity: 0, x: 20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                exit={{ opacity: 0, x: -20 }}
+                                                className="text-center"
+                                            >
+                                                <div className="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-blue-100 shadow-sm shadow-blue-50">
+                                                    {step === 'selfie' ? <ScanFace className="w-10 h-10 text-blue-600" /> : <CreditCard className="w-10 h-10 text-blue-600" />}
+                                                </div>
+                                                <h2 className="text-3xl font-black text-gray-900 mb-2">
+                                                    {step === 'front' ? t('customer.ekyc.steps.front') : step === 'back' ? t('customer.ekyc.steps.back') : t('customer.ekyc.steps.selfie')}
+                                                </h2>
+                                                <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest mb-10">
+                                                    {step === 'selfie'
+                                                        ? 'Keep your face in frame • Good lighting • No glasses'
+                                                        : 'Flat surface • All 4 corners visible • No glare'}
+                                                </p>
+
+                                                <motion.button
+                                                    whileHover={{ scale: 1.01 }}
+                                                    whileTap={{ scale: 0.99 }}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (step === 'front') frontInputRef.current?.click();
+                                                        else if (step === 'back') backInputRef.current?.click();
+                                                        else selfieInputRef.current?.click();
+                                                    }}
+                                                    className="w-full aspect-[16/10] bg-gray-50 border-4 border-dashed border-gray-100 rounded-[40px] flex flex-col items-center justify-center cursor-pointer hover:border-blue-200 hover:bg-blue-50/20 transition-all group mb-8 shadow-inner"
+                                                >
+                                                    <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-all mb-4 text-gray-300 group-hover:text-blue-500">
+                                                        {step === 'selfie' ? (
+                                                            <Camera className="w-10 h-10 transition-transform group-hover:scale-110" />
+                                                        ) : (
+                                                            <Upload className="w-10 h-10 transition-transform group-hover:scale-110" />
+                                                        )}
+                                                    </div>
+                                                    <span className="font-black text-gray-400 group-hover:text-blue-600 transition-colors uppercase text-xs tracking-[0.2em]">
+                                                        {step === 'selfie' ? 'Open Face Scanner' : 'Upload Document'}
+                                                    </span>
+                                                </motion.button>
+
+                                                {(frontPreview || backPreview || selfiePreview) && (
+                                                    <div className="flex gap-4 justify-center">
+                                                        {frontPreview && (
+                                                            <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="w-28 h-20 bg-gray-100 rounded-2xl overflow-hidden border-4 border-green-500/30 relative shadow-xl">
+                                                                <img src={frontPreview} alt="Front" className="w-full h-full object-cover" />
+                                                                <div className="absolute inset-0 bg-green-500/10 flex items-center justify-center">
+                                                                    <CheckCircle2 className="w-8 h-8 text-white shadow-lg" />
+                                                                </div>
+                                                            </motion.div>
+                                                        )}
+                                                        {backPreview && (
+                                                            <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="w-28 h-20 bg-gray-100 rounded-2xl overflow-hidden border-4 border-green-500/30 relative shadow-xl">
+                                                                <img src={backPreview} alt="Back" className="w-full h-full object-cover" />
+                                                                <div className="absolute inset-0 bg-green-500/10 flex items-center justify-center">
+                                                                    <CheckCircle2 className="w-8 h-8 text-white shadow-lg" />
+                                                                </div>
+                                                            </motion.div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </motion.div>
+                                        )}
+
+                                        {step === 'processing' && (
+                                            <motion.div 
+                                                key="processing-step"
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                className="py-12 text-center"
+                                            >
+                                                <div className="relative w-32 h-32 mx-auto mb-10">
+                                                    <div className="absolute inset-0 bg-blue-100 rounded-full animate-ping opacity-20" />
+                                                    <div className="relative w-32 h-32 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-full flex items-center justify-center z-10 shadow-2xl shadow-blue-200">
+                                                        <Loader2 className="w-14 h-14 text-white animate-spin" />
+                                                    </div>
+                                                </div>
+                                                <h2 className="text-3xl font-black text-gray-900 mb-3">{t('common.loading')}</h2>
+                                                <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest max-w-xs mx-auto leading-relaxed">
+                                                    {t('customer.ekyc.processing')}
+                                                </p>
+                                            </motion.div>
+                                        )}
+
+                                        {step === 'result' && (
+                                            <motion.div 
+                                                key="result-step"
+                                                initial={{ opacity: 0, scale: 0.95 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                className="space-y-8"
+                                            >
+                                                <div className={`rounded-[40px] p-12 text-center shadow-inner ${verifyResult === 'success'
+                                                        ? 'bg-emerald-50/50'
+                                                        : 'bg-rose-50/50'
+                                                    }`}>
+                                                    <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-8 shadow-2xl ${verifyResult === 'success' 
+                                                        ? 'bg-gradient-to-br from-emerald-500 to-green-600 shadow-emerald-200' 
+                                                        : 'bg-gradient-to-br from-rose-500 to-red-600 shadow-rose-200'
+                                                        }`}>
+                                                        {verifyResult === 'success'
+                                                            ? <CheckCircle2 className="w-12 h-12 text-white" />
+                                                            : <XCircle className="w-12 h-12 text-white" />
+                                                        }
+                                                    </div>
+                                                    <h2 className="text-4xl font-black text-gray-900 mb-2 tracking-tight">
+                                                        {verifyResult === 'success' ? t('customer.ekyc.success') : t('customer.ekyc.failed')}
+                                                    </h2>
+                                                    {verifyResult === 'failed' && errorMessage && (
+                                                        <p className="text-sm text-red-700 font-bold bg-white/50 px-6 py-3 rounded-2xl inline-block border border-red-100 mt-4 uppercase tracking-tight">{errorMessage}</p>
+                                                    )}
+                                                </div>
+
+                                                {ocrData && verifyResult === 'success' && (
+                                                    <div className="space-y-8">
+                                                        <div className="bg-gray-50/50 border border-gray-100 rounded-[40px] p-10 backdrop-blur-sm">
+                                                            <h3 className="font-black text-gray-900 mb-8 flex items-center gap-3 text-lg">
+                                                                <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+                                                                    <ShieldCheck className="w-6 h-6 text-emerald-600" />
+                                                                </div>
+                                                                Verified Identity Profile
+                                                            </h3>
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                                {[
+                                                                    { label: 'Verified Name', value: ocrData.name ?? '—' },
+                                                                    { label: 'Document Number', value: ocrData.idNumber ?? '—' },
+                                                                    { label: 'Date of Birth', value: ocrData.dob ?? '—' },
+                                                                    { label: 'Registered Address', value: ocrData.address ?? '—' },
+                                                                ].map((field, i) => (
+                                                                    <div key={i}>
+                                                                        <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3">{field.label}</div>
+                                                                        <div className="text-sm font-black text-gray-900 bg-white border border-gray-100 px-6 py-4 rounded-2xl shadow-sm leading-relaxed">{field.value}</div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => navigate('/host-registration')}
+                                                            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-6 rounded-[32px] font-black text-lg shadow-2xl shadow-blue-200 hover:scale-[1.02] active:scale-98 transition-all flex items-center justify-center gap-4"
+                                                        >
+                                                            Continue to Registration
+                                                            <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
+                                                                <ArrowRight className="w-6 h-6" />
+                                                            </div>
+                                                        </button>
+                                                    </div>
+                                                )}
+
+                                                {verifyResult === 'failed' && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setStep('front');
+                                                            setFrontFile(null);
+                                                            setBackFile(null);
+                                                            setSelfieFile(null);
+                                                            setFrontPreview(null);
+                                                            setBackPreview(null);
+                                                            setSelfiePreview(null);
+                                                            setVerifyResult(null);
+                                                            setOcrData(null);
+                                                            setErrorMessage(null);
+                                                        }}
+                                                        className="w-full bg-gray-900 text-white py-6 rounded-[32px] font-black text-lg shadow-2xl shadow-gray-200 hover:scale-[1.02] active:scale-98 transition-all flex items-center justify-center gap-4"
+                                                    >
+                                                        Retry Verification Process
+                                                        <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center">
+                                                            <ArrowRight className="w-5 h-5" />
+                                                        </div>
+                                                    </button>
+                                                )}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
             </div>
         </CustomerLayout>

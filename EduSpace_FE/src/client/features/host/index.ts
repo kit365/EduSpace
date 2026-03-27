@@ -7,10 +7,11 @@ export { FinancePage } from './pages/FinancePage';
 export { KycPage } from './pages/KycPage';
 export { StaffManagementPage } from './pages/StaffManagementPage';
 export { RoomStatusPage } from './pages/RoomStatusPage';
+export { RoomLockPage } from './pages/RoomLockPage';
 export { SchedulePage } from './pages/SchedulePage';
 export { StaffCheckoutPage } from './pages/StaffCheckoutPage';
-export { AdsPage } from './pages/AdsPage';
 export { HostRegistrationPage } from './pages/HostRegistrationPage';
+export { UtilityPriceManagementPage } from './pages/UtilityPriceManagementPage';
 
 // Data
 export * from './data/mockData';

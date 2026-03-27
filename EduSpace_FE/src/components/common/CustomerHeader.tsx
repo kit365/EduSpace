@@ -1,9 +1,10 @@
-import { useNavigate, Link } from 'react-router-dom';
-import { User, Heart, MessageCircle, Calendar, LogOut, LogIn } from 'lucide-react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { User, Heart, MessageCircle, Calendar, LogOut, LogIn, Building2, CircleHelp, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { NotificationDropdown } from '../../client/features/customer/notifications/components/NotificationDropdown';
 import { useAuthStore } from '../../stores/authStore';
+import { useChatInboxStore } from '../../stores/chatInboxStore';
 
 interface HeaderProps {
   variant?: 'home' | 'default';
@@ -11,19 +12,27 @@ interface HeaderProps {
 
 export function CustomerHeader({ variant = 'default' }: HeaderProps) {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { t } = useTranslation();
 
   // Đọc auth state từ global store
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const clearTokens = useAuthStore((s) => s.clearTokens);
-
-  const isHost = false;
+  const messageUnreadTotal = useChatInboxStore((s) => s.totalUnreadCount);
 
   const navItems = [
     { label: t('customer.nav.findSpace'), path: '/search', show: true },
-    { label: t('customer.nav.forHosts'), path: '/rental', show: isHost },
+    { label: t('customer.nav.listSpace'), path: '/rental', show: true },
     { label: t('customer.nav.help'), path: '/help', show: true },
   ].filter(item => item.show);
+
+  const getNavIcon = (path: string) => {
+    if (path === '/rental') return Building2;
+    if (path === '/help') return CircleHelp;
+    if (path === '/bookings') return Calendar;
+    if (path === '/search') return Search;
+    return Heart;
+  };
 
   const handleLogout = () => {
     clearTokens();
@@ -46,15 +55,28 @@ export function CustomerHeader({ variant = 'default' }: HeaderProps) {
           </Link>
 
           {/* Navigation */}
-          <nav className="hidden md:flex items-center gap-8">
+          <nav className="hidden lg:flex items-center gap-2">
             {navItems.map((item) => (
-              <Link
-                key={item.label}
-                to={item.path}
-                className="text-sm font-bold text-gray-600 hover:text-red-500 transition-colors flex items-center gap-2"
-              >
-                {item.label}
-              </Link>
+              (() => {
+                const Icon = getNavIcon(item.path);
+                const isActive = item.path === '/'
+                  ? pathname === '/'
+                  : pathname.startsWith(item.path);
+
+                return (
+                  <Link
+                    key={item.label}
+                    to={item.path}
+                    className={`text-sm font-bold transition-all flex items-center gap-2 px-3 py-2 rounded-xl ${isActive
+                      ? 'text-red-600 bg-red-50'
+                      : 'text-gray-600 hover:text-red-500 hover:bg-gray-50'
+                      }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {item.label}
+                  </Link>
+                );
+              })()
             ))}
           </nav>
 
@@ -78,7 +100,11 @@ export function CustomerHeader({ variant = 'default' }: HeaderProps) {
                   title="Messages"
                 >
                   <MessageCircle className="w-5 h-5" />
-                  <span className="absolute top-3 right-3 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                  {messageUnreadTotal > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 flex items-center justify-center bg-red-500 text-white text-[10px] font-black rounded-full border-2 border-white">
+                      {messageUnreadTotal > 99 ? '99+' : messageUnreadTotal}
+                    </span>
+                  )}
                 </button>
                 <button
                   onClick={() => navigate('/bookings')}

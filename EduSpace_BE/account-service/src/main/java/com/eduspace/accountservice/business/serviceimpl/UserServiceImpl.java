@@ -1,15 +1,35 @@
 package com.eduspace.accountservice.business.serviceimpl;
 
-import com.eduspace.accountservice.model.dto.request.UpdateProfileRequest;
-import com.eduspace.accountservice.model.dto.response.UserResponse;
-import com.eduspace.accountservice.model.dto.response.TwoFactorResponse;
+import com.eduspace.accountservice.model.dto.request.user.UpdateProfileRequest;
+import com.eduspace.accountservice.model.dto.response.PublicUserProfileResponse;
+import com.eduspace.accountservice.model.dto.response.user.TwoFactorResponse;
+import com.eduspace.accountservice.model.dto.response.PageResponse;
+import com.eduspace.accountservice.model.dto.response.user.UserResponse;
+import com.eduspace.accountservice.common.enums.ActivityLogEventType;
+import com.eduspace.accountservice.common.enums.ActivityLogStatus;
+import com.eduspace.accountservice.model.entity.HostStaffLinkEntity;
 import com.eduspace.accountservice.model.entity.UserEntity;
 import com.eduspace.accountservice.model.mapper.UserMapper;
+import com.eduspace.accountservice.business.service.ActivityLogService;
+import com.eduspace.accountservice.common.enums.VerificationStatus;
 import com.eduspace.accountservice.business.service.KeycloakUserService;
+import com.eduspace.accountservice.business.service.SupportStaffPresenceService;
 import com.eduspace.accountservice.business.service.UserService;
 import com.eduspace.accountservice.exception.AppException;
 import com.eduspace.accountservice.exception.ErrorCode;
+import com.eduspace.accountservice.persistence.repository.UserPermissionRepository;
+import com.eduspace.accountservice.persistence.repository.HostStaffLinkRepository;
 import com.eduspace.accountservice.persistence.repository.UserRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import java.util.List;
+import java.util.Optional;
+import java.util.LinkedHashSet;
+import java.util.Set;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.stream.Collectors;
 import dev.samstevens.totp.code.CodeVerifier;
 import dev.samstevens.totp.code.DefaultCodeGenerator;
 import dev.samstevens.totp.code.DefaultCodeVerifier;
@@ -30,19 +50,93 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final KeycloakUserService keycloakUserService;
+    private final SupportStaffPresenceService supportStaffPresenceService;
+    private final ActivityLogService activityLogService;
+    private final UserPermissionRepository userPermissionRepository;
+    private final HostStaffLinkRepository hostStaffLinkRepository;
+
+    private static final Set<String> MANAGER_DEFAULT_PERMISSION_NAMES = Set.of(
+            "view_dashboard",
+            "branch.branch.view",
+            "branch.booking.view",
+            "branch.booking.manage",
+            "branch.room.view",
+            "branch.checkin.manage",
+            "branch.checkout.manage",
+            "branch.room_status.manage",
+            "branch.profile.view",
+            "branch.finance.view",
+            "branch.finance.export",
+            "view_messages",
+            "manage_messages",
+            "branch.utility.view",
+            "branch.utility.create",
+            "branch.utility.edit",
+            "branch.utility.delete",
+            "branch.deposit_policy.view",
+            "branch.deposit_policy.create",
+            "branch.deposit_policy.edit",
+            "branch.deposit_policy.delete",
+            "rbac.permission.view",
+            "rbac.template.view");
+
+    private UserResponse toUserResponseWithMergedPermissions(UserEntity user) {
+        UserResponse response = userMapper.toUserResponse(user, userPermissionRepository.findPermissionNamesByUserId(user.getId()));
+        boolean isManager = user.getRoles() != null
+                && user.getRoles().stream().anyMatch(r -> "MANAGER".equalsIgnoreCase(r.getName()));
+        boolean isHost = user.getRoles() != null
+                && user.getRoles().stream().anyMatch(r -> "HOST".equalsIgnoreCase(r.getName()));
+        // Strict host RBAC: if user has HOST role, permissions exposed to Host UI must come from HOST role only.
+        // This prevents MANAGER role grants from leaking host menu items when HOST role has no assigned permissions.
+        if (isHost) {
+            response.setPermissions(resolvePermissionsByRole(user, "HOST"));
+            return response;
+        }
+        // Only enforce per-host manager defaults for manager-only users.
+        // If a user also has HOST role, host role permissions should remain the source of truth.
+        if (!isManager) return response;
+        HostStaffLinkEntity link = hostStaffLinkRepository.findByStaffUserId(user.getId()).orElse(null);
+        Set<String> linkPermissions = parsePermissionCsv(link != null ? link.getManagerPermissionNames() : null);
+        if (linkPermissions.isEmpty()) {
+            linkPermissions = new LinkedHashSet<>(MANAGER_DEFAULT_PERMISSION_NAMES);
+        }
+        response.setPermissions(linkPermissions);
+        return response;
+    }
+
+    private static Set<String> parsePermissionCsv(String csv) {
+        if (csv == null || csv.trim().isEmpty()) return new LinkedHashSet<>();
+        return Arrays.stream(csv.split(","))
+                .map(s -> s == null ? "" : s.trim().toLowerCase())
+                .filter(s -> !s.isBlank())
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    private static Set<String> resolvePermissionsByRole(UserEntity user, String roleName) {
+        if (user == null || user.getRoles() == null || roleName == null) {
+            return Collections.emptySet();
+        }
+        return user.getRoles().stream()
+                .filter(r -> r != null && roleName.equalsIgnoreCase(r.getName()))
+                .flatMap(r -> r.getPermissions() == null ? java.util.stream.Stream.empty() : r.getPermissions().stream())
+                .map(p -> p == null ? null : p.getName())
+                .filter(name -> name != null && !name.isBlank())
+                .map(name -> name.trim().toLowerCase())
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
 
     @Override
     public UserResponse getProfile(String keycloakId) {
         UserEntity user = userRepository.findByKeycloakId(keycloakId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        return userMapper.toUserResponse(user);
+        return toUserResponseWithMergedPermissions(user);
     }
 
     @Override
     public UserResponse getProfileByEmail(String email) {
         UserEntity user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        return userMapper.toUserResponse(user);
+        return toUserResponseWithMergedPermissions(user);
     }
 
     @Override
@@ -59,90 +153,407 @@ public class UserServiceImpl implements UserService {
             keycloakId = user.getKeycloakId();
         }
 
+        if (isHostUpdate(request) && user.getVerificationStatus() != VerificationStatus.VERIFIED) {
+            throw new AppException(ErrorCode.EKYC_REQUIRED);
+        }
+
         userMapper.updateUserEntityFromRequest(request, user);
 
         userRepository.save(user);
         log.info("Profile updated for user: {}", keycloakId);
 
-        return userMapper.toUserResponse(user);
+        return toUserResponseWithMergedPermissions(user);
     }
 
     @Override
     public void changePassword(String keycloakId, String email, String oldPassword, String newPassword) {
+        UserEntity user = null;
         if (keycloakId == null) {
-            UserEntity user = userRepository.findByEmail(email)
+            user = userRepository.findByEmail(email)
                     .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
             keycloakId = user.getKeycloakId();
+        } else {
+            user = userRepository.findByKeycloakId(keycloakId)
+                    .orElseGet(() -> email != null ? userRepository.findByEmail(email).orElse(null) : null);
         }
-        keycloakUserService.changePassword(keycloakId, email, oldPassword, newPassword);
+        try {
+            keycloakUserService.changePassword(keycloakId, email, oldPassword, newPassword);
+            activityLogService.log(ActivityLogEventType.CHANGE_PASSWORD, ActivityLogStatus.SUCCESS,
+                    user != null ? user.getId() : null,
+                    user != null ? user.getEmail() : email,
+                    "Password changed successfully", null);
+        } catch (RuntimeException ex) {
+            activityLogService.log(ActivityLogEventType.CHANGE_PASSWORD, ActivityLogStatus.FAILURE,
+                    user != null ? user.getId() : null,
+                    user != null ? user.getEmail() : email,
+                    "Password change failed: " + ex.getClass().getSimpleName(), null);
+            throw ex;
+        }
     }
 
     @Override
     @Transactional
     public TwoFactorResponse generate2faSecret(String email) {
-        UserEntity user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        UserEntity user = null;
+        try {
+            user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        SecretGenerator generator = new DefaultSecretGenerator();
-        String secret = generator.generate();
+            SecretGenerator generator = new DefaultSecretGenerator();
+            String secret = generator.generate();
 
-        // Save secret temporarily to the user
-        user.setTotpSecret(secret);
-        userRepository.save(user);
+            // Save secret temporarily to the user
+            user.setTotpSecret(secret);
+            userRepository.save(user);
 
-        QrData data = new QrData.Builder()
-                .label(user.getEmail())
-                .secret(secret)
-                .issuer("EduSpace")
-                .algorithm(dev.samstevens.totp.code.HashingAlgorithm.SHA1)
-                .digits(6)
-                .period(30)
-                .build();
+            QrData data = new QrData.Builder()
+                    .label(user.getEmail())
+                    .secret(secret)
+                    .issuer("EduSpace")
+                    .algorithm(dev.samstevens.totp.code.HashingAlgorithm.SHA1)
+                    .digits(6)
+                    .period(30)
+                    .build();
 
-        return TwoFactorResponse.builder()
-                .secret(secret)
-                .qrCodeUrl(data.getUri())
-                .build();
+            activityLogService.log(ActivityLogEventType.SETUP_2FA, ActivityLogStatus.SUCCESS,
+                    user.getId(), user.getEmail(), "2FA setup secret generated", null);
+            return TwoFactorResponse.builder()
+                    .secret(secret)
+                    .qrCodeUrl(data.getUri())
+                    .build();
+        } catch (RuntimeException ex) {
+            activityLogService.log(ActivityLogEventType.SETUP_2FA, ActivityLogStatus.FAILURE,
+                    user != null ? user.getId() : null,
+                    user != null ? user.getEmail() : email,
+                    "2FA setup failed: " + ex.getClass().getSimpleName(), null);
+            throw ex;
+        }
     }
 
     @Override
     @Transactional
     public void enable2fa(String email, String code) {
-        UserEntity user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        UserEntity user = null;
+        try {
+            user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        if (user.getTotpSecret() == null) {
-            throw new AppException(ErrorCode.INVALID_KEY);
+            if (user.getTotpSecret() == null) {
+                throw new AppException(ErrorCode.INVALID_KEY);
+            }
+
+            CodeVerifier verifier = new DefaultCodeVerifier(new DefaultCodeGenerator(), new SystemTimeProvider());
+            if (!verifier.isValidCode(user.getTotpSecret(), code)) {
+                throw new AppException(ErrorCode.INVALID_2FA_CODE);
+            }
+
+            user.setIs2faEnabled(true);
+            userRepository.save(user);
+            activityLogService.log(ActivityLogEventType.ENABLE_2FA, ActivityLogStatus.SUCCESS,
+                    user.getId(), user.getEmail(), "2FA enabled successfully", null);
+            log.info("2FA enabled successfully for user: {}", email);
+        } catch (RuntimeException ex) {
+            activityLogService.log(ActivityLogEventType.ENABLE_2FA, ActivityLogStatus.FAILURE,
+                    user != null ? user.getId() : null,
+                    user != null ? user.getEmail() : email,
+                    "Enable 2FA failed: " + ex.getClass().getSimpleName(), null);
+            throw ex;
         }
-
-        CodeVerifier verifier = new DefaultCodeVerifier(new DefaultCodeGenerator(), new SystemTimeProvider());
-        if (!verifier.isValidCode(user.getTotpSecret(), code)) {
-            throw new AppException(ErrorCode.INVALID_2FA_CODE);
-        }
-
-        user.setIs2faEnabled(true);
-        userRepository.save(user);
-        log.info("2FA enabled successfully for user: {}", email);
     }
 
     @Override
     @Transactional
     public void disable2fa(String email, String code) {
-        UserEntity user = userRepository.findByEmail(email)
+        UserEntity user = null;
+        try {
+            user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+            if (!Boolean.TRUE.equals(user.getIs2faEnabled())) {
+                return; // Already disabled
+            }
+
+            CodeVerifier verifier = new DefaultCodeVerifier(new DefaultCodeGenerator(), new SystemTimeProvider());
+            if (!verifier.isValidCode(user.getTotpSecret(), code)) {
+                throw new AppException(ErrorCode.INVALID_2FA_CODE);
+            }
+
+            user.setIs2faEnabled(false);
+            user.setTotpSecret(null);
+            userRepository.save(user);
+            activityLogService.log(ActivityLogEventType.DISABLE_2FA, ActivityLogStatus.SUCCESS,
+                    user.getId(), user.getEmail(), "2FA disabled successfully", null);
+            log.info("2FA disabled successfully for user: {}", email);
+        } catch (RuntimeException ex) {
+            activityLogService.log(ActivityLogEventType.DISABLE_2FA, ActivityLogStatus.FAILURE,
+                    user != null ? user.getId() : null,
+                    user != null ? user.getEmail() : email,
+                    "Disable 2FA failed: " + ex.getClass().getSimpleName(), null);
+            throw ex;
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PublicUserProfileResponse getPublicProfileByUserId(String userId) {
+        UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        return userMapper.toPublicUserProfile(user);
+    }
 
-        if (!Boolean.TRUE.equals(user.getIs2faEnabled())) {
-            return; // Already disabled
+    @Override
+    @Transactional(readOnly = true)
+    public List<PublicUserProfileResponse> getPublicProfilesByUserIds(List<String> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return List.of();
+        }
+        return userRepository.findAllById(userIds).stream()
+                .map(userMapper::toPublicUserProfile)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PublicUserProfileResponse getPublicProfileByKeycloakId(String keycloakId) {
+        UserEntity user = userRepository.findByKeycloakId(keycloakId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        return userMapper.toPublicUserProfile(user);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PublicUserProfileResponse getPublicProfileByIdentifier(String identifier) {
+        if (identifier == null) {
+            throw new AppException(ErrorCode.USER_NOT_FOUND);
+        }
+        
+        // Simple heuristic: if it contains '@', it's likely an email
+        if (identifier.contains("@")) {
+            return userRepository.findByEmail(identifier)
+                    .map(userMapper::toPublicUserProfile)
+                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        }
+        
+        // Otherwise assume it's a Keycloak ID (UUID)
+        return userRepository.findByKeycloakId(identifier)
+                .map(userMapper::toPublicUserProfile)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PublicUserProfileResponse> getPublicProfilesByKeycloakIds(List<String> keycloakIds) {
+        if (keycloakIds == null || keycloakIds.isEmpty()) {
+            return List.of();
+        }
+        return userRepository.findAllByKeycloakIdIn(keycloakIds).stream()
+                .map(userMapper::toPublicUserProfile)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PublicUserProfileResponse> getPublicProfilesByIdentifiers(List<String> identifiers) {
+        if (identifiers == null || identifiers.isEmpty()) {
+            return List.of();
         }
 
-        CodeVerifier verifier = new DefaultCodeVerifier(new DefaultCodeGenerator(), new SystemTimeProvider());
-        if (!verifier.isValidCode(user.getTotpSecret(), code)) {
-            throw new AppException(ErrorCode.INVALID_2FA_CODE);
+        List<String> emails = identifiers.stream()
+                .filter(id -> id != null && id.contains("@"))
+                .toList();
+        List<String> keycloakIds = identifiers.stream()
+                .filter(id -> id != null && !id.contains("@"))
+                .toList();
+
+        List<UserEntity> users = new java.util.ArrayList<>();
+        if (!emails.isEmpty()) {
+            users.addAll(userRepository.findAllByEmailIn(emails));
+        }
+        if (!keycloakIds.isEmpty()) {
+            users.addAll(userRepository.findAllByKeycloakIdIn(keycloakIds));
         }
 
-        user.setIs2faEnabled(false);
-        user.setTotpSecret(null);
+        return users.stream()
+                .distinct()
+                .map(userMapper::toPublicUserProfile)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PublicUserProfileResponse> searchPublicProfiles(String query, int limit) {
+        if (query == null || query.isBlank()) {
+            return List.of();
+        }
+        int safeLimit = Math.min(Math.max(limit, 1), 50);
+        return userRepository.searchByEmailOrFullName(query).stream()
+                .limit(safeLimit)
+                .map(userMapper::toPublicUserProfile)
+                .toList();
+    }
+
+    @Override
+    public PageResponse<UserResponse> getAllUsers(Pageable pageable, String search, List<String> roles, String status, String kyc, String identifier, boolean isEmail) {
+        UserEntity requester = null;
+        if (identifier != null) {
+            requester = isEmail 
+                ? userRepository.findByEmail(identifier).orElse(null)
+                : userRepository.findByKeycloakId(identifier).orElse(null);
+        }
+
+        boolean isSuperAdmin = requester != null && requester.getRoles() != null && 
+                               requester.getRoles().stream().anyMatch(r -> "SUPER_ADMIN".equals(r.getName()));
+
+        List<String> mappedRoles = (roles != null && !roles.isEmpty())
+                ? roles.stream()
+                        .filter(r -> r != null && !"Tất cả".equals(r.trim()))
+                        .map(this::mapRole)
+                        .distinct()
+                        .toList()
+                : null;
+
+        Specification<UserEntity> spec = com.eduspace.accountservice.persistence.specification.UserSpecification.hasFilters(
+                search, mappedRoles, status, isSuperAdmin, requester
+        );
+
+        Page<UserEntity> pageResult = userRepository.findAll(spec, pageable);
+
+        return PageResponse.<UserResponse>builder()
+                .content(pageResult.getContent().stream().map(this::toUserResponseWithMergedPermissions).collect(Collectors.toList()))
+                .page(pageResult.getNumber())
+                .size(pageResult.getSize())
+                .totalElements(pageResult.getTotalElements())
+                .totalPages(pageResult.getTotalPages())
+                .last(pageResult.isLast())
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countEligibleSupportStaff() {
+        return userRepository.countDistinctActiveUsersWithSupportRoles();
+    }
+
+    /**
+     * Resolves a support agent for the assign-staff saga. Eligible users are those with role ADMIN
+     * (or SUPER_ADMIN if none), but only if their Keycloak id appears in Redis
+     * {@link com.eduspace.accountservice.business.serviceimpl.SupportStaffPresenceServiceImpl#ZSET_KEY}
+     * — populated when an admin uses the portal ({@code POST .../me/support-presence} heartbeat).
+     * Requires Redis up and at least one such user “online”; otherwise returns {@code null} and the
+     * conversation-service emits ASSIGN_STAFF_FAILED.
+     */
+    @Override
+    public String assignStaff(String customerId) {
+        log.info("Assigning staff for customerId: {}", customerId);
+        
+        Set<String> online = supportStaffPresenceService.getOnlineMemberIds();
+
+        // Prefer online ADMIN first.
+        List<UserEntity> adminUsers = userRepository.findByRoleName("ADMIN");
+        Optional<UserEntity> onlineAdmin = adminUsers.stream()
+                .filter(a -> a.getKeycloakId() != null && online.contains(a.getKeycloakId()))
+                .findFirst();
+        if (onlineAdmin.isPresent()) {
+            UserEntity assigned = onlineAdmin.get();
+            log.info("Assigned online ADMIN {} to customer {}", assigned.getEmail(), customerId);
+            return assigned.getKeycloakId();
+        }
+
+        // If no ADMIN is online, allow online SUPER_ADMIN (even if ADMIN users exist in DB).
+        List<UserEntity> superAdminUsers = userRepository.findByRoleName("SUPER_ADMIN");
+        Optional<UserEntity> onlineSuperAdmin = superAdminUsers.stream()
+                .filter(a -> a.getKeycloakId() != null && online.contains(a.getKeycloakId()))
+                .findFirst();
+        if (onlineSuperAdmin.isPresent()) {
+            UserEntity assigned = onlineSuperAdmin.get();
+            log.info("Assigned online SUPER_ADMIN {} to customer {}", assigned.getEmail(), customerId);
+            return assigned.getKeycloakId();
+        }
+
+        // Developer fallback: if there are no eligible ADMIN/SUPER_ADMIN roles in DB at all,
+        // pick a candidate (but still require it to be present in Redis).
+        if (adminUsers.isEmpty() && superAdminUsers.isEmpty()) {
+            log.warn("No users with ADMIN or SUPER_ADMIN role found. Attempting developer fallback...");
+            List<UserEntity> candidates = userRepository.findAll().stream()
+                    .filter(u -> u.getEmail() != null &&
+                            (u.getEmail().contains("admin") || u.getEmail().contains("kietops")))
+                    .toList();
+
+            if (candidates.isEmpty()) {
+                candidates = userRepository.findAll().stream()
+                        .filter(u -> u.getKeycloakId() != null && !u.getKeycloakId().equals(customerId))
+                        .toList();
+            }
+
+            Optional<UserEntity> onlineCandidate = candidates.stream()
+                    .filter(u -> u.getKeycloakId() != null && online.contains(u.getKeycloakId()))
+                    .findFirst();
+            if (onlineCandidate.isPresent()) {
+                UserEntity assigned = onlineCandidate.get();
+                log.info("Assigned developer-fallback online staff {} to customer {}", assigned.getEmail(), customerId);
+                return assigned.getKeycloakId();
+            }
+        }
+
+        // For support-chat saga we only assign currently online staff.
+        // Returning null triggers ASSIGN_STAFF_FAILED and compensation in conversation-service.
+        log.warn("No online support staff available for customer {}", customerId);
+        return null;
+    }
+
+    private String mapRole(String uiRole) {
+        return switch (uiRole) {
+            case "Quản lý", "Nhân viên" -> "MANAGER";
+            case "Khách hàng" -> "GUEST";
+            case "Host" -> "HOST";
+            case "Admin" -> "ADMIN";
+            case "Super Admin" -> "SUPER_ADMIN";
+            default -> uiRole.toUpperCase();
+        };
+    }
+
+    @Override
+    @Transactional
+    public void approveUserKyc(String userId) {
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        user.setVerificationStatus(VerificationStatus.VERIFIED);
         userRepository.save(user);
-        log.info("2FA disabled successfully for user: {}", email);
+    }
+
+    @Override
+    @Transactional
+    public void rejectUserKyc(String userId, String reason) {
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        user.setVerificationStatus(VerificationStatus.REJECTED);
+        userRepository.save(user);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countTotalUsers() {
+        return userRepository.count();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countUsersByRole(String roleName) {
+        return userRepository.findByRoleName(roleName).size();
+    }
+
+    @Override
+    @Transactional
+    public void toggleUserStatus(String userId, boolean active) {
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        user.setIsActive(active);
+        userRepository.save(user);
+    }
+
+    private boolean isHostUpdate(UpdateProfileRequest request) {
+        return request.getTaxId() != null || 
+               request.getHostType() != null || 
+               request.getOrganizationName() != null;
     }
 }

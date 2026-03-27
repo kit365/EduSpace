@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { GUEST_ID_KEY } from '../utils/guest';
 
 // ==========================================
 // Global Auth Store
@@ -7,10 +8,14 @@ import { persist } from 'zustand/middleware';
 // Feature auth cũng re-export từ đây
 // ==========================================
 
+/** Matches BE LoginResponse (snake_case); camelCase tolerated if a proxy changes JSON */
 export interface AuthTokens {
-    access_token: string;
-    refresh_token: string;
-    expires_in: number;
+    access_token?: string;
+    refresh_token?: string;
+    expires_in?: number;
+    accessToken?: string;
+    refreshToken?: string;
+    expiresIn?: number;
 }
 
 export interface AuthState {
@@ -18,6 +23,10 @@ export interface AuthState {
     refreshToken: string | null;
     expiresIn: number | null;
     isAuthenticated: boolean;
+    /** Quyền host từ GET /accounts/me (DB); bổ sung khi JWT Keycloak không có claim permissions */
+    hostPermissionsFromAccount: string[];
+    /** Đã đồng bộ /accounts/me ít nhất một lần trong phiên hiện tại */
+    hostPermissionsLoaded: boolean;
 }
 
 export interface AuthActions {
@@ -25,6 +34,7 @@ export interface AuthActions {
     clearTokens: () => void;
     getAccessToken: () => string | null;
     getRefreshToken: () => string | null;
+    setHostPermissionsFromAccount: (permissions: string[] | null | undefined) => void;
 }
 
 export type AuthStore = AuthState & AuthActions;
@@ -37,14 +47,56 @@ export const useAuthStore = create<AuthStore>()(
             refreshToken: null,
             expiresIn: null,
             isAuthenticated: false,
+            hostPermissionsFromAccount: [],
+            hostPermissionsLoaded: false,
 
             // --- Actions ---
-            setTokens: (tokens: AuthTokens) =>
+            setTokens: (tokens: AuthTokens) => {
+                const rawAccess = tokens.access_token ?? tokens.accessToken;
+                const rawRefresh = tokens.refresh_token ?? tokens.refreshToken;
+                const accessToken =
+                    typeof rawAccess === 'string'
+                        ? rawAccess.replace(/^Bearer\s+/i, '').trim()
+                        : rawAccess;
+                const refreshToken =
+                    typeof rawRefresh === 'string' ? rawRefresh.trim() : rawRefresh;
+                const expiresRaw = tokens.expires_in ?? tokens.expiresIn;
+                if (typeof accessToken !== 'string' || typeof refreshToken !== 'string') {
+                    console.warn('[authStore] setTokens: missing access or refresh token');
+                    return;
+                }
+                let expiresIn: number | null = null;
+                if (typeof expiresRaw === 'number' && Number.isFinite(expiresRaw)) {
+                    expiresIn = expiresRaw;
+                } else if (typeof expiresRaw === 'string' && expiresRaw !== '') {
+                    const n = Number(expiresRaw);
+                    if (Number.isFinite(n)) expiresIn = n;
+                }
+                const prev = get();
+                const isSilentRefresh = prev.accessToken != null && prev.refreshToken != null;
                 set({
-                    accessToken: tokens.access_token,
-                    refreshToken: tokens.refresh_token,
-                    expiresIn: tokens.expires_in,
+                    accessToken,
+                    refreshToken,
+                    expiresIn,
                     isAuthenticated: true,
+                    // Refresh JWT không xóa quyền — tránh PermissionGate / sidebar “nhảy” hoặc redirect nhầm.
+                    hostPermissionsFromAccount: isSilentRefresh
+                        ? prev.hostPermissionsFromAccount
+                        : [],
+                    hostPermissionsLoaded: isSilentRefresh ? prev.hostPermissionsLoaded : false,
+                });
+                try {
+                    localStorage.removeItem(GUEST_ID_KEY);
+                } catch {
+                    /* ignore */
+                }
+            },
+
+            setHostPermissionsFromAccount: (permissions) =>
+                set({
+                    hostPermissionsFromAccount:
+                        Array.isArray(permissions) && permissions.length > 0 ? [...permissions] : [],
+                    hostPermissionsLoaded: true,
                 }),
 
             clearTokens: () =>
@@ -53,6 +105,8 @@ export const useAuthStore = create<AuthStore>()(
                     refreshToken: null,
                     expiresIn: null,
                     isAuthenticated: false,
+                    hostPermissionsFromAccount: [],
+                    hostPermissionsLoaded: false,
                 }),
 
             getAccessToken: () => get().accessToken,

@@ -12,7 +12,14 @@ i18n
             en: { translation: en },
             vi: { translation: vi }
         },
-        fallbackLng: 'en',
+        lng: 'vi',
+        fallbackLng: 'vi',
+        supportedLngs: ['vi', 'en'],
+        detection: {
+            // Keep user's explicit choice first; otherwise default to Vietnamese.
+            order: ['localStorage', 'cookie'],
+            caches: ['localStorage'],
+        },
         interpolation: {
             escapeValue: false // React already escapes by default
         }

@@ -1,0 +1,176 @@
+package com.eduspace.conversationservice.business.serviceimpl;
+
+import com.eduspace.conversationservice.business.service.ChatService;
+import com.eduspace.conversationservice.business.service.OutboxService;
+import com.eduspace.conversationservice.business.service.VideoCallNotificationService;
+import com.eduspace.conversationservice.business.service.VideoCallService;
+import com.eduspace.conversationservice.model.entity.ConversationEntity;
+import com.eduspace.conversationservice.model.entity.VideoCallEntity;
+import com.eduspace.conversationservice.persistence.repository.ConversationRepository;
+import com.eduspace.conversationservice.persistence.repository.VideoCallRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+@Service
+@Transactional
+public class VideoCallServiceImpl implements VideoCallService {
+
+    private final ConversationRepository conversationRepository;
+    private final VideoCallRepository videoCallRepository;
+    private final VideoCallNotificationService notificationService;
+    private final OutboxService outboxService;
+
+    public VideoCallServiceImpl(
+            ConversationRepository conversationRepository,
+            VideoCallRepository videoCallRepository,
+            VideoCallNotificationService notificationService,
+            OutboxService outboxService) {
+        this.conversationRepository = conversationRepository;
+        this.videoCallRepository = videoCallRepository;
+        this.notificationService = notificationService;
+        this.outboxService = outboxService;
+    }
+
+    @Override
+    public VideoCallEntity initiate(String conversationId, String callerUserId) {
+        ConversationEntity conversation = conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new RuntimeException("Conversation not found"));
+        if (!conversation.isParticipant(callerUserId)) throw new RuntimeException("Forbidden");
+        if (!Boolean.TRUE.equals(conversation.getVideoCallEnabled())) throw new RuntimeException("Video calls disabled");
+
+        String receiverId = conversation.otherUserId(callerUserId);
+        if (receiverId == null) throw new RuntimeException("Receiver not found");
+
+        // Cleanup stale INITIATED calls older than 5 minutes
+        videoCallRepository.findStaleInitiatedCalls(LocalDateTime.now().minusMinutes(5))
+                .forEach(call -> {
+                    call.setCallStatus(VideoCallEntity.CallStatus.FAILED);
+                    call.setEndedAt(LocalDateTime.now());
+                    videoCallRepository.save(call);
+                });
+
+        // Cleanup stale unfinished calls to avoid permanent "ongoing call" lock.
+        videoCallRepository.findStaleUnfinishedCalls(LocalDateTime.now().minusMinutes(30))
+                .forEach(call -> {
+                    call.setCallStatus(VideoCallEntity.CallStatus.FAILED);
+                    call.setEndReason("Auto-closed stale call");
+                    call.setEndedAt(LocalDateTime.now());
+                    videoCallRepository.save(call);
+                });
+
+        // Prevent overlapping active calls for caller
+        if (!videoCallRepository.findActiveCallsForUser(callerUserId).isEmpty()) {
+            throw new IllegalArgumentException("User already has an ongoing call");
+        }
+
+        VideoCallEntity call = new VideoCallEntity();
+        call.setConversation(conversation);
+        call.setCallerId(callerUserId);
+        call.setReceiverId(receiverId);
+        call.setCallSessionId(UUID.randomUUID().toString());
+        call.setCallStatus(VideoCallEntity.CallStatus.INITIATED);
+        VideoCallEntity saved = videoCallRepository.save(call);
+
+        conversation.incrementCallCount();
+        conversationRepository.save(conversation);
+
+        notificationService.sendIncomingCall(saved);
+        outboxService.addEvent("VideoCall", saved.getId(), "CallInitiated",
+                java.util.Map.of("callSessionId", saved.getCallSessionId(), "conversationId", conversationId,
+                        "callerUserId", callerUserId, "receiverUserId", receiverId, "status", saved.getCallStatus().name()));
+        return saved;
+    }
+
+    @Override
+    public VideoCallEntity answer(String callSessionId, String actorUserId) {
+        VideoCallEntity call = videoCallRepository.findByCallSessionId(callSessionId)
+                .orElseThrow(() -> new RuntimeException("Call not found"));
+        ensureParticipant(call, actorUserId);
+
+        if (call.getCallStatus() != VideoCallEntity.CallStatus.INITIATED) {
+            throw new RuntimeException("Call cannot be answered in state: " + call.getCallStatus());
+        }
+
+        call.acceptCall();
+        VideoCallEntity saved = videoCallRepository.save(call);
+
+        notificationService.sendCallAccepted(saved);
+        outboxService.addEvent("VideoCall", saved.getId(), "CallAccepted",
+                java.util.Map.of("callSessionId", saved.getCallSessionId(), "actorUserId", actorUserId));
+        return saved;
+    }
+
+    @Override
+    public VideoCallEntity decline(String callSessionId, String actorUserId, String reason) {
+        VideoCallEntity call = videoCallRepository.findByCallSessionId(callSessionId)
+                .orElseThrow(() -> new RuntimeException("Call not found"));
+        ensureParticipant(call, actorUserId);
+
+        String effectiveReason = reason == null ? "User declined" : reason;
+        call.declineCall(effectiveReason);
+        VideoCallEntity saved = videoCallRepository.save(call);
+
+        notificationService.sendCallDeclined(saved, effectiveReason);
+        Map<String, Object> declinedPayload = new HashMap<>();
+        declinedPayload.put("callSessionId", saved.getCallSessionId());
+        declinedPayload.put("actorUserId", actorUserId);
+        declinedPayload.put("reason", effectiveReason);
+        outboxService.addEvent("VideoCall", saved.getId(), "CallDeclined", declinedPayload);
+        return saved;
+    }
+
+    @Override
+    public VideoCallEntity end(String callSessionId, String actorUserId, String reason) {
+        VideoCallEntity call = videoCallRepository.findByCallSessionId(callSessionId)
+                .orElseThrow(() -> new RuntimeException("Call not found"));
+        ensureParticipant(call, actorUserId);
+
+        if (call.getCallStatus() == VideoCallEntity.CallStatus.ENDED) return call;
+
+        String effectiveReason = reason == null ? "User ended call" : reason;
+        call.endCall(effectiveReason);
+        VideoCallEntity saved = videoCallRepository.save(call);
+
+        notificationService.sendCallEnded(saved, effectiveReason);
+        Map<String, Object> endedPayload = new HashMap<>();
+        endedPayload.put("callSessionId", saved.getCallSessionId());
+        endedPayload.put("actorUserId", actorUserId);
+        endedPayload.put("reason", effectiveReason);
+        endedPayload.put("durationMinutes", saved.getDurationMinutes());
+        outboxService.addEvent("VideoCall", saved.getId(), "CallEnded", endedPayload);
+        return saved;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<VideoCallEntity> history(String conversationId, String actorUserId) {
+        ConversationEntity conversation = conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new RuntimeException("Conversation not found"));
+        if (!conversation.isParticipant(actorUserId)) throw new RuntimeException("Forbidden");
+        return videoCallRepository.findCallsByConversation(conversationId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public VideoCallEntity getBySessionId(String callSessionId, String actorUserId) {
+        VideoCallEntity call = videoCallRepository.findByCallSessionId(callSessionId)
+                .orElseThrow(() -> new RuntimeException("Call not found"));
+        ensureParticipant(call, actorUserId);
+        return call;
+    }
+
+    private void ensureParticipant(VideoCallEntity call, String actorUserId) {
+        String caller = call.getCallerId();
+        String receiver = call.getReceiverId();
+        if (!actorUserId.equals(caller) && !actorUserId.equals(receiver)) {
+            throw new RuntimeException("Forbidden");
+        }
+    }
+}
+

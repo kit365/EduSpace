@@ -1,8 +1,3 @@
-/**
- * API Types for Backend Integration
- * Use these interfaces to maintain consistency between FE and BE
- */
-
 // --- Base Types ---
 export type Language = 'vi' | 'en';
 
@@ -18,6 +13,20 @@ export interface ApiResponse<T = any> {
     code: string;
     message: string;
     data: T;
+}
+
+export interface Paginated<T> {
+    items: T[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+}
+
+export interface ResponseError {
+    code: string;
+    message: string;
+    errors?: Record<string, string[]>;
 }
 
 // --- FR-06: Search API ---
@@ -39,7 +48,7 @@ export interface SearchSpacesReq {
 
 // --- FR-07: eKYC API ---
 export interface EkycSubmissionReq {
-    frontIdCard: File | string; // File object or base64/url
+    frontIdCard: File | string;
     backIdCard: File | string;
     selfieImage: File | string;
 }
@@ -62,7 +71,7 @@ export interface BookingPriceCalculationItem {
     date: string;
     hours: number;
     basePrice: number;
-    appliedPrice: number; // weekend or peak rates might apply
+    appliedPrice: number;
     isWeekend: boolean;
 }
 
@@ -76,15 +85,30 @@ export interface BookingPriceCalculationResult {
     currency: string;
 }
 
+/** Tiện ích thêm khi đặt (theo catalog amenities + số lượng). */
+export interface BookingExtraAmenityLine {
+    amenityId: number;
+    quantity: number;
+}
+
 export interface CreateBookingReq {
-    spaceId: number;
-    startDate: string;
-    durationDays: number;
-    startTime: string;
-    endTime: string;
-    guests: number;
-    paymentMethod: 'card' | 'bank' | 'momo';
-    contactInfo: {
+    roomId: number;
+    userId: string;
+    /** Email nhận xác nhận đặt phòng (bắt buộc phía BE). */
+    guestEmail: string;
+    bookingDate: string;
+    startDateTime: string;
+    endDateTime: string;
+    durationValue: number;
+    durationUnit: 'MINUTE' | 'HOUR';
+    /** Tùy chọn: tiện ích bổ sung cho booking (lưu ở `extra_booking_amenities`). */
+    extraAmenities?: BookingExtraAmenityLine[];
+    totalPrice?: number;
+    finalPrice?: number;
+    discountAmount?: number;
+    voucherCode?: string;
+    paymentMethod?: 'card' | 'bank' | 'momo';
+    contactInfo?: {
         fullName: string;
         email: string;
         phone: string;
@@ -95,7 +119,7 @@ export interface CreateBookingReq {
 export interface SubmitReviewReq {
     bookingId: number;
     spaceId: number;
-    rating: number; // 1-5
+    rating: number;
     comment: string;
     images?: (File | string)[];
 }

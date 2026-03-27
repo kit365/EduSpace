@@ -11,6 +11,10 @@ import {
     PieChart, Pie, Legend, ComposedChart, Line
 } from 'recharts';
 
+import { dashboardService } from '../services/dashboardService';
+import { DashboardStats } from '../types/dashboard';
+import { toast } from 'sonner';
+
 interface Log {
     id: string;
     action: string;
@@ -19,6 +23,8 @@ interface Log {
     status: 'Success' | 'Warning' | 'Error';
     category: 'Security' | 'Finance' | 'Operations';
 }
+
+const CATEGORY_COLORS = ['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EC4899', '#6366F1'];
 
 const REVENUE_DATA = [
     { name: 'Tháng 1', revenue: 32000, users: 120 },
@@ -29,47 +35,77 @@ const REVENUE_DATA = [
     { name: 'Tháng 6', revenue: 45230, users: 220 },
 ];
 
-const SPACE_TYPE_DATA = [
-    { name: 'Lớp học', value: 45, color: '#3B82F6' },
-    { name: 'Phòng máy', value: 25, color: '#10B981' },
-    { name: 'Phòng họp', value: 20, color: '#8B5CF6' },
-    { name: 'Hội trường', value: 10, color: '#F59E0B' },
-];
-
 export function DashboardPage() {
     const [logs, setLogs] = useState<Log[]>([]);
+    const [stats, setStats] = useState<DashboardStats | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Simulate API call
-        setTimeout(() => {
-            setLogs([
-                { id: '1', action: 'Renter đăng nhập', user: 'Nguyễn Văn Minh', time: '2 phút trước', status: 'Success', category: 'Security' },
-                { id: '2', action: 'Host gửi listing mới', user: 'Trần Thị Bích Ngọc', time: '15 phút trước', status: 'Success', category: 'Operations' },
-                { id: '3', action: 'Admin duyệt KYC', user: 'Lê Hoàng Quân', time: '1 giờ trước', status: 'Success', category: 'Security' },
-                { id: '4', action: 'Booking #EDU-0045 thất bại', user: 'Phạm Đức Anh', time: '2 giờ trước', status: 'Warning', category: 'Finance' },
-                { id: '5', action: 'Yêu cầu thanh toán mới', user: 'Võ Minh Tuấn', time: '3 giờ trước', status: 'Success', category: 'Finance' },
-            ]);
-            setLoading(false);
-        }, 600);
+        const fetchData = async () => {
+            try {
+                const data = await dashboardService.getStats();
+                setStats(data);
+                
+                // Keep simulated logs for now as they aren't in the snapshot yet
+                setLogs([
+                    { id: '1', action: 'Renter đăng nhập', user: 'Nguyễn Văn Minh', time: '2 phút trước', status: 'Success', category: 'Security' },
+                    { id: '2', action: 'Host gửi listing mới', user: 'Trần Thị Bích Ngọc', time: '15 phút trước', status: 'Success', category: 'Operations' },
+                    { id: '3', action: 'Admin duyệt KYC', user: 'Lê Hoàng Quân', time: '1 giờ trước', status: 'Success', category: 'Security' },
+                    { id: '4', action: 'Booking #EDU-0045 thất bại', user: 'Phạm Đức Anh', time: '2 giờ trước', status: 'Warning', category: 'Finance' },
+                    { id: '5', action: 'Yêu cầu thanh toán mới', user: 'Võ Minh Tuấn', time: '3 giờ trước', status: 'Success', category: 'Finance' },
+                ]);
+            } catch (error) {
+                console.error('Failed to fetch dashboard stats', error);
+                toast.error('Không thể tải dữ liệu thống kê');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
     }, []);
 
-    const stats = [
-        { label: 'Tổng người dùng', value: '1,234', change: '+12.5%', trend: 'up', icon: Users, color: 'text-blue-500', bg: 'bg-blue-50' },
-        { label: 'Host hoạt động', value: '56', change: '+4.2%', trend: 'up', icon: Shield, color: 'text-green-500', bg: 'bg-green-50' },
-        { label: 'Tổng doanh thu', value: '$45,230', change: '+8.1%', trend: 'up', icon: CreditCard, color: 'text-purple-500', bg: 'bg-purple-50' },
-        { label: 'Tổng lượt đặt', value: '892', change: '+15.3%', trend: 'up', icon: Calendar, color: 'text-indigo-500', bg: 'bg-indigo-50' },
-        { label: 'KYC chờ duyệt', value: '3', change: '-2', trend: 'down', icon: AlertCircle, color: 'text-orange-500', bg: 'bg-orange-50' },
-        { label: 'Tin đăng mới', value: '12', change: '+5', trend: 'up', icon: Building2, color: 'text-pink-500', bg: 'bg-pink-50' },
-        { label: 'Tỷ lệ thành công', value: '98.5%', change: '+0.2%', trend: 'up', icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+    const formatCurrency = (val: number) => {
+        return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
+    };
+
+    const dashboardCards = [
+        { label: 'Tổng người dùng', value: stats?.totalUsers.toLocaleString() ?? '0', change: '+12.5%', trend: 'up', icon: Users, color: 'text-blue-500', bg: 'bg-blue-50' },
+        { label: 'Host hoạt động', value: stats?.activeHosts.toLocaleString() ?? '0', change: '+4.2%', trend: 'up', icon: Shield, color: 'text-green-500', bg: 'bg-green-50' },
+        { label: 'Tổng doanh thu', value: formatCurrency(stats?.totalRevenue ?? 0), change: '+8.1%', trend: 'up', icon: CreditCard, color: 'text-purple-500', bg: 'bg-purple-50' },
+        { label: 'Tổng lượt đặt', value: stats?.totalBookings.toLocaleString() ?? '0', change: '+15.3%', trend: 'up', icon: Calendar, color: 'text-indigo-500', bg: 'bg-indigo-50' },
+        { label: 'KYC chờ duyệt', value: stats?.pendingKyc.toString() ?? '0', change: '-2', trend: 'down', icon: AlertCircle, color: 'text-orange-500', bg: 'bg-orange-50' },
+        { label: 'Tin đăng mới', value: stats?.newListingsToday.toString() ?? '0', change: '+5', trend: 'up', icon: Building2, color: 'text-pink-500', bg: 'bg-pink-50' },
+        { label: 'Tỷ lệ thành công', value: `${stats?.successRate.toFixed(1) ?? '98.5'}%`, change: '+0.2%', trend: 'up', icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-50' },
         { label: 'Sức khỏe hệ thống', value: 'Tối ưu', change: '99%', trend: 'up', icon: Activity, color: 'text-cyan-500', bg: 'bg-cyan-50' },
     ];
+
+    // Parse category distribution
+    let categoryData = [
+        { name: 'Lớp học', value: 45, color: '#3B82F6' },
+        { name: 'Phòng máy', value: 25, color: '#10B981' },
+        { name: 'Phòng họp', value: 20, color: '#8B5CF6' },
+        { name: 'Hội trường', value: 10, color: '#F59E0B' },
+    ];
+
+    if (stats?.categoryDistribution) {
+        try {
+            const dist = JSON.parse(stats.categoryDistribution);
+            categoryData = Object.entries(dist).map(([name, value], index) => ({
+                name,
+                value: value as number,
+                color: CATEGORY_COLORS[index % CATEGORY_COLORS.length]
+            }));
+        } catch (e) {
+            console.error('Failed to parse category distribution', e);
+        }
+    }
 
     return (
         <AdminLayout title="Trung tâm Kiểm soát Hệ thống">
             {/* Top Stats Overview */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-                {stats.map((stat, i) => (
+                {dashboardCards.map((stat, i) => (
                     <div key={i} className="bg-white p-6 rounded-[24px] border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
                         <div className="flex items-center justify-between mb-4">
                             <div className={`p-3 rounded-2xl ${stat.bg}`}>
@@ -147,7 +183,7 @@ export function DashboardPage() {
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie
-                                    data={SPACE_TYPE_DATA}
+                                    data={categoryData}
                                     cx="50%"
                                     cy="50%"
                                     innerRadius={60}
@@ -155,7 +191,7 @@ export function DashboardPage() {
                                     paddingAngle={5}
                                     dataKey="value"
                                 >
-                                    {SPACE_TYPE_DATA.map((entry, index) => (
+                                    {categoryData.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={entry.color} />
                                     ))}
                                 </Pie>
@@ -164,7 +200,7 @@ export function DashboardPage() {
                         </ResponsiveContainer>
                     </div>
                     <div className="space-y-3">
-                        {SPACE_TYPE_DATA.map((item, i) => (
+                        {categoryData.map((item, i) => (
                             <div key={i} className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
                                     <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
@@ -188,25 +224,27 @@ export function DashboardPage() {
                         <button className="text-sm font-bold text-blue-600 hover:underline">Tất cả</button>
                     </div>
                     <div className="space-y-4">
-                        {[
-                            { name: 'Nguyễn Thanh Hằng', type: 'KYC Host', time: '10 phút trước', avatar: 'N' },
-                            { name: 'Bùi Anh Tuấn', type: 'Listing: Luxury Lab Q.7', time: '1 giờ trước', avatar: 'B' },
-                            { name: 'Hoàng Thùy Linh', type: 'KYC Host', time: '3 giờ trước', avatar: 'H' },
-                        ].map((item, i) => (
-                            <div key={i} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-2xl hover:border-blue-200 transition-all group">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 bg-gray-900 text-white rounded-xl flex items-center justify-center font-black">{item.avatar}</div>
-                                    <div>
-                                        <h4 className="text-sm font-bold text-gray-900">{item.name}</h4>
-                                        <p className="text-xs font-medium text-gray-400">{item.type} · {item.time}</p>
+                        {stats?.pendingListings && stats.pendingListings.length > 0 ? (
+                            stats.pendingListings.slice(0, 4).map((item) => (
+                                <div key={item.id} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-2xl hover:border-blue-200 transition-all group">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 bg-gray-900 text-white rounded-xl flex items-center justify-center font-black">
+                                            {item.name.charAt(0)}
+                                        </div>
+                                        <div>
+                                            <h4 className="text-sm font-bold text-gray-900">{item.name}</h4>
+                                            <p className="text-xs font-medium text-gray-400">Listing mới · {new Date(item.createdAt).toLocaleDateString()}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button className="px-3 py-1.5 bg-green-500 text-white text-[10px] font-black rounded-lg uppercase tracking-wider hover:bg-green-600">Duyệt</button>
+                                        <button className="px-3 py-1.5 bg-gray-100 text-gray-400 text-[10px] font-black rounded-lg uppercase tracking-wider hover:bg-gray-200">Xóa</button>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button className="px-3 py-1.5 bg-green-500 text-white text-[10px] font-black rounded-lg uppercase tracking-wider hover:bg-green-600">Duyệt</button>
-                                    <button className="px-3 py-1.5 bg-gray-100 text-gray-400 text-[10px] font-black rounded-lg uppercase tracking-wider hover:bg-gray-200">Từ chối</button>
-                                </div>
-                            </div>
-                        ))}
+                            ))
+                        ) : (
+                            <div className="py-10 text-center text-gray-400 font-medium italic">Không có yêu cầu chờ duyệt</div>
+                        )}
                     </div>
                 </div>
 
@@ -215,33 +253,34 @@ export function DashboardPage() {
                     <div className="flex items-center justify-between mb-8">
                         <div>
                             <h3 className="text-xl font-black text-gray-900 tracking-tight">Top Host hiệu quả cao</h3>
-                            <p className="text-sm font-medium text-gray-400">Dựa trên doanh thu và tỷ lệ lấp đầy</p>
+                            <p className="text-sm font-medium text-gray-400">Dựa trên doanh thu và số lượng đặt phòng</p>
                         </div>
                         <div className="p-2 bg-amber-50 rounded-xl">
                             <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
                         </div>
                     </div>
                     <div className="space-y-4">
-                        {[
-                            { name: 'Trần Thị Bích Ngọc', revenue: '$12,450', stats: '92% Lấp đầy', trend: '+12%', color: 'border-blue-500' },
-                            { name: 'Lê Hoàng Quân', revenue: '$9,800', stats: '88% Lấp đầy', trend: '+5%', color: 'border-purple-500' },
-                            { name: 'Võ Minh Tuấn', revenue: '$8,200', stats: '85% Lấp đầy', trend: '+2%', color: 'border-green-500' },
-                            { name: 'Phạm Đức Anh', revenue: '$7,900', stats: '82% Lấp đầy', trend: '+8%', color: 'border-indigo-500' },
-                        ].map((host, i) => (
-                            <div key={i} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-200 transition-all">
-                                <div className="flex items-center gap-4">
-                                    <div className={`w-1 font-black h-8 bg-blue-500 rounded-full`} />
-                                    <div>
-                                        <h4 className="text-sm font-bold text-gray-900">{host.name}</h4>
-                                        <p className="text-xs font-medium text-gray-500">{host.stats}</p>
+                        {stats?.topHosts && stats.topHosts.length > 0 ? (
+                            stats.topHosts.map((host) => (
+                                <div key={host.hostId} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-200 transition-all">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center font-black">
+                                            {host.hostName.charAt(0)}
+                                        </div>
+                                        <div>
+                                            <h4 className="text-sm font-bold text-gray-900">{host.hostName}</h4>
+                                            <p className="text-xs font-medium text-gray-500">{host.activeListings} Listing đang hoạt động</p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-sm font-black text-gray-900">{formatCurrency(host.totalRevenue)}</div>
+                                        <div className="text-[10px] font-bold text-green-500">{host.totalBookings} đơn đặt hàng</div>
                                     </div>
                                 </div>
-                                <div className="text-right">
-                                    <div className="text-sm font-black text-gray-900">{host.revenue}</div>
-                                    <div className="text-[10px] font-bold text-green-500">{host.trend} tháng này</div>
-                                </div>
-                            </div>
-                        ))}
+                            ))
+                        ) : (
+                            <div className="py-10 text-center text-gray-400 font-medium italic">Chưa có dữ liệu hiệu quả cao</div>
+                        )}
                     </div>
                 </div>
             </div>

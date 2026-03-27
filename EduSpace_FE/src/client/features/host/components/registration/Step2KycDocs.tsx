@@ -10,11 +10,20 @@ export function Step2KycDocs({ formData, setFormData }: Step2Props) {
     const { t } = useTranslation();
 
     const handleUpload = (docId: string) => {
-        // Simulate upload
+        // In a real app, this would use an upload service to get a URL
+        // For now, we'll simulate setting the URL in formData directly
+        const mockUrl = `https://storage.eduspace.vn/temp/${docId}_${Date.now()}.jpg`;
+        
         const updatedDocs = formData.documents.map((d: any) =>
-            d.id === docId ? { ...d, status: 'uploaded', fileName: `${docId}_mock_verified.jpg` } : d
+            d.id === docId ? { ...d, status: 'uploaded', fileName: `${docId}_verified.jpg` } : d
         );
-        setFormData({ ...formData, documents: updatedDocs });
+
+        const newFormData = { ...formData, documents: updatedDocs };
+        if (docId === 'cccd_front') newFormData.kycFrontUrl = mockUrl;
+        if (docId === 'cccd_back') newFormData.kycBackUrl = mockUrl;
+        if (docId === 'selfie') newFormData.kycSelfieUrl = mockUrl; // New field
+        
+        setFormData(newFormData);
     };
 
     const getStatusBadge = (status: string) => {
@@ -69,6 +78,44 @@ export function Step2KycDocs({ formData, setFormData }: Step2Props) {
                             </div>
                         </div>
                     ))}
+            </div>
+
+            <div className="mt-10 rounded-[32px] border border-dashed border-amber-200 bg-amber-50/50 p-6">
+                <p className="mb-4 text-sm font-black uppercase tracking-wider text-amber-900">
+                    Hoặc dán URL ảnh (tạm — sau sẽ thay bằng upload)
+                </p>
+                <div className="space-y-3">
+                    <input
+                        type="url"
+                        placeholder="URL CCCD mặt trước"
+                        value={formData.kycFrontUrl || ''}
+                        onChange={(e) => setFormData({ ...formData, kycFrontUrl: e.target.value })}
+                        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"
+                    />
+                    <input
+                        type="url"
+                        placeholder="URL CCCD mặt sau"
+                        value={formData.kycBackUrl || ''}
+                        onChange={(e) => setFormData({ ...formData, kycBackUrl: e.target.value })}
+                        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:ring-2 focus:ring-red-500 outline-none"
+                    />
+                    <input
+                        type="url"
+                        placeholder="URL ảnh chân dung (Selfie) — BẮT BUỘC"
+                        value={formData.kycSelfieUrl || ''}
+                        onChange={(e) => setFormData({ ...formData, kycSelfieUrl: e.target.value })}
+                        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm border-amber-300 focus:ring-2 focus:ring-red-500 outline-none"
+                    />
+                    {formData.type === 'business' && (
+                        <input
+                            type="url"
+                            placeholder="URL giấy phép kinh doanh (tuỳ chọn)"
+                            value={formData.kycLicenseUrl || ''}
+                            onChange={(e) => setFormData({ ...formData, kycLicenseUrl: e.target.value })}
+                            className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"
+                        />
+                    )}
+                </div>
             </div>
         </div>
     );

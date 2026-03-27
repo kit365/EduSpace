@@ -1,9 +1,11 @@
 import { useMutation } from '@tanstack/react-query';
 import { authService } from '../services/authService';
 import { useAuthStore } from '../stores/authStore';
+import { messageService } from '../../messages/services/messageService';
+import { clearGuestId, getGuestIdFromStorageIfPresent } from '../../../../../utils/guest';
 import type { LoginRequest, RegisterRequest } from '../types';
 import { AxiosError } from 'axios';
-import type { ApiResponse } from '../../../../../types/api';
+import { ApiResponse } from '@/types';
 
 // ==========================================
 // useLogin - Đăng nhập
@@ -15,7 +17,20 @@ export const useLogin = () => {
         mutationFn: (data: LoginRequest) => authService.login(data),
         onSuccess: (response) => {
             if (response.success && response.data) {
+                const guestIdForClaim = getGuestIdFromStorageIfPresent();
                 setTokens(response.data);
+                // Defer claim so persist can flush tokens; 401 on claim must not clear session (see axios.ts).
+                // Pass guest id captured before tokens — never call getOrCreateGuestId() after login (would error).
+                queueMicrotask(() => {
+                    messageService
+                        .claimGuestSupportConversations(guestIdForClaim)
+                        .catch((e) => {
+                            console.warn('[useLogin] claim guest conversations:', e);
+                        })
+                        .finally(() => {
+                            clearGuestId();
+                        });
+                });
             }
         },
         onError: (error: AxiosError<ApiResponse<null>>) => {

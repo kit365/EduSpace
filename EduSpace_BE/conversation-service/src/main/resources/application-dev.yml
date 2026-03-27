@@ -1,0 +1,16 @@
+server:
+  port: ${CONVERSATION_SERVICE_PORT:8084}
+
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:${POSTGRES_CONVERSATION_HOST_PORT:5435}/eduspace_conversation}
+    username: ${SPRING_DATASOURCE_USERNAME:eduspace}
+    password: ${SPRING_DATASOURCE_PASSWORD:eduspace_dev_123}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    show-sql: false
+
+app:
+  outbox:
+    enabled: false

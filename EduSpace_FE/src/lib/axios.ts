@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '../stores/authStore';
 import { AUTH_API } from '../config/api';
 import i18n from '../i18n/config';
@@ -11,7 +11,86 @@ const apiClient = axios.create({
         'Content-Type': 'application/json',
     },
     timeout: 15000,
+    paramsSerializer: {
+        indexes: null, // use amenityIds=1&amenityIds=2 instead of amenityIds[]=1
+    },
 });
+
+let refreshPromise: Promise<string | null> | null = null;
+
+/** Full URL for matchers (axios may only set relative `url`). */
+function resolvedRequestUrl(config: InternalAxiosRequestConfig): string {
+    const u = config.url;
+    if (u == null) return '';
+    if (typeof u !== 'string') {
+        return String(u);
+    }
+    if (u.startsWith('http://') || u.startsWith('https://')) {
+        return u;
+    }
+    const base = (config.baseURL ?? '').replace(/\/$/, '');
+    const path = u.startsWith('/') ? u : `/${u}`;
+    return `${base}${path}`;
+}
+
+function stripAuthorizationHeaders(config: InternalAxiosRequestConfig): void {
+    const h = config.headers;
+    if (!h) return;
+    if (typeof (h as { delete?: (k: string) => void }).delete === 'function') {
+        (h as { delete: (k: string) => void }).delete('Authorization');
+        (h as { delete: (k: string) => void }).delete('authorization');
+    } else {
+        delete (h as { Authorization?: string }).Authorization;
+        delete (h as { authorization?: string }).authorization;
+    }
+}
+
+/**
+ * API Gateway dùng OAuth2 Resource Server: nếu gửi kèm Bearer (kể cả JWT hết hạn),
+ * filter JWT có thể trả 401 trước khi tới permitAll /api/v1/auth/** — login luôn thất bại.
+ * Các endpoint auth công khai chỉ dùng body (email/password, refresh_token, …), không cần Bearer.
+ */
+function shouldAttachBearerToken(config: InternalAxiosRequestConfig): boolean {
+    const url = resolvedRequestUrl(config);
+    if (!url) return true;
+    if (
+        url.includes('/auth/login') ||
+        url.includes('/auth/register') ||
+        url.includes('/auth/verify-email') ||
+        url.includes('/auth/refresh') ||
+        url.includes('/auth/logout')
+    ) {
+        return false;
+    }
+    return true;
+}
+
+/** POST login/refresh/register — never clear session on 401 */
+function isAuthEndpointUrl(path: string): boolean {
+    if (typeof path !== 'string') return false;
+    return path.includes('/auth/') || path.includes('/login') || path.includes('/refresh');
+}
+
+/**
+ * Best-effort calls after login (e.g. claim guest threads). A 401 here must not wipe
+ * a session that was just established — interceptor used to call clearTokens() and left
+ * eduspace-auth null in localStorage.
+ */
+function isSessionClearExemptUrl(path: string): boolean {
+    if (typeof path !== 'string') return false;
+    return path.includes('/claim-guest');
+}
+
+let authRedirectScheduled = false;
+
+/** After session clear on irrecoverable 401, send user to app home (respects Vite base URL). */
+function scheduleRedirectToHome(): void {
+    if (authRedirectScheduled) return;
+    authRedirectScheduled = true;
+    const base = import.meta.env.BASE_URL || '/';
+    const { pathname, search } = new URL(base, window.location.origin);
+    window.location.replace((pathname || '/') + search);
+}
 
 // Request interceptor: auto-attach access token
 apiClient.interceptors.request.use(
@@ -21,8 +100,18 @@ apiClient.interceptors.request.use(
         // Gắn ngôn ngữ hiện tại để BE dịch message lỗi
         config.headers['Accept-Language'] = i18n.language;
 
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
+        // For FormData uploads, let Axios/browser set multipart boundary automatically.
+        if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+            delete config.headers['Content-Type'];
+        }
+
+        if (shouldAttachBearerToken(config)) {
+            if (token) {
+                config.headers.Authorization = `Bearer ${token}`;
+            }
+        } else {
+            // Tránh header Authorization cũ (axios merge / plugin) làm Gateway validate JWT trước login.
+            stripAuthorizationHeaders(config);
         }
         return config;
     },
@@ -41,43 +130,71 @@ apiClient.interceptors.response.use(
         const originalRequest = error.config;
         if (!originalRequest) return Promise.reject(error);
 
-        // Determine if this is an authentication-related request to avoid redirect loops
-        const url = originalRequest.url || '';
-        const isAuthRequest = url.includes('/auth/') || url.includes('/login') || url.includes('/refresh');
+        const url = resolvedRequestUrl(originalRequest);
 
-        // If 401 and not already retried, try refresh (only for non-auth requests)
-        if (error.response?.status === 401 && !originalRequest._retry && !isAuthRequest) {
-            originalRequest._retry = true;
-
-            const refreshToken = useAuthStore.getState().refreshToken;
-            if (refreshToken) {
-                try {
-                    const { data } = await axios.post(`${API_BASE_URL}${AUTH_API.REFRESH}`, {
-                        refreshToken,
-                    });
-
-                    if (data.success && data.data) {
-                        useAuthStore.getState().setTokens(data.data);
-                        originalRequest.headers.Authorization = `Bearer ${data.data.access_token}`;
-                        return apiClient(originalRequest);
-                    }
-                } catch (refreshError) {
-                    console.error('Refresh token failed', refreshError);
-                }
-            }
-
-            // If we reach here, refresh failed or no token was found
-            useAuthStore.getState().clearTokens();
-            window.location.href = '/auth';
+        if (error.response?.status !== 401) {
             return Promise.reject(error);
         }
 
-        // Common handling for 401 status when no refresh is possible/attempted
-        if (error.response?.status === 401 && !isAuthRequest) {
-            useAuthStore.getState().clearTokens();
-            window.location.href = '/auth';
+        // Login/register/refresh failures — do not clear stored session
+        if (isAuthEndpointUrl(url)) {
+            return Promise.reject(error);
         }
 
+        // Optional post-login calls: never clear session on 401
+        if (isSessionClearExemptUrl(url)) {
+            return Promise.reject(error);
+        }
+
+        // Retry once with refresh token
+        if (!originalRequest._retry) {
+            originalRequest._retry = true;
+
+            const refreshToken = useAuthStore.getState().refreshToken;
+            if (!refreshToken) {
+                useAuthStore.getState().clearTokens();
+                return Promise.reject(error);
+            }
+
+            if (!refreshPromise) {
+                refreshPromise = (async () => {
+                    try {
+                        const { data } = await axios.post(`${API_BASE_URL}${AUTH_API.REFRESH}`, {
+                            refreshToken,
+                        });
+                        const payload = data?.data;
+                        if (data?.success && payload) {
+                            useAuthStore.getState().setTokens(payload);
+                            return payload.access_token ?? payload.accessToken ?? null;
+                        }
+                    } catch (refreshError) {
+                        console.error('Refresh token failed', refreshError);
+                    } finally {
+                        refreshPromise = null;
+                    }
+                    useAuthStore.getState().clearTokens();
+                    return null;
+                })();
+            }
+
+            const bearer = await refreshPromise;
+            if (typeof bearer === 'string' && bearer.length > 0) {
+                try {
+                    originalRequest.headers.Authorization = `Bearer ${bearer}`;
+                    return apiClient(originalRequest);
+                } catch {
+                    useAuthStore.getState().clearTokens();
+                }
+            }
+
+            useAuthStore.getState().clearTokens();
+            scheduleRedirectToHome();
+            return Promise.reject(error);
+        }
+
+        // Already retried and still 401
+        useAuthStore.getState().clearTokens();
+        scheduleRedirectToHome();
         return Promise.reject(error);
     },
 );
