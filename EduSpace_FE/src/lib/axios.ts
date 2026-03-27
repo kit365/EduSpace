@@ -100,6 +100,11 @@ apiClient.interceptors.request.use(
         // Gắn ngôn ngữ hiện tại để BE dịch message lỗi
         config.headers['Accept-Language'] = i18n.language;
 
+        // For FormData uploads, let Axios/browser set multipart boundary automatically.
+        if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+            delete config.headers['Content-Type'];
+        }
+
         if (shouldAttachBearerToken(config)) {
             if (token) {
                 config.headers.Authorization = `Bearer ${token}`;

@@ -63,6 +63,11 @@ springdoc:
     persist-authorization: true
 
 app:
+  azure:
+    communication:
+      connection-string: ${AZURE_COMMUNICATION_CONNECTION_STRING:}
+      endpoint: ${AZURE_COMMUNICATION_ENDPOINT:}
+      access-key: ${AZURE_COMMUNICATION_ACCESS_KEY:}
   chat:
     # One-time: true → on startup, resolve email in user1_id/user2_id/sender_id to Keycloak id via account-service, then set false.
     backfill-email-participants-on-startup: false
@@ -72,6 +77,8 @@ app:
   outbox:
     publisher-delay-ms: ${OUTBOX_PUBLISHER_DELAY_MS:2000}
   kafka:
+    # Assign-staff saga: conversation-service publishes ASSIGN_STAFF_REQUEST after DB commit; account-service
+    # assigns an online ADMIN/SUPER_ADMIN (Redis presence + eligible roles) and publishes ASSIGN_STAFF_* here.
     topics:
       conversation-events: ${KAFKA_TOPIC_CONVERSATION_EVENTS:eduspace.conversation.events}
       assign-staff-request: ${KAFKA_TOPIC_ASSIGN_STAFF_REQUEST:eduspace.assign-staff.request}

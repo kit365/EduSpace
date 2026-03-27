@@ -1,10 +1,14 @@
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { User, Shield, Activity, Settings, LogOut, DollarSign, FileCheck, MessageSquareWarning, Building2, Gift, MessageSquare, Ticket } from "lucide-react";
+import { User, Shield, Activity, Settings, LogOut, DollarSign, FileCheck, MessageSquareWarning, Building2, Gift, MessageSquare, Ticket, ClipboardList } from "lucide-react";
+import { useChatInboxStore } from "../../../../stores/chatInboxStore";
 
 export function AdminSidebar() {
     const navigate = useNavigate();
     const { t } = useTranslation();
+    const messagesNavBadge = useChatInboxStore(
+        (s) => s.adminTotalUnread + Object.keys(s.pendingAssignmentOffers).length,
+    );
 
     const menuItems = [
         { nameKey: 'admin_sidebar.dashboard', icon: Activity, path: '/admin' },
@@ -17,6 +21,7 @@ export function AdminSidebar() {
         { nameKey: 'admin_sidebar.roles', icon: Shield, path: '/admin/roles' },
         { nameKey: 'Vouchers', icon: Ticket, path: '/admin/vouchers' },
         { nameKey: 'admin_sidebar.points', icon: Gift, path: '/admin/points' },
+        { nameKey: 'admin_sidebar.logs', icon: ClipboardList, path: '/admin/logs' },
         { nameKey: 'admin_sidebar.settings', icon: Settings, path: '/admin/settings' },
     ];
 
@@ -41,7 +46,14 @@ export function AdminSidebar() {
                         onClick={() => navigate(item.path)}
                         className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-gray-800 transition-all font-medium text-sm group"
                     >
-                        <item.icon className="w-4 h-4 group-hover:text-blue-400 transition-colors" />
+                        <span className="relative shrink-0">
+                            <item.icon className="w-4 h-4 group-hover:text-blue-400 transition-colors" />
+                            {item.path === '/admin/messages' && messagesNavBadge > 0 && (
+                                <span className="absolute -top-1 -right-2 min-w-[1rem] h-4 px-1 flex items-center justify-center bg-red-500 text-white text-[10px] font-black rounded-full">
+                                    {messagesNavBadge > 99 ? '99+' : messagesNavBadge}
+                                </span>
+                            )}
+                        </span>
                         {t(item.nameKey)}
                     </button>
                 ))}

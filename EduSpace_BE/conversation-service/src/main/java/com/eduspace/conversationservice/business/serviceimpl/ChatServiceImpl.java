@@ -12,11 +12,13 @@ import com.eduspace.conversationservice.model.dto.response.ConversationResponse;
 import com.eduspace.conversationservice.model.entity.ChatMessageEntity;
 import com.eduspace.conversationservice.model.entity.ConversationEntity;
 import com.eduspace.conversationservice.model.entity.SagaInstanceEntity;
+import com.eduspace.conversationservice.model.entity.StaffAssignmentOfferEntity;
 import com.eduspace.conversationservice.model.enums.MessageType;
 import com.eduspace.conversationservice.model.enums.SagaStep;
 import com.eduspace.conversationservice.model.enums.SagaType;
 import com.eduspace.conversationservice.persistence.repository.ChatMessageRepository;
 import com.eduspace.conversationservice.persistence.repository.ConversationRepository;
+import com.eduspace.conversationservice.persistence.repository.StaffAssignmentOfferRepository;
 import com.eduspace.conversationservice.persistence.repository.VideoCallRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,6 +27,8 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import java.time.LocalDateTime;
 import com.eduspace.conversationservice.infrastructure.mapper.ConversationMapper;
 import com.eduspace.conversationservice.infrastructure.mapper.ChatMessageMapper;
@@ -53,6 +57,7 @@ public class ChatServiceImpl implements ChatService {
     private final ChatEventProducer chatEventProducer;
     private final ConversationMapper conversationMapper;
     private final ChatMessageMapper chatMessageMapper;
+    private final StaffAssignmentOfferRepository offerRepository;
 
     @Value("${app.support.admin-keycloak-id:none}")
     private String supportAdminKeycloakId;
@@ -64,8 +69,14 @@ public class ChatServiceImpl implements ChatService {
             log.error("currentUserId is null in getOrCreateConversation. Cannot proceed.");
             throw new AppException(ErrorCode.UNAUTHORIZED); 
         }
+        if (otherUserId == null || otherUserId.isBlank()) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
         final String userId = normalizeParticipantIdForStorage(currentUserId);
         final String peerId = normalizeParticipantIdForStorage(otherUserId);
+        if (peerId == null || peerId.isBlank()) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
 
         boolean effectiveIsAdmin = isAdminConversation
                 || "admin-keycloak-id-0000".equals(peerId)
@@ -74,12 +85,17 @@ public class ChatServiceImpl implements ChatService {
         if (peerId.equals(userId) && !effectiveIsAdmin) {
             throw new AppException(ErrorCode.SELF_CHAT_NOT_ALLOWED);
         }
+        if (!effectiveIsAdmin && isInvalidNormalConversationPeer(peerId)) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
 
         if (effectiveIsAdmin) {
             Optional<ConversationEntity> existingSupport = conversationRepository
                     .findFirstByUser1IdAndIsAdminConversationTrueOrderByLastActivityDesc(userId);
             if (existingSupport.isPresent()) {
-                return toConversationResponse(existingSupport.get(), userId);
+                ConversationEntity existing = existingSupport.get();
+                maybeTriggerSupportRematch(existing, userId);
+                return toConversationResponse(existing, userId);
             }
         }
 
@@ -162,15 +178,76 @@ public class ChatServiceImpl implements ChatService {
         // Send immediate feedback message
         sendSystemMessage(conversation, userId, "is looking for a specialist to help you...");
 
-        try {
-            //Giao tiếp bất đồng bộ(kafka)
-            chatEventProducer.sendAssignStaffRequest(sagaId, conversation.getId(), userId);
-        } catch (Exception ex) {
-            sagaService.failSaga(sagaId, "Failed to send Kafka event: " + ex.getMessage());
-            throw ex;
-        }
-        
+        // Publish only after commit so Kafka consumers see conversation + saga rows (READ COMMITTED).
+        final String conversationId = conversation.getId();
+        scheduleAssignStaffKafkaSend(sagaId, conversationId, userId);
+
         return conversation;
+    }
+
+    private void maybeTriggerSupportRematch(ConversationEntity conversation, String userId) {
+        if (!Boolean.TRUE.equals(conversation.getIsAdminConversation())) {
+            return;
+        }
+        if (!isPlaceholderAdminQueue(conversation)) {
+            return;
+        }
+        boolean hasPendingOffer = offerRepository
+                .findByConversationIdAndStatus(conversation.getId(), StaffAssignmentOfferEntity.Status.PENDING)
+                .stream()
+                .anyMatch(offer -> offer.getExpiresAt() != null && offer.getExpiresAt().isAfter(LocalDateTime.now()));
+        if (hasPendingOffer) {
+            return;
+        }
+
+        String sagaId = UUID.randomUUID().toString();
+        conversation.setSagaId(sagaId);
+        conversationRepository.save(conversation);
+
+        sagaService.startSaga(
+                sagaId,
+                SagaType.FIND_STAFF.getValue(),
+                SagaStep.VALIDATE_USERS.getValue(),
+                Map.of("conversationId", conversation.getId(), "currentUserId", userId, "retry", true)
+        );
+        sendSystemMessage(conversation, userId, "is looking for a specialist to help you...");
+        scheduleAssignStaffKafkaSend(sagaId, conversation.getId(), userId);
+    }
+
+    /**
+     * Sends ASSIGN_STAFF_REQUEST after the surrounding transaction commits. If there is no active
+     * transaction (e.g. some tests), sends immediately and may throw on failure.
+     */
+    private void scheduleAssignStaffKafkaSend(String sagaId, String conversationId, String userId) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    sendAssignStaffKafkaOrFailSaga(sagaId, conversationId, userId, false);
+                }
+            });
+        } else {
+            sendAssignStaffKafkaOrFailSaga(sagaId, conversationId, userId, true);
+        }
+    }
+
+    private void sendAssignStaffKafkaOrFailSaga(String sagaId, String conversationId, String userId, boolean rethrowOnFailure) {
+        try {
+            chatEventProducer.sendAssignStaffRequest(sagaId, conversationId, userId);
+        } catch (Exception ex) {
+            log.error("Failed to send assign-staff Kafka event for saga {}", sagaId, ex);
+            try {
+                sagaService.failSaga(sagaId, "Failed to send Kafka event: " + ex.getMessage());
+            } catch (Exception e2) {
+                log.error("Failed to mark saga failed for saga {}", sagaId, e2);
+            }
+            if (rethrowOnFailure) {
+                if (ex instanceof RuntimeException runtimeException) {
+                    throw runtimeException;
+                }
+                throw new IllegalStateException(ex);
+            }
+        }
     }
 
     private void emitConversationCreatedEvent(ConversationEntity conversation) {
@@ -187,6 +264,28 @@ public class ChatServiceImpl implements ChatService {
                 ));
     }
 
+    private void emitSupportAssignedActivity(ConversationEntity conversation, String adminUserId) {
+        Map<String, Object> eventPayload = new HashMap<>();
+        eventPayload.put("type", "CONVERSATION_ACTIVITY");
+        eventPayload.put("conversationId", conversation.getId());
+        eventPayload.put("lastMessage", "Staff assigned");
+        eventPayload.put("lastActivity", LocalDateTime.now().toString());
+        eventPayload.put("isAdminConversation", true);
+        eventPayload.put("senderId", adminUserId);
+        eventPayload.put("messageType", "SYSTEM");
+
+        String subPath = WebSocketTopics.CONVERSATIONS;
+        String topicUser1 = WebSocketTopics.USER + conversation.getUser1Id() + subPath;
+        String topicUser2 = WebSocketTopics.USER + adminUserId + subPath;
+        messagingTemplate.convertAndSend(topicUser1, eventPayload);
+        messagingTemplate.convertAndSend(topicUser2, eventPayload);
+
+        outboxService.addEvent(DomainEventConstants.AGGREGATE_CONVERSATION, conversation.getId(),
+                "CONVERSATION_ACTIVITY", eventPayload, conversation.getUser1Id());
+        outboxService.addEvent(DomainEventConstants.AGGREGATE_CONVERSATION, conversation.getId(),
+                "CONVERSATION_ACTIVITY", eventPayload, adminUserId);
+    }
+
     private record UserProfiles(AccountClient.PublicUserProfile me, AccountClient.PublicUserProfile other) {}
 
 
@@ -199,6 +298,57 @@ public class ChatServiceImpl implements ChatService {
             throw new AppException(ErrorCode.ACCESS_DENIED);
         }
         return toConversationResponse(conversation, currentUserId);
+    }
+
+    @Override
+    @Transactional
+    public ConversationResponse acceptAssignmentOffer(String conversationId, String offerId, String adminUserId) {
+        if (adminUserId == null || adminUserId.isBlank()) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+        ConversationEntity conversation = conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+        StaffAssignmentOfferEntity offer = offerRepository.findByIdAndConversationId(offerId, conversationId)
+                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST));
+
+        if (!adminUserId.equals(offer.getStaffId())) {
+            throw new AppException(ErrorCode.ACCESS_DENIED);
+        }
+
+        if (offer.getStatus() == StaffAssignmentOfferEntity.Status.ACCEPTED) {
+            return toConversationResponse(conversation, adminUserId);
+        }
+        if (offer.getStatus() == StaffAssignmentOfferEntity.Status.EXPIRED) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+        if (offer.getExpiresAt() != null && offer.getExpiresAt().isBefore(LocalDateTime.now())) {
+            offer.setStatus(StaffAssignmentOfferEntity.Status.EXPIRED);
+            offerRepository.save(offer);
+            sagaService.failSaga(offer.getSagaId(), "Offer expired before admin accepted");
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+        if (!isPlaceholderAdminQueue(conversation) && !adminUserId.equals(conversation.getUser2Id())) {
+            throw new AppException(ErrorCode.ACCESS_DENIED);
+        }
+
+        conversation.setUser2Id(adminUserId);
+        conversation.setIsActive(true);
+        conversationRepository.save(conversation);
+
+        offer.setStatus(StaffAssignmentOfferEntity.Status.ACCEPTED);
+        offer.setAcceptedAt(LocalDateTime.now());
+        offerRepository.save(offer);
+        offerRepository.findByConversationIdAndStatus(conversationId, StaffAssignmentOfferEntity.Status.PENDING).stream()
+                .filter(o -> !o.getId().equals(offerId))
+                .forEach(o -> {
+                    o.setStatus(StaffAssignmentOfferEntity.Status.EXPIRED);
+                    offerRepository.save(o);
+                });
+
+        sagaService.completeSaga(offer.getSagaId());
+        emitSupportAssignedActivity(conversation, adminUserId);
+
+        return toConversationResponse(conversation, adminUserId);
     }
 
     @Override
@@ -250,6 +400,23 @@ public class ChatServiceImpl implements ChatService {
         return supportAdminKeycloakId;
     }
 
+    /**
+     * Scope guard for standard user-host DM: only real account ids are accepted.
+     * Guest/system placeholders are reserved for support workflows.
+     */
+    private boolean isInvalidNormalConversationPeer(String peerId) {
+        if (peerId == null || peerId.isBlank()) {
+            return true;
+        }
+        if (peerId.startsWith("GUEST-")) {
+            return true;
+        }
+        return "admin-keycloak-id-0000".equals(peerId)
+                || "admin-support".equals(peerId)
+                || "system-admin-placeholder".equals(peerId)
+                || "system-admin-self-support".equals(peerId);
+    }
+
     private boolean isStaffJwt() {
         var auth = SecurityContextHolder.getContext().getAuthentication();
         if (!(auth instanceof JwtAuthenticationToken jwtAuth)) {
@@ -277,17 +444,9 @@ public class ChatServiceImpl implements ChatService {
         return isStaffJwt() && isPlaceholderAdminQueue(conversation);
     }
 
-    /**
-     * Same as read access for admin support queue: participants may send; staff may send while user2 is still
-     * the placeholder (before saga assigns a real admin), matching {@link #canAccessConversation}.
-     */
+    /** Only actual participants can send (admin must accept assignment first). */
     private boolean canSendMessage(ConversationEntity conversation, String senderUserId) {
-        if (conversation.isParticipant(senderUserId)) {
-            return true;
-        }
-        return isStaffJwt()
-                && Boolean.TRUE.equals(conversation.getIsAdminConversation())
-                && isPlaceholderAdminQueue(conversation);
+        return conversation.isParticipant(senderUserId);
     }
 
     @Override

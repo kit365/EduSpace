@@ -32,6 +32,8 @@ export function SpaceDetailPage() {
   ];
 
   const hostName = space?.hostName || 'EduSpace Host';
+  const hostRecipientId = typeof space?.hostId === 'string' ? space.hostId.trim() : '';
+  const canContactHost = hostRecipientId.length > 0;
 
   const todaySchedule = useMemo(() => {
     if (!space?.schedules?.length) return undefined;
@@ -51,6 +53,25 @@ export function SpaceDetailPage() {
   ];
 
   const onBack = () => navigate(-1);
+  const handleContactHost = () => {
+    if (!canContactHost) {
+      window.alert(t('customer.spaceDetail.contactHostUnavailable'));
+      return;
+    }
+    if (!space) {
+      window.alert(t('customer.spaceDetail.notFoundDesc'));
+      return;
+    }
+    navigate('/messages', {
+      state: {
+        recipientId: hostRecipientId,
+        recipientName: hostName,
+        spaceId: space?.id ?? null,
+        spaceName: space?.name ?? '',
+        contactIntentId: `${space.id}-${Date.now()}`,
+      },
+    });
+  };
 
   if (loading) {
     return (
@@ -287,14 +308,10 @@ export function SpaceDetailPage() {
                           : t('customer.spaceDetail.contactHostDesc')}
                       </p>
                       <button
-                        onClick={() => navigate('/messages', {
-                          state: {
-                            recipientName: hostName,
-                            spaceId: space.id,
-                            spaceName: space.name,
-                          }
-                        })}
-                        className="inline-flex items-center gap-2 rounded-xl bg-gray-900 px-6 py-3.5 text-xs font-black uppercase tracking-widest text-white hover:bg-red-600 transition-colors shadow-lg shadow-gray-200"
+                        type="button"
+                        onClick={handleContactHost}
+                        disabled={!canContactHost}
+                        className="inline-flex items-center gap-2 rounded-xl bg-gray-900 px-6 py-3.5 text-xs font-black uppercase tracking-widest text-white hover:bg-red-600 transition-colors shadow-lg shadow-gray-200 disabled:opacity-60 disabled:cursor-not-allowed"
                       >
                         <MessageCircle className="w-4 h-4" />
                         {t('customer.spaceDetail.contactHostBtn')}
@@ -350,10 +367,12 @@ export function SpaceDetailPage() {
                     <div>
                       <p className="font-black text-gray-900 text-sm leading-tight uppercase">{space.host?.name || hostName}</p>
                       <button
-                        onClick={() => navigate('/messages')}
+                        type="button"
+                        onClick={handleContactHost}
+                        disabled={!canContactHost}
                         className="text-[10px] font-black text-red-600 uppercase tracking-widest mt-1 hover:underline"
                       >
-                        Gửi tin nhắn
+                        {t('customer.spaceDetail.contactHostBtn')}
                       </button>
                     </div>
                   </div>

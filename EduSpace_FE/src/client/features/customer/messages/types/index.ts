@@ -43,7 +43,7 @@ export interface ChatMessage {
     editedAt?: string | null;
     mediaUrl?: string | null;
     mediaType?: string | null;
-    reactions?: string | null;
+    reactions?: Record<string, string[]> | null;
     replyToMessageId?: string | null;
     sender?: PublicUserProfile | null;
 }
@@ -56,6 +56,20 @@ export interface ConversationActivityEvent {
     senderId: string;
     messageType: MessageType;
 }
+
+export interface AssignmentOfferEvent {
+    type: 'ASSIGNMENT_OFFER';
+    conversationId: string;
+    offerId: string;
+    expiresAt: string;
+    targetAdminId: string;
+    lastMessage: string;
+    lastActivity: string;
+    senderId: string;
+    messageType: MessageType;
+}
+
+export type ConversationInboxEvent = ConversationActivityEvent | AssignmentOfferEvent;
 
 export interface WebSocketMessagePayload {
     messageId: string;
@@ -74,4 +88,21 @@ export interface WebSocketReadReceiptPayload {
     conversationId: string;
     readerId: string;
     readAt: string;
+}
+
+export interface WebSocketEditedPayload {
+    messageId: string;
+    newContent: string;
+    editedAt?: string | null;
+}
+
+export interface WebSocketDeletedPayload {
+    messageId: string;
+    deletedAt?: string | null;
+}
+
+export interface WebSocketReactionPayload {
+    messageId: string;
+    emoji: string;
+    reactorId: string;
 }

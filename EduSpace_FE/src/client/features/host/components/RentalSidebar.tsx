@@ -20,6 +20,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { getRealmRolesFromAccessToken, hasHostPermission, normalizeRoleName } from '@/utils/keycloakTokenRoles';
 import { hostMenuPermissions } from '../permissions/hostPermissions';
 import { refreshHostPermissionsFromAccount } from '@/utils/refreshHostPermissionsFromAccount';
+import { useChatInboxStore } from '@/stores/chatInboxStore';
 
 interface RentalSidebarProps {
     isCollapsed?: boolean;
@@ -38,6 +39,7 @@ export function RentalSidebar({ isCollapsed = false }: RentalSidebarProps) {
     const [hoverTooltip, setHoverTooltip] = useState<{ label: string; x: number; y: number } | null>(null);
     const accessToken = useAuthStore((s) => s.accessToken);
     const hostPermissionsFromAccount = useAuthStore((s) => s.hostPermissionsFromAccount);
+    const messageUnreadTotal = useChatInboxStore((s) => s.totalUnreadCount);
 
     useEffect(() => {
         if (!accessToken) return;
@@ -116,7 +118,14 @@ export function RentalSidebar({ isCollapsed = false }: RentalSidebarProps) {
                     }
                 `}
             >
-                <Icon className={`${isCollapsed ? 'w-4 h-4' : 'w-5 h-5'} shrink-0`} />
+                <span className="relative shrink-0">
+                    <Icon className={`${isCollapsed ? 'w-4 h-4' : 'w-5 h-5'} shrink-0`} />
+                    {item.path === '/rental/messages' && messageUnreadTotal > 0 && (
+                        <span className="absolute -top-1 -right-2 min-w-[1rem] h-4 px-1 flex items-center justify-center bg-red-500 text-white text-[10px] font-black rounded-full">
+                            {messageUnreadTotal > 99 ? '99+' : messageUnreadTotal}
+                        </span>
+                    )}
+                </span>
                 {!isCollapsed && <span>{item.label}</span>}
             </NavLink>
         );

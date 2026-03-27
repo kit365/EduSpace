@@ -1,5 +1,6 @@
 package com.eduspace.conversationservice.presentation.controller;
 
+import com.eduspace.conversationservice.business.service.AzureCommunicationService;
 import com.eduspace.conversationservice.business.service.JwtConversationUserIdResolver;
 import com.eduspace.conversationservice.business.service.VideoCallService;
 import com.eduspace.conversationservice.exception.AppException;
@@ -11,8 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -21,13 +21,49 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AzureCommunicationController {
 
+    private final AzureCommunicationService azureCommunicationService;
     private final VideoCallService videoCallService;
     private final JwtConversationUserIdResolver jwtUserIdResolver;
 
     @GetMapping("/status")
     public ApiResponse<Map<String, Object>> status() {
-        // Placeholder. Real ACS wiring can be added via config later.
-        return ApiResponse.success(Map.of("status", "enabled", "provider", "stub"));
+        return ApiResponse.success(azureCommunicationService.getServiceStatus());
+    }
+
+    @PostMapping("/users")
+    public ApiResponse<Map<String, Object>> createUserAndToken(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal Jwt jwt) {
+        requireUserId(jwt);
+        Map<String, String> token = azureCommunicationService.createUserAndToken();
+        return ApiResponse.success(Map.of(
+                "success", true,
+                "userId", token.get("userId"),
+                "token", token.get("token"),
+                "expiresOn", token.get("expiresOn")
+        ));
+    }
+
+    @PostMapping("/users/{userId}/token")
+    public ApiResponse<Map<String, Object>> refreshUserToken(
+            @PathVariable String userId,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal Jwt jwt) {
+        requireUserId(jwt);
+        Map<String, String> token = azureCommunicationService.refreshUserToken(userId);
+        return ApiResponse.success(Map.of(
+                "success", true,
+                "userId", token.get("userId"),
+                "token", token.get("token"),
+                "expiresOn", token.get("expiresOn")
+        ));
+    }
+
+    @DeleteMapping("/users/{userId}/tokens")
+    public ApiResponse<Map<String, Object>> revokeUserTokens(
+            @PathVariable String userId,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal Jwt jwt) {
+        requireUserId(jwt);
+        azureCommunicationService.revokeUserTokens(userId);
+        return ApiResponse.success(Map.of("success", true, "message", "Tokens revoked successfully"));
     }
 
     @PostMapping("/calls/initiate")
@@ -37,17 +73,18 @@ public class AzureCommunicationController {
         String conversationId = request.get("conversationId");
         VideoCallEntity call = videoCallService.initiate(conversationId, uid);
 
-        // Stub tokens (so FE can keep flow); replace with real ACS integration later.
-        Map<String, Object> yourToken = Map.of(
-                "userId", uid,
-                "token", "stub-token-" + call.getCallSessionId(),
-                "expiresOn", Instant.now().plus(60, ChronoUnit.MINUTES).toString()
-        );
-        Map<String, Object> otherToken = Map.of(
-                "userId", call.getReceiverId(),
-                "token", "stub-token-" + call.getCallSessionId() + "-other",
-                "expiresOn", Instant.now().plus(60, ChronoUnit.MINUTES).toString()
-        );
+        Map<String, String> callerToken = azureCommunicationService.createUserAndToken();
+        Map<String, String> receiverToken = azureCommunicationService.createUserAndToken();
+
+        Map<String, Object> yourToken = new HashMap<>();
+        yourToken.put("userId", callerToken.get("userId"));
+        yourToken.put("token", callerToken.get("token"));
+        yourToken.put("expiresOn", callerToken.get("expiresOn"));
+
+        Map<String, Object> otherToken = new HashMap<>();
+        otherToken.put("userId", receiverToken.get("userId"));
+        otherToken.put("token", receiverToken.get("token"));
+        otherToken.put("expiresOn", receiverToken.get("expiresOn"));
 
         return ApiResponse.success(Map.of(
                 "success", true,
@@ -64,11 +101,11 @@ public class AzureCommunicationController {
                                                    @org.springframework.security.core.annotation.AuthenticationPrincipal Jwt jwt) {
         String uid = requireUserId(jwt);
         VideoCallEntity call = videoCallService.answer(callSessionId, uid);
-        Map<String, Object> yourToken = Map.of(
-                "userId", uid,
-                "token", "stub-token-" + call.getCallSessionId() + "-answer",
-                "expiresOn", Instant.now().plus(60, ChronoUnit.MINUTES).toString()
-        );
+        Map<String, String> token = azureCommunicationService.createUserAndToken();
+        Map<String, Object> yourToken = new HashMap<>();
+        yourToken.put("userId", token.get("userId"));
+        yourToken.put("token", token.get("token"));
+        yourToken.put("expiresOn", token.get("expiresOn"));
         return ApiResponse.success(Map.of(
                 "success", true,
                 "message", "Call answered",
@@ -112,11 +149,13 @@ public class AzureCommunicationController {
                                                      @org.springframework.security.core.annotation.AuthenticationPrincipal Jwt jwt) {
         String uid = requireUserId(jwt);
         VideoCallEntity call = videoCallService.getBySessionId(callSessionId, uid);
+        Map<String, String> token = azureCommunicationService.createUserAndToken();
         return ApiResponse.success(Map.of(
                 "success", true,
                 "callSessionId", call.getCallSessionId(),
-                "token", "stub-token-" + call.getCallSessionId() + "-join",
-                "expiresOn", Instant.now().plus(60, ChronoUnit.MINUTES).toString()
+                "userId", token.get("userId"),
+                "token", token.get("token"),
+                "expiresOn", token.get("expiresOn")
         ));
     }
 

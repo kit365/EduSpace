@@ -18,6 +18,19 @@ public class StaffAssignmentProducer {
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final KafkaProperties kafkaProperties;
 
+    public void sendAssignmentOffered(String sagaId, String staffId, String offerId, long ttlSeconds) {
+        BaseEvent<String> event = BaseEvent.<String>builder()
+                .sagaId(sagaId)
+                .eventType(SagaEventConstants.ASSIGN_STAFF_OFFERED)
+                .timestamp(LocalDateTime.now())
+                // Payload format: staffId|offerId|ttlSeconds
+                .payload(staffId + "|" + offerId + "|" + ttlSeconds)
+                .build();
+
+        log.info("Sending Offered Result for Saga: {} to staff {}", sagaId, staffId);
+        kafkaTemplate.send(kafkaProperties.getAssignStaffResult(), sagaId, event);
+    }
+
     public void sendAssignmentSuccess(String sagaId, String payload) {
         BaseEvent<String> event = BaseEvent.<String>builder()
                 .sagaId(sagaId)
