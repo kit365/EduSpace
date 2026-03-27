@@ -33,6 +33,9 @@ public enum ErrorCode {
     EKYC_AI_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "EKYC_AI_UNAVAILABLE", "error.ekyc.ai-unavailable"),
     EKYC_INVALID_DOCUMENTS(HttpStatus.BAD_REQUEST, "EKYC_INVALID_DOCUMENTS", "error.ekyc.invalid-documents"),
     EKYC_REQUIRED(HttpStatus.FORBIDDEN, "EKYC_REQUIRED", "error.ekyc.required"),
+    EKYC_LIVENESS_FAILED(HttpStatus.BAD_REQUEST, "EKYC_LIVENESS_FAILED", "error.ekyc.liveness-failed"),
+    EKYC_FACE_MISMATCH(HttpStatus.BAD_REQUEST, "EKYC_FACE_MISMATCH", "error.ekyc.face-mismatch"),
+    EKYC_OCR_FAILED(HttpStatus.BAD_REQUEST, "EKYC_OCR_FAILED", "error.ekyc.ocr-failed"),
 
     // RBAC & Staff management
     HOST_STAFF_FORBIDDEN(HttpStatus.FORBIDDEN, "HOST_STAFF_FORBIDDEN", "host.staff.forbidden"),

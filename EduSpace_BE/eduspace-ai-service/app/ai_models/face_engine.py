@@ -57,8 +57,8 @@ def verify_faces(selfie_bytes: bytes, id_bytes: bytes, model_name: str = "hog") 
         similarity = float(np.dot(emb_selfie, emb_id))
         
         # 5. Threshold (0.4 - 0.5 is typical for ArcFace)
-        # 0.45 is usually a safe balance.
-        threshold = 0.45
+        # 0.35 is "relaxed" but still good for general KYC.
+        threshold = 0.35
         verified = similarity >= threshold
         
         # Distance (matching the user's expected format, lower is better)

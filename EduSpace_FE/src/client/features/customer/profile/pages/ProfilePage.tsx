@@ -16,6 +16,16 @@ export function ProfilePage() {
   const [activeTab, setActiveTab] = useState('personal');
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(NOTIFICATION_SETTINGS);
 
+  if (loading || !profile) {
+    return (
+      <CustomerLayout>
+        <div className="min-h-[70vh] flex items-center justify-center">
+          <Loader2 className="w-12 h-12 text-red-500 animate-spin" />
+        </div>
+      </CustomerLayout>
+    );
+  }
+
   const hasHostPrivileges = ['ADMIN', 'SUPER_ADMIN', 'HOST'].includes(profile.role?.toString().toUpperCase() || '');
 
   const tabs = [
@@ -29,16 +39,6 @@ export function ProfilePage() {
     { id: 'dataExport', label: t('customer.profile.sidebar.dataExport'), icon: Download },
   ];
   const deleteAccountLabel = t('customer.profile.sidebar.deleteAccount');
-
-  if (loading || !profile) {
-    return (
-      <CustomerLayout>
-        <div className="min-h-[70vh] flex items-center justify-center">
-          <Loader2 className="w-12 h-12 text-red-500 animate-spin" />
-        </div>
-      </CustomerLayout>
-    );
-  }
 
   return (
     <CustomerLayout>

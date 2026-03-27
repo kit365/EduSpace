@@ -6,9 +6,10 @@ import logging
 import os
 import threading
 import time
+import re
 from typing import Any, Optional
 
-# Phải đặt trước `from paddleocr import ...` (kéo theo paddle). Hữu ích khi module được import trực tiếp (test) mà không qua app.main.
+# Cấu hình môi trường
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 
@@ -29,129 +30,97 @@ def _get_ocr() -> PaddleOCR:
     global _ocr
     with _lock:
         if _ocr is None:
-            # lang="vi" → parse_lang dùng bộ nhận dạng latin (chữ có dấu trên CCCD).
-            # use_angle_cls=True: bật classifier xoay 180° (ổn trên Docker/Linux; Mac local nếu chậm thì chạy qua Docker).
-            # enable_mkldnn=False: API PaddleOCR 2.x (CLI: --enable_mkldnn).
             t_ctor = time.perf_counter()
-            _log.info("OCR trace: PaddleOCR.__init__ start (tải model lần đầu có thể vài phút)")
+            _log.info("OCR trace: Khởi tạo PaddleOCR Engine (vi)...")
             _ocr = PaddleOCR(
                 use_angle_cls=True,
                 lang="vi",
                 show_log=False,
                 enable_mkldnn=False,
             )
-            _log.info(
-                "OCR trace: PaddleOCR.__init__ done in %.2fs",
-                time.perf_counter() - t_ctor,
-            )
+            _log.info("OCR trace: Engine ready in %.2fs", time.perf_counter() - t_ctor)
         return _ocr
 
 
 def _downscale_for_ocr(img: np.ndarray, max_side: int) -> np.ndarray:
-    """Giảm ảnh quá lớn trước Paddle (CPU); giữ tỉ lệ, INTER_AREA hợp thu nhỏ."""
-    if max_side <= 0:
-        return img
-    h, w = int(img.shape[0]), int(img.shape[1])
+    if max_side <= 0: return img
+    h, w = img.shape[:2]
     m = max(h, w)
-    if m <= max_side:
-        return img
+    if m <= max_side: return img
     scale = max_side / m
-    new_w = max(1, int(w * scale))
-    new_h = max(1, int(h * scale))
-    return cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+    return cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
 
 
 def is_valid_cccd(full_text: str) -> bool:
-    """Check if the document contains keywords indicating a Vietnamese ID card."""
-    keywords = [
-        "CĂN CƯỚC CÔNG DÂN",
-        "CHỨNG MINH NHÂN DÂN",
-        "SOCIALIST REPUBLIC",
-        "ĐỘC LẬP - TỰ DO",
-        "IDENTIFICATION",
-        "CANCUOCCONGDAN",
-    ]
+    """
+    Xác nhận ảnh có phải CCCD/CMND không. 
+    Dùng Regex linh hoạt để chấp nhận OCR sai chính tả, dấu lạ ('), hoặc dính chữ.
+    """
     text_upper = full_text.upper()
-    return any(kw in text_upper for kw in keywords)
+    
+    # 1. Bộ từ khóa linh hoạt (cho phép có ký tự đặc biệt kẹp giữa)
+    patterns = [
+        r"CAN\s*CU",       # Căn cước (thường dính dấu ' hoặc mất dấu)
+        r"CHUNG\s*MINH",   # Chứng minh
+        r"IDENTITY",       # Identity card
+        r"REPUBLIC",       # Socialist Republic
+        r"VIET\s*NAM",     # Việt Nam
+        r"DOC\s*LAP",      # Độc lập
+        r"CANH\s*SAT",     # Cục cảnh sát (Mặt sau)
+        r"IDENTIFICATION"  # Identification (Mặt sau)
+    ]
+    
+    # Kiểm tra từ khóa
+    has_keyword = any(re.search(p, text_upper) for p in patterns)
+    
+    # 2. Kiểm tra dãy số (CCCD 12 số hoặc CMND 9 số)
+    # Không dùng \b cứng nhắc vì có thể dính chữ 'No.' hoặc 'S/'
+    has_id_number = bool(re.search(r"\d{12}|\d{9}", text_upper))
+    
+    # 3. Kiểm tra dòng MRZ đặc trưng của mặt sau (Dạng <<<<<<<<)
+    has_mrz = "<<" in text_upper
+    
+    # Chỉ cần trúng từ khóa + (có số định danh HOẶC là mặt sau có MRZ) là OK
+    return has_keyword and (has_id_number or has_mrz)
 
 
 def run_ocr(image_bytes: bytes) -> dict[str, Any]:
     t_total = time.perf_counter()
-    _log.info("OCR trace: step1 decode_bgr start, input_bytes=%d", len(image_bytes))
-
-    t = time.perf_counter()
+    
+    # Decode & Downscale
     img = decode_bgr(image_bytes)
-    _log.info(
-        "OCR trace: step2 decode_bgr done in %.2fs, shape=%s",
-        time.perf_counter() - t,
-        getattr(img, "shape", None),
-    )
+    img = _downscale_for_ocr(img, settings.ocr_max_side)
 
-    t = time.perf_counter()
-    max_side = settings.ocr_max_side
-    before = (int(img.shape[0]), int(img.shape[1]))
-    img = _downscale_for_ocr(img, max_side)
-    after = (int(img.shape[0]), int(img.shape[1]))
-    if before != after:
-        _log.info(
-            "OCR trace: step2b downscale max_side=%d in %.2fs: %sx%s -> %sx%s",
-            max_side,
-            time.perf_counter() - t,
-            before[0],
-            before[1],
-            after[0],
-            after[1],
-        )
-    else:
-        _log.info("OCR trace: step2b no resize (max_side=%d, image already smaller)", max_side)
-
-    t = time.perf_counter()
+    # Lấy Engine
     ocr = _get_ocr()
-    _log.info("OCR trace: step3 engine ready in %.2fs (since step1: %.2fs)", time.perf_counter() - t, time.perf_counter() - t_total)
 
-    t = time.perf_counter()
-    _log.info("OCR trace: step4 ocr.ocr() inference start")
+    # Inference
     result = ocr.ocr(img, cls=True)
-    _log.info("OCR trace: step5 ocr.ocr() inference done in %.2fs", time.perf_counter() - t)
 
     lines: list[tuple[str, float]] = []
-    seq = None
-    if result:
-        seq = result[0] if isinstance(result, (list, tuple)) and result else result
-    if seq:
-        for line in seq:
-            if not line or len(line) < 2:
-                continue
-            txt, conf = line[1][0], line[1][1]
-            if txt and conf is not None:
-                lines.append((str(txt), float(conf)))
+    if result and result[0]:
+        for line in result[0]:
+            lines.append((str(line[1][0]), float(line[1][1])))
 
-    t = time.perf_counter()
     full_text = "\n".join(t for t, _ in lines)
     
-    # Validate if it's an ID card
+    # --- IF/ELSE CONFIRM CCCD ---
     if not is_valid_cccd(full_text):
-        _log.warning("OCR Validation: Document does not appear to be a valid ID card.")
+        _log.warning("OCR Validation Failed: Khong phai CCCD hop le.")
         return {
+            "is_valid": False,
             "error": "Not a valid ID card",
-            "message": "Vui lòng tải lên ảnh mặt trước Căn cước công dân hoặc Chứng minh nhân dân hợp lệ.",
+            "message": "Ảnh không phải mặt trước/sau CCCD hoặc quá mờ. Vui lòng chụp lại.",
             "full_text": full_text
         }
 
-    confs = [c for _, c in lines]
-    avg_conf = sum(confs) / len(confs) if confs else 0.0
+    # Nếu OK thì tiếp tục parse
     fields = parse_id_fields(full_text, lines)
-    _log.info(
-        "OCR trace: step6 parse_id_fields done in %.2fs, lines=%d",
-        time.perf_counter() - t,
-        len(lines),
-    )
-
-    _log.info("OCR trace: finished OK in %.2fs total", time.perf_counter() - t_total)
+    avg_conf = sum(c for _, c in lines) / len(lines) if lines else 0.0
 
     return {
+        "is_valid": True,
         "full_text": full_text,
         "fields": fields,
-        "lines": [{"text": t, "confidence": c} for t, c in lines],
         "confidence_avg": round(avg_conf, 4),
     }

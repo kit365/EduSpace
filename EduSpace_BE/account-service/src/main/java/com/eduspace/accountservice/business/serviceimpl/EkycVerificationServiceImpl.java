@@ -72,14 +72,17 @@ public class EkycVerificationServiceImpl implements EkycVerificationService {
         OcrPayload ocrPayload = buildOcrPayload(ocrJson);
         boolean ocrPass = StringUtils.hasText(ocrPayload.idNumber());
 
-        if (!livenessPass || !facePass || !ocrPass) {
-            String reason = buildFailureReason(livenessPass, facePass, ocrPass);
-            persistFailure(user, user.getFullName(), user.getDateOfBirth(), user.getPhoneNumber(), user.getLocation(), face, live, livenessPass, facePass, reason);
-            return new EkycVerifyResponse(
-                    "failed",
-                    ocrPass ? ocrPayload : null,
-                    faceMatchingScore(face),
-                    reason);
+        if (!livenessPass) {
+            persistFailure(user, user.getFullName(), user.getDateOfBirth(), user.getPhoneNumber(), user.getLocation(), face, live, false, facePass, "Liveness failed");
+            throw new AppException(ErrorCode.EKYC_LIVENESS_FAILED);
+        }
+        if (!facePass) {
+            persistFailure(user, user.getFullName(), user.getDateOfBirth(), user.getPhoneNumber(), user.getLocation(), face, live, livenessPass, false, "Face mismatch");
+            throw new AppException(ErrorCode.EKYC_FACE_MISMATCH);
+        }
+        if (!ocrPass) {
+            persistFailure(user, user.getFullName(), user.getDateOfBirth(), user.getPhoneNumber(), user.getLocation(), face, live, livenessPass, facePass, "OCR failed");
+            throw new AppException(ErrorCode.EKYC_OCR_FAILED);
         }
 
         String idHash = sha256Hex(ocrPayload.idNumber());
@@ -204,19 +207,6 @@ public class EkycVerificationServiceImpl implements EkycVerificationService {
         }
         String s = n.get(field).asText();
         return StringUtils.hasText(s) ? s.trim() : null;
-    }
-
-    private static String buildFailureReason(boolean livenessPass, boolean facePass, boolean ocrPass) {
-        if (!livenessPass) {
-            return "Liveness check did not pass. Use a clear live selfie with good lighting.";
-        }
-        if (!facePass) {
-            return "Face does not match the portrait on your ID.";
-        }
-        if (!ocrPass) {
-            return "Could not read ID number from the front image. Retake with better focus and lighting.";
-        }
-        return "Verification failed.";
     }
 
     private void persistFailure(UserEntity user, String providedName, String providedDob, String providedPhone, String providedAddress,

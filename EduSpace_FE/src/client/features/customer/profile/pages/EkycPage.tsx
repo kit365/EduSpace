@@ -101,10 +101,14 @@ export function EkycPage() {
                 setErrorMessage(data.message ?? t('customer.ekyc.failed'));
             }
             setStep('result');
-        } catch (e) {
+        } catch (e: any) {
             setVerifyResult('failed');
             setOcrData(null);
-            setErrorMessage(e instanceof Error ? e.message : t('customer.ekyc.failed'));
+            
+            // Extract localized message from backend if available
+            const backendMessage = e.response?.data?.message;
+            setErrorMessage(backendMessage ?? (e instanceof Error ? e.message : t('customer.ekyc.failed')));
+            
             setStep('result');
         }
     };
