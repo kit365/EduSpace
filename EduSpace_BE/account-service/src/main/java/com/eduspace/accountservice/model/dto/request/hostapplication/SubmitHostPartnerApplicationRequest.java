@@ -36,4 +36,12 @@ public class SubmitHostPartnerApplicationRequest {
     String documentBackUrl;
 
     String businessLicenseUrl;
+
+    String bankAccountNumber;
+
+    String bankName;
+
+    String bankAccountHolder;
+
+    String taxId;
 }

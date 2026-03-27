@@ -1,234 +1,216 @@
 import { AdminLayout } from '../../../layouts/AdminLayout';
 import {
-    User as UserIcon,
     CheckCircle2,
-    XCircle,
-    Search,
-    ImageIcon,
-    FileCheck,
-    Loader2,
-    Building2,
     RefreshCw,
+    ArrowRight,
+    ArrowUpDown,
+    ExternalLink,
+    Search as SearchIcon,
+    Filter,
+    Download,
+    Building2,
+    ImageIcon,
+    Loader2,
+    FileCheck,
+    Globe
 } from 'lucide-react';
-import { useState, useEffect, useCallback } from 'react';
-import {
-    hostPartnerApplicationService,
-    type HostPartnerApplicationAdminItem,
-} from '@/client/features/host/services/hostPartnerApplicationService';
-import { userService } from '@/admin/features/user-management/services/userService';
-import type { User } from '@/types';
+import { useState, useEffect } from 'react';
+import { useAdminApprovals, type PendingRoomItem } from '@/admin/hooks/useAdminApprovals';
+import { AdminDetailOverlay } from '@/admin/components/AdminDetailOverlay';
 import { showToast } from '@/utils/toast';
-import { getApiErrorMessage } from '@/utils/apiError';
+import { hostPartnerApplicationService, type HostPartnerApplicationAdminItem } from '@/client/features/host/services/hostPartnerApplicationService';
 import { branchService } from '@/client/features/host/services/branchService';
 import { useAuthStore } from '@/stores/authStore';
-import { roomApiService } from '@/client/features/room/services/roomApiService';
-import { propertyApiService } from '@/client/features/room/services/propertyApiService';
-import type { PropertyDto, RoomDto } from '@/client/features/room/types';
-
-type BranchMeta = {
-    action?: string;
-    propertyId?: number;
-    propertyType?: string;
-    provinceCode?: string;
-    districtCode?: string;
-    wardCode?: string;
-    description?: string;
-    logo?: string;
-};
-
-function parseBranchMeta(raw?: string | null): { cleanMessage: string; meta: BranchMeta } {
-    if (!raw) return { cleanMessage: '', meta: {} };
-    const parts = raw.split('|').map((p) => p.trim()).filter(Boolean);
-    const meta: BranchMeta = {};
-    const remain: string[] = [];
-
-    for (const part of parts) {
-        const idx = part.indexOf('=');
-        if (idx <= 0) {
-            remain.push(part);
-            continue;
-        }
-        const key = part.slice(0, idx).trim();
-        const value = part.slice(idx + 1).trim();
-        switch (key) {
-            case 'propertyType':
-                meta.propertyType = value;
-                break;
-            case 'action':
-                meta.action = value.toUpperCase();
-                break;
-            case 'propertyId':
-                meta.propertyId = Number(value);
-                break;
-            case 'provinceCode':
-                meta.provinceCode = value;
-                break;
-            case 'districtCode':
-                meta.districtCode = value;
-                break;
-            case 'wardCode':
-                meta.wardCode = value;
-                break;
-            case 'personInCharge':
-            case 'description':
-                meta.description = value;
-                break;
-            case 'logo':
-                meta.logo = value;
-                break;
-            default:
-                remain.push(part);
-                break;
-        }
-    }
-    return { cleanMessage: remain.join(' | '), meta };
-}
-
-function propertyTypeLabel(v?: string): string | null {
-    if (!v) return null;
-    if (v === 'COMMERCIAL_BUILDING') return 'Tòa nhà thương mại';
-    if (v === 'CENTER_COWORKING') return 'Trung tâm / Không gian chung';
-    if (v === 'INDEPENDENT_SPACE') return 'Mặt bằng độc lập';
-    return v;
-}
-
-function isUsableLogoUrl(v?: string): boolean {
-    if (!v) return false;
-    const s = v.trim().toLowerCase();
-    return (s.startsWith('http://') || s.startsWith('https://')) && !s.includes('mail.google.com');
-}
-
-function getJwtSub(token: string | null): string | null {
-    if (!token) return null;
-    try {
-        const parts = token.split('.');
-        if (parts.length < 2) return null;
-        const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-        const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
-        const payload = JSON.parse(atob(padded)) as { sub?: string };
-        return typeof payload.sub === 'string' && payload.sub.trim() ? payload.sub.trim() : null;
-    } catch {
-        return null;
-    }
-}
 
 export function VerificationPage() {
-    const [tab, setTab] = useState<'partners' | 'rooms' | 'users'>('partners');
-    const [partnerApps, setPartnerApps] = useState<HostPartnerApplicationAdminItem[]>([]);
-    const [loadingPartners, setLoadingPartners] = useState(false);
-    const [loadingUsersKyc, setLoadingUsersKyc] = useState(false);
-    const [actingId, setActingId] = useState<string | null>(null);
-    const [rejectNote, setRejectNote] = useState<Record<string, string>>({});
-    const [usersKyc, setUsersKyc] = useState<User[]>([]);
-    const [usersKycSearch, setUsersKycSearch] = useState('');
-    const [actingUserKycId, setActingUserKycId] = useState<string | null>(null);
-    const [usersKycRejectReason, setUsersKycRejectReason] = useState<Record<string, string>>({});
-    const [loadingRooms, setLoadingRooms] = useState(false);
-    const [actingRoomId, setActingRoomId] = useState<number | null>(null);
-    const [roomRejectNote, setRoomRejectNote] = useState<Record<number, string>>({});
-    const [pendingRooms, setPendingRooms] = useState<Array<{ room: RoomDto; property: PropertyDto | null }>>([]);
+    const {
+        partners, rooms, loading, actingId,
+        fetchPartners, fetchRooms,
+        approvePartner, rejectPartner,
+        approveRoom, rejectRoom
+    } = useAdminApprovals();
 
-    const loadPartners = useCallback(async () => {
-        setLoadingPartners(true);
+    const [tab, setTab] = useState<'partners' | 'rooms'>('partners');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
+    
+    // Detail Overlays
+    const [selectedPartner, setSelectedPartner] = useState<HostPartnerApplicationAdminItem | null>(null);
+    const [selectedRoomItem, setSelectedRoomItem] = useState<PendingRoomItem | null>(null);
+
+    const handleDownloadContract = async (id: string) => {
         try {
-            const list = await hostPartnerApplicationService.adminListPending();
-            setPartnerApps(list);
+            const blob = await hostPartnerApplicationService.adminDownloadContract(id);
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `contract-${id}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
         } catch (e) {
-            showToast.error(getApiErrorMessage(e, 'Không tải được danh sách đơn'));
-            setPartnerApps([]);
-        } finally {
-            setLoadingPartners(false);
+            showToast.error("Không thể tải hợp đồng");
         }
-    }, []);
+    };
 
     useEffect(() => {
-        if (tab === 'partners') void loadPartners();
-    }, [tab, loadPartners]);
+        if (tab === 'partners') void fetchPartners();
+        if (tab === 'rooms') void fetchRooms();
+    }, [tab, fetchPartners, fetchRooms]);
 
-    const loadUsersKyc = useCallback(async () => {
-        setLoadingUsersKyc(true);
-        try {
-            // Backend currently exposes KYC data inside admin users response.
-            const res = await userService.getUsers({
-                page: 0,
-                size: 200,
+    const refresh = () => {
+        if (tab === 'partners') void fetchPartners();
+        if (tab === 'rooms') void fetchRooms();
+    };
+
+    const renderRegistrationInfo = (message: string) => {
+        if (!message) return (
+            <div className="flex flex-col items-center justify-center p-12 rounded-[32px] border border-gray-100 bg-gray-50/30">
+                <Globe className="w-8 h-8 text-gray-200 mb-2" />
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Không có thông tin đính kèm</p>
+            </div>
+        );
+        
+        if (message.includes('|') && message.includes('=')) {
+            const pairs = message.split('|').map(p => p.trim());
+            const data: Record<string, string> = {};
+            pairs.forEach(p => {
+                const [key, val] = p.split('=');
+                if (key && val) data[key] = val;
             });
-            setUsersKyc(res.items);
-        } catch (e) {
-            showToast.error(getApiErrorMessage(e, 'Không tải được danh sách KYC người dùng'));
-            setUsersKyc([]);
-        } finally {
-            setLoadingUsersKyc(false);
+
+            const labelMap: Record<string, string> = {
+                propertyType: 'Loại hình hồ sơ',
+                logo: 'Hình ảnh đại diện',
+            };
+
+            const valueMap: Record<string, string> = {
+                INDEPENDENT_SPACE: 'Không gian độc lập',
+                SHARED_SPACE: 'Không gian chia sẻ'
+            };
+            const excludedKeys = ['provinceCode', 'districtCode', 'wardCode', 'propertyId'];
+
+            return (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {Object.entries(data)
+                        .filter(([key]) => !excludedKeys.includes(key))
+                        .map(([key, val]) => {
+                        const label = labelMap[key] || key;
+                        const displayVal = valueMap[val] || val;
+                        
+                        return (
+                            <div key={key} className="space-y-1.5">
+                                <label className="block text-[13px] font-semibold text-[#374151] ml-1">{label}</label>
+                                <div className="min-h-[48px] flex items-center px-4 rounded-[12px] border border-[#d1d5db] bg-white transition-all hover:border-slate-400 shadow-sm">
+                                    {key === 'logo' && val.startsWith('http') ? (
+                                        <div className="py-1.5 w-full flex items-center justify-center">
+                                            <img src={val} className="max-h-16 object-contain drop-shadow-sm" alt="Logo" />
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm font-bold text-gray-900 leading-tight">{displayVal}</p>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            );
         }
-    }, []);
 
-    useEffect(() => {
-        if (tab === 'users') void loadUsersKyc();
-    }, [tab, loadUsersKyc]);
-
-    const loadPendingRooms = useCallback(async () => {
-        setLoadingRooms(true);
-        try {
-            const [rooms, properties] = await Promise.all([
-                roomApiService.getAll(),
-                propertyApiService.getAll(),
-            ]);
-            const propertyMap = new Map<number, PropertyDto>(properties.map((p) => [p.id, p]));
-            const list = rooms
-                .filter((r) => r.approvalStatus === 'PENDING' || r.pendingEditStatus === 'PENDING')
-                .map((room) => ({
-                    room,
-                    property: propertyMap.get(room.propertyId) ?? null,
-                }));
-            setPendingRooms(list);
-        } catch (e) {
-            showToast.error(getApiErrorMessage(e, 'Không tải được danh sách phòng chờ duyệt'));
-            setPendingRooms([]);
-        } finally {
-            setLoadingRooms(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        if (tab === 'rooms') void loadPendingRooms();
-    }, [tab, loadPendingRooms]);
-
-    const visibleUsersKyc = usersKyc.filter((u) => u.kycStatus === 'pending');
-
-    const approveUserKyc = async (userId: string) => {
-        setActingUserKycId(userId);
-        try {
-            await userService.approveUserKyc(userId);
-            showToast.success('Đã duyệt KYC người dùng');
-            await loadUsersKyc();
-        } catch (e) {
-            showToast.error(getApiErrorMessage(e, 'Duyệt KYC thất bại'));
-        } finally {
-            setActingUserKycId(null);
-        }
+        return (
+            <div className="p-6 rounded-[24px] border border-gray-100 bg-white shadow-sm">
+                <p className="text-sm text-gray-700 leading-relaxed font-semibold italic text-center">"{message}"</p>
+            </div>
+        );
     };
 
-    const rejectUserKyc = async (userId: string) => {
-        setActingUserKycId(userId);
+    const renderRoomComparison = (item: PendingRoomItem) => {
+        if (!item.room.pendingEditPayload) return null;
         try {
-            await userService.rejectUserKyc(userId, usersKycRejectReason[userId]);
-            showToast.success('Đã từ chối KYC người dùng');
-            setUsersKycRejectReason((prev) => ({ ...prev, [userId]: '' }));
-            await loadUsersKyc();
-        } catch (e) {
-            showToast.error(getApiErrorMessage(e, 'Từ chối KYC thất bại'));
-        } finally {
-            setActingUserKycId(null);
-        }
+            const pending = JSON.parse(item.room.pendingEditPayload);
+            const fields = [
+                { key: 'name', label: 'Tên phòng' },
+                { key: 'description', label: 'Mô tả' },
+                { key: 'pricePerHour', label: 'Giá mỗi giờ' },
+                { key: 'minCapacity', label: 'Sức chứa tối thiểu' },
+                { key: 'maxCapacity', label: 'Sức chứa tối đa' },
+            ];
+
+            return (
+                <div className="space-y-6">
+                    <div className="rounded-xl bg-amber-50 p-4 border border-amber-100 flex items-start gap-3">
+                        <div className="p-2 bg-white rounded-lg shadow-sm text-amber-600">
+                             <RefreshCw className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <p className="text-sm font-black text-amber-900">Yêu cầu chỉnh sửa nội dung</p>
+                            <p className="text-xs font-medium text-amber-700">Dưới đây là các thay đổi được đề xuất bởi chủ phòng.</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4">
+                        {fields.map(field => {
+                            const oldVal = (item.room as any)[field.key];
+                            const newVal = pending[field.key];
+                            if (oldVal === newVal) return null;
+
+                            return (
+                                <div key={field.key} className="space-y-1.5">
+                                    <label className="block text-[13px] font-semibold text-[#374151] ml-1">{field.label}</label>
+                                    <div className="flex items-stretch gap-3">
+                                        <div className="flex-1 min-h-[48px] flex items-center px-4 rounded-[12px] border border-red-100 bg-red-50/30 text-red-700 text-sm line-through opacity-60">
+                                            {String(oldVal || 'Trống')}
+                                        </div>
+                                        <div className="flex items-center justify-center">
+                                            <ArrowRight className="h-4 w-4 text-gray-300" />
+                                        </div>
+                                        <div className="flex-1 min-h-[48px] flex items-center px-4 rounded-[12px] border border-green-100 bg-green-50/30 text-green-700 text-sm font-bold">
+                                            {String(newVal || 'Trống')}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            );
+        } catch { return <p className="text-red-500">Lỗi parse dữ liệu chỉnh sửa.</p>; }
     };
 
-    const approve = async (app: HostPartnerApplicationAdminItem) => {
-        setActingId(app.id);
+    const isUsableLogoUrl = (url?: string) => {
+        return url && (url.startsWith('http') || url.startsWith('https'));
+    };
+
+    const parseBranchMeta = (message: string) => {
+        if (!message || !message.includes('|')) return { meta: {} as any };
+        const pairs = message.split('|').map(p => p.trim());
+        const meta: any = {};
+        pairs.forEach(p => {
+            const [key, val] = p.split('=');
+            if (key && val) meta[key] = val;
+        });
+        return { meta };
+    };
+
+    const getApiErrorMessage = (e: any, defaultMsg: string) => {
+        return e?.response?.data?.message || e?.message || defaultMsg;
+    };
+
+    const getJwtSub = (token: string | null) => {
+        if (!token) return null;
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            return payload.sub;
+        } catch { return null; }
+    };
+
+    const handleApprovePartner = async (app: HostPartnerApplicationAdminItem) => {
         try {
             await hostPartnerApplicationService.adminApprove(app.id);
             if (app.applicantType === 'BRANCH') {
                 try {
-                    const { meta } = parseBranchMeta(app.message);
+                    const { meta } = parseBranchMeta(app.message || '');
                     const adminSub = getJwtSub(useAuthStore.getState().accessToken);
                     let result;
                     if (meta.propertyId) {
@@ -280,429 +262,370 @@ export function VerificationPage() {
             } else {
                 showToast.success('Đã duyệt — user có role HOST. Nhắc user đăng nhập lại.');
             }
-            await loadPartners();
+            await fetchPartners();
         } catch (e) {
             showToast.error(getApiErrorMessage(e, 'Duyệt thất bại'));
-        } finally {
-            setActingId(null);
         }
-    };
-
-    const reject = async (id: string) => {
-        setActingId(id);
-        try {
-            const app = partnerApps.find((x) => x.id === id);
-            await hostPartnerApplicationService.adminReject(id, rejectNote[id] || undefined);
-            if (app?.applicantType === 'BRANCH') {
-                const { meta } = parseBranchMeta(app.message);
-                if (meta.propertyId && meta.action !== 'UPDATE') {
-                    await branchService.reject(meta.propertyId, { rejectionNote: rejectNote[id] || '' });
-                }
-            }
-            showToast.success('Đã từ chối đơn');
-            setRejectNote((m) => ({ ...m, [id]: '' }));
-            await loadPartners();
-        } catch (e) {
-            showToast.error(getApiErrorMessage(e, 'Từ chối thất bại'));
-        } finally {
-            setActingId(null);
-        }
-    };
-
-    const approveRoom = async (room: RoomDto) => {
-        setActingRoomId(room.id);
-        try {
-            if (room.pendingEditStatus === 'PENDING') {
-                await roomApiService.approvePendingEdit(room.id);
-                showToast.success('Đã duyệt chỉnh sửa — dữ liệu phòng đã cập nhật');
-            } else {
-                await roomApiService.update(room.id, {
-                    approvalStatus: 'APPROVED',
-                    rejectionNote: null,
-                });
-                showToast.success('Đã duyệt phòng thành công');
-            }
-            await loadPendingRooms();
-        } catch (e) {
-            showToast.error(getApiErrorMessage(e, 'Duyệt phòng thất bại'));
-        } finally {
-            setActingRoomId(null);
-        }
-    };
-
-    const rejectRoomById = async (room: RoomDto) => {
-        setActingRoomId(room.id);
-        try {
-            if (room.pendingEditStatus === 'PENDING') {
-                await roomApiService.rejectPendingEdit(room.id, roomRejectNote[room.id] || '');
-                showToast.success('Đã từ chối chỉnh sửa — phòng giữ nguyên dữ liệu cũ');
-            } else {
-                await roomApiService.update(room.id, {
-                    approvalStatus: 'REJECTED',
-                    rejectionNote: roomRejectNote[room.id] || '',
-                });
-                showToast.success('Đã từ chối phòng');
-            }
-            setRoomRejectNote((prev) => ({ ...prev, [room.id]: '' }));
-            await loadPendingRooms();
-        } catch (e) {
-            showToast.error(getApiErrorMessage(e, 'Từ chối phòng thất bại'));
-        } finally {
-            setActingRoomId(null);
-        }
-    };
-
-    const roomImage = (r: RoomDto) => {
-        const first = (r.images ?? '').split(',').map((x) => x.trim()).find(Boolean);
-        return first || 'https://placehold.co/800x450/e5e7eb/6b7280?text=Room';
     };
 
     return (
-        <AdminLayout title="Xác minh & duyệt">
-            <div className="mb-8 flex flex-wrap gap-3">
-                <button
-                    type="button"
-                    onClick={() => setTab('partners')}
-                    className={`rounded-xl px-6 py-3 text-sm font-black transition-all duration-300 ${
-                        tab === 'partners'
-                            ? 'bg-gray-900 text-white shadow-lg shadow-gray-200'
-                            : 'bg-white text-gray-500 hover:bg-gray-50'
-                    }`}
-                >
-                    Đơn host / chi nhánh
-                </button>
-                <button
-                    type="button"
-                    onClick={() => setTab('rooms')}
-                    className={`rounded-xl px-6 py-3 text-sm font-black transition-all duration-300 ${
-                        tab === 'rooms'
-                            ? 'bg-gray-900 text-white shadow-lg shadow-gray-200'
-                            : 'bg-white text-gray-500 hover:bg-gray-50'
-                    }`}
-                >
-                    Phòng chờ duyệt
-                </button>
-                <button
-                    type="button"
-                    onClick={() => setTab('users')}
-                    className={`rounded-xl px-6 py-3 text-sm font-black transition-all duration-300 ${
-                        tab === 'users'
-                            ? 'bg-gray-900 text-white shadow-lg shadow-gray-200'
-                            : 'bg-white text-gray-500 hover:bg-gray-50'
-                    }`}
-                >
-                    KYC người dùng
-                </button>
+        <AdminLayout title="Hộp thư Phê duyệt">
+            <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                    <h1 className="text-3xl font-black tracking-tight text-gray-900">Hộp thư Phê duyệt</h1>
+                    <p className="font-medium text-gray-500">
+                        Thẩm định hồ sơ đối tác và phòng đăng mới.
+                    </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <button
+                        type="button"
+                        className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-3.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                        <Download className="h-4 w-4" />
+                        Export
+                    </button>
+                    <button
+                        type="button"
+                        onClick={refresh}
+                        disabled={loading[tab]}
+                        className="inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-gray-900 px-4 text-sm font-bold text-white shadow-lg transition hover:bg-gray-800 active:scale-95 disabled:opacity-50"
+                    >
+                        <RefreshCw className={`h-4 w-4 ${loading[tab] ? 'animate-spin' : ''}`} />
+                        Làm mới
+                    </button>
+                </div>
             </div>
 
-            {tab === 'partners' && (
-                <div>
-                    <div className="mb-6 flex items-center justify-between">
-                        <p className="text-sm font-bold text-gray-500">
-                            Đơn từ account-service — Duyệt sẽ gán role <strong>HOST</strong> (đối tác trên FE).
-                        </p>
-                        <button
-                            type="button"
-                            onClick={() => void loadPartners()}
-                            disabled={loadingPartners}
-                            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50"
-                        >
-                            <RefreshCw className={`h-4 w-4 ${loadingPartners ? 'animate-spin' : ''}`} />
-                            Làm mới
-                        </button>
+            {/* Toolbar */}
+            <div className="mb-8 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+                    {/* Tabs */}
+                    <div className="flex flex-wrap items-center gap-2 lg:flex-1">
+                        {(
+                            [
+                                { value: 'partners', label: 'Đơn đối tác' },
+                                { value: 'rooms', label: 'Phê duyệt phòng' },
+                            ] as { value: 'partners' | 'rooms'; label: string }[]
+                        ).map((t) => (
+                            <button
+                                key={t.value}
+                                type="button"
+                                onClick={() => setTab(t.value)}
+                                className={`inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl border-2 px-4 text-sm font-bold transition-all ${
+                                    tab === t.value
+                                        ? 'border-gray-900 bg-gray-900 text-white shadow-md'
+                                        : 'border-gray-50 bg-white text-gray-500 hover:border-gray-200 hover:text-gray-900'
+                                }`}
+                            >
+                                <span>{t.label}</span>
+                                <span className={`ml-1.5 rounded-lg px-2 py-0.5 text-[10px] font-black ${tab === t.value ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                                    {t.value === 'partners' ? partners.length : rooms.length}
+                                </span>
+                            </button>
+                        ))}
                     </div>
 
-                    {loadingPartners && partnerApps.length === 0 ? (
-                        <div className="flex justify-center py-20">
-                            <Loader2 className="h-10 w-10 animate-spin text-red-500" />
-                        </div>
-                    ) : partnerApps.length === 0 ? (
-                        <div className="rounded-3xl border border-dashed border-gray-200 bg-white py-16 text-center text-gray-500">
-                            Không có đơn chờ duyệt.
-                        </div>
-                    ) : (
-                        <div className="space-y-4">
-                            {partnerApps.map((app) => (
-                            (() => {
-                                const { cleanMessage, meta } = parseBranchMeta(app.message);
-                                return (
-                                <div
-                                    key={app.id}
-                                    className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"
-                                >
-                                    <div className="flex flex-col gap-4 p-6 md:flex-row md:items-start md:justify-between">
-                                        <div className="flex gap-4">
-                                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-500">
-                                                <Building2 className="h-7 w-7" />
-                                            </div>
-                                            <div>
-                                                <h3 className="text-lg font-black text-gray-900">{app.fullName}</h3>
-                                                <p className="text-sm font-medium text-gray-500">{app.email}</p>
-                                                <p className="mt-1 text-xs font-bold uppercase tracking-wider text-amber-600">
-                                                    {app.applicantType === 'BRANCH' ? 'ĐĂNG KÝ CHI NHÁNH' : app.applicantType} · userId: {app.userId.slice(0, 8)}…
-                                                </p>
-                                                {app.phone ? (
-                                                    <p className="text-sm text-gray-600">ĐT: {app.phone}</p>
-                                                ) : null}
-                                                {app.address ? (
-                                                    <p className="mt-2 text-sm text-gray-600">{app.address}</p>
-                                                ) : null}
-                                                {(meta.propertyType || meta.description || isUsableLogoUrl(meta.logo) || cleanMessage) ? (
-                                                    <div className="mt-2 rounded-lg bg-slate-50 p-3 text-sm text-gray-700 space-y-1">
-                                                        {meta.propertyType ? (
-                                                            <p>
-                                                                <span className="font-bold">Loại cơ sở:</span>{' '}
-                                                                {propertyTypeLabel(meta.propertyType)}
-                                                            </p>
-                                                        ) : null}
-                                                        {meta.description ? (
-                                                            <p>
-                                                                <span className="font-bold">Mô tả:</span>{' '}
-                                                                {meta.description}
-                                                            </p>
-                                                        ) : null}
-                                                        {isUsableLogoUrl(meta.logo) ? (
-                                                            <p className="truncate">
-                                                                <span className="font-bold">Logo:</span>{' '}
-                                                                <a
-                                                                    href={meta.logo}
-                                                                    target="_blank"
-                                                                    rel="noreferrer"
-                                                                    className="text-blue-600 underline"
-                                                                >
-                                                                    {meta.logo}
-                                                                </a>
-                                                            </p>
-                                                        ) : null}
-                                                        {cleanMessage ? <p>{cleanMessage}</p> : null}
-                                                    </div>
-                                                ) : null}
-                                            </div>
-                                        </div>
-                                        <div className="flex w-full flex-col gap-3 md:w-72">
-                                            <input
-                                                type="text"
-                                                placeholder="Lý do từ chối (tuỳ chọn)"
-                                                value={rejectNote[app.id] ?? ''}
-                                                onChange={(e) =>
-                                                    setRejectNote((m) => ({ ...m, [app.id]: e.target.value }))
-                                                }
-                                                className="w-full rounded-xl border border-gray-200 px-4 py-2 text-sm"
-                                            />
-                                            <div className="flex gap-2">
-                                                <button
-                                                    type="button"
-                                                    disabled={actingId === app.id}
-                                                    onClick={() => void approve(app)}
-                                                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gray-900 py-3 text-sm font-bold text-white transition hover:bg-green-600 disabled:opacity-50"
-                                                >
-                                                    {actingId === app.id ? (
-                                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                                    ) : (
-                                                        <CheckCircle2 className="h-4 w-4" />
-                                                    )}
-                                                    Duyệt
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    disabled={actingId === app.id}
-                                                    onClick={() => void reject(app.id)}
-                                                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 py-3 text-sm font-bold text-gray-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-                                                >
-                                                    <XCircle className="h-4 w-4" />
-                                                    Từ chối
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
+                    {/* Search & Action Group */}
+                    <div className="flex items-center justify-center gap-2 sm:justify-start lg:justify-end">
+                        <div className="relative flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setIsSearchOpen((prev) => !prev)}
+                                className={`inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border-2 transition-all ${
+                                    isSearchOpen || searchTerm
+                                        ? 'border-blue-100 bg-blue-50 text-blue-600'
+                                        : 'border-gray-100 bg-white text-gray-400 hover:border-gray-200 hover:text-gray-600'
+                                }`}
+                                title="Tìm kiếm"
+                            >
+                                <SearchIcon className="h-5 w-5" />
+                            </button>
+
+                            {isSearchOpen && (
+                                <div className="absolute right-full mr-2 top-0 w-64 sm:w-80">
+                                    <input
+                                        autoFocus
+                                        type="text"
+                                        placeholder="Tìm theo tên, email, nội dung..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="h-10 w-full rounded-xl border-2 border-gray-100 bg-white px-4 text-sm font-bold text-gray-700 outline-none focus:border-blue-200 transition-all"
+                                    />
                                 </div>
-                                );
-                            })()
-                            ))}
+                            )}
                         </div>
-                    )}
-                </div>
-            )}
 
-            {tab === 'rooms' && (
-                <div>
-                    <div className="mb-6 flex items-center justify-between">
-                        <p className="text-sm font-bold text-gray-500">Dữ liệu thật từ room-service.</p>
                         <button
                             type="button"
-                            onClick={() => void loadPendingRooms()}
-                            disabled={loadingRooms}
-                            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50"
+                            className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border-2 border-gray-100 bg-white text-gray-400 transition hover:border-gray-200 hover:text-gray-600"
+                            title="Sắp xếp"
                         >
-                            <RefreshCw className={`h-4 w-4 ${loadingRooms ? 'animate-spin' : ''}`} />
-                            Làm mới
+                            <ArrowUpDown className="h-5 w-5" />
+                        </button>
+
+                        <button
+                            type="button"
+                            className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border-2 border-gray-100 bg-white text-gray-400 transition hover:border-gray-200 hover:text-gray-600"
+                            title="Thanh lọc"
+                        >
+                            <Filter className="h-5 w-5" />
                         </button>
                     </div>
-                    {loadingRooms && pendingRooms.length === 0 ? (
-                        <div className="flex justify-center py-20">
-                            <Loader2 className="h-10 w-10 animate-spin text-red-500" />
-                        </div>
-                    ) : pendingRooms.length === 0 ? (
-                        <div className="rounded-3xl border border-dashed border-gray-200 bg-white py-16 text-center text-gray-500">
-                            Không có phòng chờ duyệt.
-                        </div>
-                    ) : (
-                        <div className="grid animate-in grid-cols-1 gap-6 duration-500 slide-in-from-bottom-4 md:grid-cols-2 lg:grid-cols-3">
-                            {pendingRooms.map(({ room, property }) => (
-                                <div
-                            key={room.id}
-                            className="group overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm transition-all duration-300 hover:shadow-xl"
+                </div>
+            </div>
+
+            {/* List Data */}
+            {loading[tab] ? (
+                <div className="flex flex-col items-center justify-center py-32 space-y-4">
+                    <Loader2 className="h-12 w-12 animate-spin text-gray-900" />
+                    <p className="text-sm font-bold text-gray-400">Đang tải dữ liệu hồ sơ...</p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    {tab === 'partners' && partners.map(app => (
+                        <div 
+                            key={app.id}
+                            className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm hover:shadow-xl hover:border-red-100 transition-all group cursor-pointer"
+                            onClick={() => setSelectedPartner(app)}
                         >
-                            <div className="relative h-48 overflow-hidden bg-gray-200">
-                                <img
-                                    src={roomImage(room)}
-                                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+                            <div className="flex items-center gap-4 mb-4">
+                                <div className="p-3 bg-red-50 text-red-500 rounded-2xl group-hover:scale-110 transition-transform">
+                                    <Building2 className="h-6 w-6" />
+                                </div>
+                                <div className="flex-1">
+                                    <h4 className="font-black text-gray-900 truncate">{app.fullName}</h4>
+                                    <p className="text-xs font-bold text-amber-600 uppercase tracking-widest leading-relaxed">
+                                        {app.applicantType === 'BRANCH' ? 'Đăng ký chi nhánh' : app.applicantType}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="space-y-2 mb-6">
+                                <p className="text-sm text-gray-500 font-medium truncate">{app.email}</p>
+                                <p className="text-sm text-gray-500 font-medium">{app.phone || 'Chưa có SĐT'}</p>
+                            </div>
+                            <button className="w-full py-3 bg-gray-50 rounded-2xl text-[10px] font-black text-gray-700 hover:bg-gray-900 hover:text-white transition-all uppercase tracking-widest">
+                                XEM CHI TIẾT & DUYỆT
+                            </button>
+                        </div>
+                    ))}
+
+                    {tab === 'rooms' && rooms.map(item => (
+                        <div 
+                            key={item.room.id}
+                            className="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-xl transition-all group cursor-pointer"
+                            onClick={() => setSelectedRoomItem(item)}
+                        >
+                            <div className="h-40 overflow-hidden relative">
+                                <img 
+                                    src={String(item.room.images || '').split(',')[0].trim() || 'https://placehold.co/800x450?text=Room'} 
+                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
                                     alt=""
                                 />
-                                <div
-                                    className={`absolute right-4 top-4 rounded-full px-3 py-1 text-xs font-black uppercase tracking-wider text-white shadow-lg ${
-                                        room.pendingEditStatus === 'PENDING' ? 'bg-sky-600' : 'bg-orange-500'
-                                    }`}
-                                >
-                                    {room.pendingEditStatus === 'PENDING' ? 'Sửa chờ duyệt' : 'Phòng mới'}
+                                <div className={`absolute top-4 right-4 px-3 py-1 rounded-full text-[10px] font-black uppercase text-white shadow-lg ${item.room.pendingEditStatus === 'PENDING' ? 'bg-sky-600' : 'bg-amber-500'}`}>
+                                    {item.room.pendingEditStatus === 'PENDING' ? 'Sửa đổi' : 'Mới'}
                                 </div>
                             </div>
                             <div className="p-6">
-                                <h3 className="mb-1 text-xl font-black text-gray-900">{room.name}</h3>
-                                <p className="mb-4 flex items-center gap-1 text-sm font-bold text-gray-400">
-                                    <UserIcon className="h-4 w-4" /> {property?.name ?? 'Cơ sở chưa xác định'} • {property?.addressDetail ?? 'Chưa có địa chỉ'}
-                                </p>
-                                <input
-                                    type="text"
-                                    placeholder="Lý do từ chối (tuỳ chọn)"
-                                    value={roomRejectNote[room.id] ?? ''}
-                                    onChange={(e) =>
-                                        setRoomRejectNote((prev) => ({ ...prev, [room.id]: e.target.value }))
-                                    }
-                                    className="mb-3 w-full rounded-xl border border-gray-200 px-4 py-2 text-sm"
-                                />
-                                <div className="mt-6 flex gap-2">
-                                    <button
-                                        type="button"
-                                        disabled={actingRoomId === room.id}
-                                        onClick={() => void approveRoom(room)}
-                                        className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gray-900 py-3 text-sm font-bold text-white shadow-lg transition hover:bg-green-600 active:scale-95"
-                                    >
-                                        {actingRoomId === room.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Duyệt
-                                    </button>
-                                    <button
-                                        type="button"
-                                        disabled={actingRoomId === room.id}
-                                        onClick={() => void rejectRoomById(room)}
-                                        className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white py-3 text-sm font-bold text-gray-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-500 active:scale-95"
-                                    >
-                                        <XCircle className="h-4 w-4" /> Từ chối
-                                    </button>
-                                </div>
+                                <h4 className="font-black text-gray-900 mb-1 truncate">{item.room.name}</h4>
+                                <p className="text-xs font-medium text-gray-400 mb-4">{item.property?.name || 'Cơ sở chưa xác định'}</p>
+                                <button className="w-full py-3 bg-gray-50 rounded-2xl text-[10px] font-black text-gray-700 hover:bg-gray-900 hover:text-white transition-all uppercase tracking-widest">
+                                    Thẩm định phòng
+                                </button>
                             </div>
                         </div>
-                            ))}
-                        </div>
-                    )}
+                    ))}
                 </div>
             )}
 
-            {tab === 'users' && (
-                <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm animate-in slide-in-from-bottom-4 duration-500">
-                    <div className="flex items-center justify-between border-b border-gray-100 p-8">
-                        <h3 className="text-xl font-black text-gray-900">KYC người dùng (dữ liệu thật)</h3>
-                        <div className="relative">
-                            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                            <input
-                                value={usersKycSearch}
-                                onChange={(e) => setUsersKycSearch(e.target.value)}
-                                className="w-64 rounded-xl border border-gray-100 bg-gray-50 py-3 pl-12 pr-4 text-sm font-bold"
-                                placeholder="Tìm user..."
-                            />
-                        </div>
+            {/* Empty State */}
+            {!loading[tab] && (tab === 'partners' ? partners : rooms).length === 0 && (
+                <div className="flex flex-col items-center justify-center py-32 space-y-4 rounded-3xl border-2 border-dashed border-gray-100 bg-gray-50/50">
+                    <div className="p-4 bg-white rounded-full shadow-sm text-gray-300">
+                        <FileCheck className="h-12 w-12" />
                     </div>
-                    <div className="divide-y divide-gray-100">
-                        {loadingUsersKyc ? (
-                            <div className="flex justify-center py-16">
-                                <Loader2 className="h-10 w-10 animate-spin text-red-500" />
-                            </div>
-                        ) : visibleUsersKyc
-                            .filter((u) => {
-                                const q = usersKycSearch.trim().toLowerCase();
-                                if (!q) return true;
-                                return (
-                                    (u.name ?? '').toLowerCase().includes(q) ||
-                                    (u.email ?? '').toLowerCase().includes(q)
-                                );
-                            })
-                            .map((req, i) => (
-                            <div
-                                key={i}
-                                className="flex items-center justify-between p-6 transition-colors hover:bg-gray-50"
-                            >
-                                <div className="flex items-center gap-4">
-                                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-500">
-                                        <FileCheck className="h-6 w-6" />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-bold text-gray-900">{req.name}</h4>
-                                        <p className="text-sm font-medium text-gray-500">{req.email}</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-8">
-                                    <div className="text-right">
-                                        <p className="mb-1 text-xs font-black uppercase tracking-wider text-gray-400">
-                                            Document
-                                        </p>
-                                        <div className="flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-1 text-sm font-bold text-blue-600">
-                                            <ImageIcon className="h-4 w-4" />
-                                            {req.verificationDocs && req.verificationDocs.length > 0
-                                                ? 'Đã nộp tài liệu'
-                                                : 'Chưa nộp'}
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-col items-end gap-2">
-                                        <input
-                                            type="text"
-                                            value={usersKycRejectReason[req.id] ?? ''}
-                                            onChange={(e) =>
-                                                setUsersKycRejectReason((prev) => ({ ...prev, [req.id]: e.target.value }))
-                                            }
-                                            placeholder="Lý do từ chối (tuỳ chọn)"
-                                            className="w-52 rounded-lg border border-gray-200 px-3 py-1.5 text-xs"
-                                        />
-                                        <div className="flex gap-2">
-                                        <button
-                                            type="button"
-                                            disabled={actingUserKycId === req.id}
-                                            onClick={() => void approveUserKyc(req.id)}
-                                            className="rounded-xl bg-green-50 p-3 text-green-600 transition-colors hover:bg-green-500 hover:text-white disabled:opacity-50"
-                                        >
-                                            {actingUserKycId === req.id ? (
-                                                <Loader2 className="h-5 w-5 animate-spin" />
-                                            ) : (
-                                                <CheckCircle2 className="h-5 w-5" />
-                                            )}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            disabled={actingUserKycId === req.id}
-                                            onClick={() => void rejectUserKyc(req.id)}
-                                            className="rounded-xl bg-red-50 p-3 text-red-600 transition-colors hover:bg-red-500 hover:text-white disabled:opacity-50"
-                                        >
-                                            <XCircle className="h-5 w-5" />
-                                        </button>
-                                    </div>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                        {!loadingUsersKyc && visibleUsersKyc.length === 0 && (
-                            <div className="py-16 text-center text-gray-500">Không có đơn KYC chờ duyệt.</div>
-                        )}
-                    </div>
+                    <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Không có hồ sơ nào đang chờ duyệt</p>
                 </div>
             )}
+
+            {/* Overlays */}
+            <AdminDetailOverlay
+                isOpen={!!selectedPartner}
+                onClose={() => setSelectedPartner(null)}
+                title="Chi tiết đơn đối tác"
+                subtitle="Xem xét hồ sơ đăng ký Host / Chi nhánh"
+                actions={{
+                    onApprove: () => selectedPartner && handleApprovePartner(selectedPartner).then(() => setSelectedPartner(null)),
+                    onReject: (note) => selectedPartner && rejectPartner(selectedPartner!.id, note).then(() => setSelectedPartner(null)),
+                    isActing: actingId === (selectedPartner?.id || ''),
+                    approveLabel: 'Duyệt & Cấp Role',
+                }}
+            >
+                {selectedPartner && (
+                    <div className="space-y-8">
+                         <div className="flex gap-3">
+                            <div className="bg-red-50 text-red-600 px-4 py-2 rounded-2xl border border-red-100 font-black text-[10px] uppercase tracking-[0.2em]">
+                                {selectedPartner.applicantType === 'BRANCH' ? 'Đăng ký chi nhánh' : selectedPartner.applicantType}
+                            </div>
+                            {selectedPartner.taxId && (
+                                <div className="bg-blue-50 text-blue-600 px-4 py-2 rounded-2xl border border-blue-100 font-black text-[10px] uppercase tracking-[0.2em]">
+                                    MST: {selectedPartner.taxId}
+                                </div>
+                            )}
+                         </div>
+
+                         <section className="space-y-4">
+                              <h5 className="text-[11px] font-black uppercase text-slate-900 tracking-widest pl-1 opacity-40">Thông tin cá nhân & Liên hệ</h5>
+                              <div className="grid grid-cols-6 gap-4">
+                                 <div className="space-y-1.5 col-span-3">
+                                     <label className="block text-[13px] font-semibold text-[#374151] ml-1">Họ và tên</label>
+                                     <div className="h-[48px] flex items-center px-4 rounded-[12px] border border-[#d1d5db] bg-white text-sm font-bold text-gray-900 shadow-sm">
+                                         {selectedPartner.fullName}
+                                     </div>
+                                 </div>
+                                 <div className="space-y-1.5 col-span-3">
+                                     <label className="block text-[13px] font-semibold text-[#374151] ml-1">Số điện thoại</label>
+                                     <div className="h-[48px] flex items-center px-4 rounded-[12px] border border-[#d1d5db] bg-white text-sm font-bold text-gray-900 shadow-sm">
+                                         {selectedPartner.phone || '-'}
+                                     </div>
+                                 </div>
+                                 <div className="space-y-1.5 col-span-6">
+                                     <label className="block text-[13px] font-semibold text-[#374151] ml-1">Email liên hệ</label>
+                                     <div className="h-[48px] flex items-center px-4 rounded-[12px] border border-[#d1d5db] bg-white text-sm font-bold text-gray-900 shadow-sm">
+                                         {selectedPartner.email}
+                                     </div>
+                                 </div>
+                                 <div className="space-y-1.5 col-span-6">
+                                     <label className="block text-[13px] font-semibold text-[#374151] ml-1">Địa chỉ hoạt động</label>
+                                     <div className="h-auto min-h-[48px] flex items-center px-4 py-2.5 rounded-[12px] border border-[#d1d5db] bg-white text-sm font-bold text-gray-900 leading-tight shadow-sm">
+                                         {selectedPartner.address || '-'}
+                                     </div>
+                                 </div>
+                              </div>
+                         </section>
+
+                         <section className="space-y-4">
+                              <h5 className="text-[11px] font-black uppercase text-slate-900 tracking-widest pl-1 opacity-40">Thông tin tài khoản Thanh toán</h5>
+                              <div className="grid grid-cols-6 gap-4">
+                                 <div className="space-y-1.5 col-span-3">
+                                     <label className="block text-[13px] font-semibold text-[#374151] ml-1">Chủ tài khoản</label>
+                                     <div className="h-[48px] flex items-center px-4 rounded-[12px] border border-[#d1d5db] bg-white text-sm font-bold text-gray-900 shadow-sm">
+                                         {selectedPartner.bankAccountHolder || '-'}
+                                     </div>
+                                 </div>
+                                 <div className="space-y-1.5 col-span-3">
+                                     <label className="block text-[13px] font-semibold text-[#374151] ml-1">Số tài khoản</label>
+                                     <div className="h-[48px] flex items-center px-4 rounded-[12px] border border-[#d1d5db] bg-white text-sm font-bold text-gray-900 shadow-sm">
+                                         {selectedPartner.bankAccountNumber || '-'}
+                                     </div>
+                                 </div>
+                                 <div className="space-y-1.5 col-span-6">
+                                     <label className="block text-[13px] font-semibold text-[#374151] ml-1">Ngân hàng thụ hưởng</label>
+                                     <div className="h-[48px] flex items-center px-4 rounded-[12px] border border-[#d1d5db] bg-white text-sm font-bold text-gray-900 shadow-sm">
+                                         {selectedPartner.bankName || '-'}
+                                     </div>
+                                 </div>
+                              </div>
+                         </section>
+
+                         <section className="space-y-4">
+                              <h5 className="text-[11px] font-black uppercase text-slate-900 tracking-widest pl-1 opacity-40">Hợp đồng điện tử & Tài liệu KYC</h5>
+                              <div className="grid grid-cols-2 gap-4">
+                                  <button 
+                                      onClick={() => handleDownloadContract(selectedPartner.id)}
+                                      className="w-full flex items-center justify-between p-4 rounded-2xl bg-slate-900 text-white group hover:bg-black transition-all text-left cursor-pointer"
+                                  >
+                                      <div className="flex items-center gap-3">
+                                          <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+                                              <Download className="w-5 h-5" />
+                                          </div>
+                                          <div>
+                                              <p className="text-[10px] font-black uppercase tracking-widest opacity-60">E-Contract</p>
+                                              <p className="font-bold text-sm">TẢI HỢP ĐỒNG PDF</p>
+                                          </div>
+                                      </div>
+                                      <ExternalLink className="w-4 h-4 opacity-40" />
+                                  </button>
+
+                                  <div className="grid grid-cols-3 gap-2">
+                                      {[
+                                          { url: selectedPartner.documentFrontUrl, label: 'CCCD Mặt trước' },
+                                          { url: selectedPartner.documentBackUrl, label: 'CCCD Mặt sau' },
+                                          { url: selectedPartner.businessLicenseUrl, label: 'GPKD' }
+                                      ].map((doc, idx) => (
+                                          doc.url && (
+                                              <a 
+                                                key={idx}
+                                                href={doc.url}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="aspect-square flex flex-col items-center justify-center gap-2 rounded-2xl bg-gray-50 border border-gray-100 hover:border-blue-200 hover:bg-white transition-all shadow-sm group"
+                                              >
+                                                  <ImageIcon className="w-6 h-6 text-gray-300 group-hover:text-blue-500" />
+                                                  <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">{doc.label}</span>
+                                              </a>
+                                          )
+                                      ))}
+                                  </div>
+                              </div>
+                         </section>
+
+                        <section className="space-y-4">
+                             <h5 className="text-[11px] font-black uppercase text-slate-900 tracking-widest pl-1 opacity-40">Ghi chú từ Đối tác</h5>
+                             {renderRegistrationInfo(selectedPartner.message || '')}
+                        </section>
+                    </div>
+                )}
+            </AdminDetailOverlay>
+
+            <AdminDetailOverlay
+                isOpen={!!selectedRoomItem}
+                onClose={() => setSelectedRoomItem(null)}
+                title="Hồ sơ phê duyệt phòng"
+                subtitle={selectedRoomItem?.room.pendingEditStatus === 'PENDING' ? 'Kiểm tra các nội dung chỉnh sửa mới' : 'Thẩm định phòng mới đăng đăng'}
+                actions={{
+                    onApprove: () => selectedRoomItem && approveRoom(selectedRoomItem!.room).then(() => setSelectedRoomItem(null)),
+                    onReject: (note) => selectedRoomItem && rejectRoom(selectedRoomItem!.room, note).then(() => setSelectedRoomItem(null)),
+                    isActing: actingId === (selectedRoomItem?.room.id || ''),
+                    approveLabel: 'Phê duyệt dữ liệu',
+                }}
+            >
+                {selectedRoomItem && (
+                    <div className="space-y-8">
+                        {selectedRoomItem.room.pendingEditStatus === 'PENDING' ? renderRoomComparison(selectedRoomItem) : (
+                            <div className="space-y-6">
+                                <section className="space-y-4">
+                                     <h5 className="text-[11px] font-black uppercase text-slate-900 tracking-widest pl-1 opacity-40">Thông tin cơ bản</h5>
+                                     <div className="space-y-1.5">
+                                         <label className="block text-[13px] font-semibold text-[#374151] ml-1">Tên phòng & Địa chỉ</label>
+                                         <div className="h-auto min-h-[48px] flex flex-col justify-center px-4 py-2.5 rounded-[12px] border border-[#d1d5db] bg-white shadow-sm">
+                                             <p className="text-sm font-black text-gray-900">{selectedRoomItem.room.name}</p>
+                                             <p className="text-xs text-gray-500">{selectedRoomItem.property?.name} • {selectedRoomItem.property?.addressDetail}</p>
+                                         </div>
+                                     </div>
+                                </section>
+                                <section className="space-y-4">
+                                     <h5 className="text-xs font-black uppercase text-gray-400 tracking-widest">Hình ảnh phòng</h5>
+                                     <div className="grid grid-cols-2 gap-2">
+                                         {String(selectedRoomItem.room.images || '').split(',').map((img, idx) => (
+                                             <img key={idx} src={img.trim()} className="w-full h-32 object-cover rounded-xl shadow-sm" alt="" />
+                                         ))}
+                                     </div>
+                                 </section>
+                                <section className="space-y-4">
+                                     <h5 className="text-[11px] font-black uppercase text-slate-900 tracking-widest pl-1 opacity-40">Mô tả</h5>
+                                     <div className="space-y-1.5">
+                                         <label className="block text-[13px] font-semibold text-[#374151] ml-1">Nội dung mô tả</label>
+                                         <div className="text-sm text-gray-700 leading-relaxed bg-white border border-[#d1d5db] p-4 rounded-[12px] shadow-sm">
+                                             {selectedRoomItem.room.description}
+                                         </div>
+                                     </div>
+                                </section>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </AdminDetailOverlay>
         </AdminLayout>
     );
 }

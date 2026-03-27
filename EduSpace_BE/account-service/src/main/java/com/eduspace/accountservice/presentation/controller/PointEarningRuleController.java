@@ -1,8 +1,8 @@
 package com.eduspace.accountservice.presentation.controller;
 
 import com.eduspace.accountservice.business.service.PointEarningRuleService;
-import com.eduspace.accountservice.model.dto.pointrule.PointEarningRuleRequest;
-import com.eduspace.accountservice.model.dto.pointrule.PointEarningRuleResponse;
+import com.eduspace.accountservice.model.dto.request.pointrule.PointEarningRuleRequest;
+import com.eduspace.accountservice.model.dto.response.pointrule.PointEarningRuleResponse;
 import com.eduspace.accountservice.model.dto.response.ApiResponse;
 import com.eduspace.accountservice.presentation.constants.PointPaths;
 import com.eduspace.accountservice.presentation.constants.PreAuthorizeConstants;

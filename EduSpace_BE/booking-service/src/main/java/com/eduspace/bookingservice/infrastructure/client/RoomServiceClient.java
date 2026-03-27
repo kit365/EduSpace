@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 @FeignClient(
         name = "room-service",
-        url = "${integration.room-service.base-url:http://localhost:8083}",
         contextId = "roomServiceClient")
 public interface RoomServiceClient {
 

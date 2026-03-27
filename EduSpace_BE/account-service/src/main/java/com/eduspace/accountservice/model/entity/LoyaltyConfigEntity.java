@@ -3,18 +3,17 @@ package com.eduspace.accountservice.model.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-
-import java.time.LocalDateTime;
+import lombok.experimental.SuperBuilder;
 
 @Entity
 @Table(name = "loyalty_config")
 @Getter
 @Setter
-@Builder
+@SuperBuilder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @NoArgsConstructor
 @AllArgsConstructor
-public class LoyaltyConfigEntity {
+public class LoyaltyConfigEntity extends BaseEntity {
 
     @Id
     @Column(name = "id")
@@ -22,12 +21,4 @@ public class LoyaltyConfigEntity {
 
     @Column(name = "vnd_per_point", nullable = false)
     Integer vndPerPoint;
-
-    @Column(name = "updated_at")
-    LocalDateTime updatedAt;
-
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
 }

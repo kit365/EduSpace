@@ -27,7 +27,6 @@ import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.Arrays;
 import java.util.List;
 
@@ -202,6 +201,7 @@ public class UserController {
                 return ApiResponse.success(null, SuccessCode.USER_PROFILE_UPDATE_SUCCESS, "2FA disabled successfully");
         }
 
+
         @GetMapping(AccountPaths.ADMIN + AccountPaths.USERS)
         @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
         public ApiResponse<PageResponse<UserResponse>> getAllUsers(
@@ -241,5 +241,12 @@ public class UserController {
                         @RequestParam(required = false) String reason) {
                 userService.rejectUserKyc(userId, reason);
                 return ApiResponse.success(null, SuccessCode.USER_PROFILE_UPDATE_SUCCESS, "User KYC rejected");
+        }
+
+        @PatchMapping(AccountPaths.ADMIN + AccountPaths.USERS + "/{userId}/status")
+        @PreAuthorize(PreAuthorizeConstants.HAS_ANY_ROLE_ADMIN_OR_SUPER)
+        public ApiResponse<Void> toggleUserStatus(@PathVariable String userId, @RequestParam boolean active) {
+                userService.toggleUserStatus(userId, active);
+                return ApiResponse.success(null, SuccessCode.USER_PROFILE_UPDATE_SUCCESS, "User status updated");
         }
 }

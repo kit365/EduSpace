@@ -15,6 +15,7 @@ import com.eduspace.roomservice.model.dto.request.RoomPriceRuleRequest;
 import com.eduspace.roomservice.model.dto.request.RoomRequest;
 import com.eduspace.roomservice.model.dto.request.RoomSearchRequest;
 import com.eduspace.roomservice.model.dto.response.PageResponse;
+import com.eduspace.roomservice.model.dto.response.RoomDashboardStatsResponse;
 import com.eduspace.roomservice.model.dto.response.RoomPriceQuoteResponse;
 import com.eduspace.roomservice.model.dto.response.RoomResponse;
 import com.eduspace.roomservice.model.dto.response.RoomScheduleResponse;
@@ -493,6 +494,30 @@ public class RoomServiceImpl implements RoomService {
                 .weekendSurchargePercent(weekendSurchargePercent)
                 .weekendSurchargeAmount(weekendSurchargeAmount)
                 .total(total)
+                .build();
+    }
+
+    @Override
+    public RoomDashboardStatsResponse getDashboardStats() {
+        long totalListings = roomRepository.countByDeletedAtIsNull();
+        long pendingApprovals = roomRepository.countByApprovalStatusAndDeletedAtIsNull(RoomApprovalStatus.PENDING.name());
+        
+        LocalDateTime today = LocalDateTime.now().with(LocalTime.MIN);
+        long newListingsToday = roomRepository.countByCreatedAtAfterAndDeletedAtIsNull(today);
+
+        List<RoomCategoryEntity> categories = categoryRepository.findAll();
+        java.util.Map<String, Long> distribution = categories.stream()
+                .collect(Collectors.toMap(
+                        RoomCategoryEntity::getNameVi,
+                        cat -> roomRepository.countByCategory_IdAndDeletedAtIsNull(cat.getId()),
+                        (v1, v2) -> v1
+                ));
+
+        return RoomDashboardStatsResponse.builder()
+                .totalListings(totalListings)
+                .pendingApprovals(pendingApprovals)
+                .newListingsToday(newListingsToday)
+                .categoryDistribution(distribution)
                 .build();
     }
 

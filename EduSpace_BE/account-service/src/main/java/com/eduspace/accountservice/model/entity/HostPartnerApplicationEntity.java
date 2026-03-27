@@ -1,9 +1,9 @@
 package com.eduspace.accountservice.model.entity;
 
-import com.eduspace.accountservice.common.enums.PartnerAppStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -12,11 +12,11 @@ import java.util.UUID;
 @Table(name = "host_partner_applications")
 @Getter
 @Setter
-@Builder
+@SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class HostPartnerApplicationEntity {
+public class HostPartnerApplicationEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -59,30 +59,31 @@ public class HostPartnerApplicationEntity {
     @Column(name = "admin_note", columnDefinition = "TEXT")
     String adminNote;
 
+    @Column(name = "bank_account_number", length = 50)
+    String bankAccountNumber;
+
+    @Column(name = "bank_name", length = 100)
+    String bankName;
+
+    @Column(name = "bank_account_holder", length = 100)
+    String bankAccountHolder;
+
+    @Column(name = "tax_id", length = 50)
+    String taxId;
+
+    @Column(name = "contract_pdf")
+    byte[] contractPdf;
+
     @Column(name = "reviewed_at")
     LocalDateTime reviewedAt;
 
     @Column(name = "reviewed_by")
     String reviewedBy;
 
-    @Column(name = "created_at")
-    LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    LocalDateTime updatedAt;
-
     @PrePersist
-    void onCreate() {
-        LocalDateTime now = LocalDateTime.now();
-        createdAt = now;
-        updatedAt = now;
+    void onCreateStatus() {
         if (status == null) {
             status = com.eduspace.accountservice.common.enums.PartnerAppStatus.PENDING;
         }
-    }
-
-    @PreUpdate
-    void onUpdate() {
-        updatedAt = LocalDateTime.now();
     }
 }

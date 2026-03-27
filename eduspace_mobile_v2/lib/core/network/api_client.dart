@@ -62,7 +62,7 @@ class ApiClient {
             
             if (!isPublic) {
               final refreshToken = _storage.refreshToken;
-              if (refreshToken != null) {
+              if (refreshToken != null && refreshToken.isNotEmpty) {
                 try {
                   // Attempt to refresh
                   final refreshResponse = await _dio.post(
@@ -89,12 +89,13 @@ class ApiClient {
                     }
                   }
                 } catch (refreshError) {
-                  debugPrint('--- Token Refresh Failed ---');
+                  debugPrint('--- Token Refresh Failed (Unexpected Error) ---');
                 }
               }
               
               // If we reached here, it means either refreshToken was null,
               // or refresh attempt failed, or response was still 401.
+              debugPrint('--- Global 401 Unauthorized: Logging out ---');
               await _storage.init();
               await _storage.clearAuth();
               AppRouter.navigatorKey.currentState?.pushNamedAndRemoveUntil(
@@ -173,6 +174,27 @@ class ApiClient {
   }) async {
     try {
       final response = await _dio.delete(path);
+      return ApiResponse<T>.fromJson(response.data, fromJson);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Multipart POST (e.g. eKYC). Do not set Content-Type manually — Dio sets boundary.
+  Future<ApiResponse<T>> postMultipart<T>(
+    String path, {
+    required FormData data,
+    T Function(dynamic json)? fromJson,
+  }) async {
+    try {
+      final response = await _dio.post(
+        path,
+        data: data,
+        options: Options(
+          receiveTimeout: const Duration(seconds: 120),
+          sendTimeout: const Duration(seconds: 120),
+        ),
+      );
       return ApiResponse<T>.fromJson(response.data, fromJson);
     } catch (e) {
       rethrow;

@@ -127,9 +127,10 @@ class ChatWebSocketService {
       destination: '/topic/conversation/$conversationId',
       callback: (frame) {
         if (frame.body != null) {
-          debugPrint('Received WebSocket message for $conversationId');
+          debugPrint('Received WebSocket message for $conversationId: ${frame.body}');
           try {
             final data = json.decode(frame.body!);
+            debugPrint('Decoded WebSocket data: $data');
             final message = ChatMessageResponse.fromJson(data);
             _messageController.add(message);
           } catch (e) {
@@ -150,6 +151,7 @@ class ChatWebSocketService {
     debugPrint('Sending message to /app/chat/$conversationId/send');
     _client?.send(
       destination: '/app/chat/$conversationId/send',
+      headers: {'content-type': 'application/json'},
       body: json.encode({
         'content': content,
         'messageType': type,

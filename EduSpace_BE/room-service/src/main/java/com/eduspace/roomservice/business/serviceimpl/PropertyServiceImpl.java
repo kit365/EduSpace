@@ -115,6 +115,12 @@ public class PropertyServiceImpl implements PropertyService {
     }
 
     @Override
+    public List<PropertyResponse> getPendingSortedBySubmittedAtDesc() {
+        return propertyMapper.toResponseList(
+                propertyRepository.findAllByStatusAndDeletedFalseOrderBySubmittedAtDesc(PropertyStatus.PENDING.name()));
+    }
+
+    @Override
     @Transactional
     public void deleteById(Integer id) {
         PropertyEntity entity = propertyRepository.findById(id)

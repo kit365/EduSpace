@@ -6,19 +6,13 @@ spring:
     name: booking-service
   profiles:
     active: dev
-  datasource:
-    # Luôn có URL mặc định kể cả khi IDE không bật profile `dev` (tránh lỗi "Failed to determine a suitable driver class").
-    # 127.0.0.1: khớp docker-compose POSTGRES_BOOKING_HOST_PORT (thường 15433 trong .env).
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://127.0.0.1:${POSTGRES_BOOKING_HOST_PORT:15433}/eduspace_booking}
-    username: ${SPRING_DATASOURCE_USERNAME:${POSTGRES_USER:eduspace}}
-    password: ${SPRING_DATASOURCE_PASSWORD:${POSTGRES_PASSWORD:eduspace_dev_123}}
-    driver-class-name: org.postgresql.Driver
+
   jpa:
     hibernate:
       ddl-auto: validate
     properties:
       hibernate:
-        format_sql: true
+        "[format_sql]": true
     show-sql: false
   flyway:
     enabled: true
@@ -45,11 +39,12 @@ springdoc:
 
 integration:
   room-service:
-    base-url: ${ROOM_SERVICE_BASE_URL:http://localhost:8083}
+    base-url: ${ROOM_SERVICE_BASE_URL:lb://ROOM-SERVICE}
   account-service:
-    base-url: ${ACCOUNT_SERVICE_BASE_URL:http://localhost:8081}
+    base-url: ${ACCOUNT_SERVICE_BASE_URL:lb://ACCOUNT-SERVICE}
     internal-api-key: ${INTERNAL_ACCOUNT_API_KEY:dev-internal-key-change-me}
 
 services:
   room-service:
-    base-url: ${ROOM_SERVICE_BASE_URL:http://localhost:8084}
+    base-url: ${ROOM_SERVICE_BASE_URL:lb://ROOM-SERVICE}
+

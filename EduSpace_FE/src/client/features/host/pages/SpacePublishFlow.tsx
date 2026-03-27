@@ -53,6 +53,7 @@ import {
     ChevronUp,
     Plus,
     Trash2,
+    Upload,
     Info
 } from 'lucide-react';
 import { hostService } from '../services/hostService';
@@ -1211,9 +1212,11 @@ export function SpacePublishFlow({ isEdit, editId, onCancel, onSuccess }: SpaceP
                                                                 <SelectValue placeholder="Chọn chi nhánh..." />
                                                             </SelectTrigger>
                                                             <SelectContent>
-                                                                {branches.map(b => (
-                                                                    <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
-                                                                ))}
+                                                                {branches
+                                                                    .filter(b => b.rawStatus === 'VERIFIED')
+                                                                    .map(b => (
+                                                                        <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
+                                                                    ))}
                                                             </SelectContent>
                                                         </Select>
                                                     </div>
@@ -2073,42 +2076,60 @@ export function SpacePublishFlow({ isEdit, editId, onCancel, onSuccess }: SpaceP
                                                 </p>
                                             ) : null}
 
-                                            <div className="grid grid-cols-2 gap-10 min-h-[400px]">
-                                                <div
-                                                    className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center hover:bg-gray-50 hover:border-red-400 transition-all group flex flex-col items-center justify-center cursor-pointer"
-                                                    onClick={openImagePicker}
-                                                >
-                                                    <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-8 shadow-xl group-hover:scale-110 transition-transform text-red-100 group-hover:text-red-500">
-                                                        <ImageIcon className="w-10 h-10" />
-                                                    </div>
-                                                    <p className="text-gray-900 font-bold text-lg mb-1">{t('host.listSpace.gallery.dragDrop')}</p>
-                                                    <p className="text-gray-500 text-sm mb-6 max-w-[240px]">
-                                                        {uploadingImages ? 'Đang tải ảnh lên Cloudinary...' : t('host.listSpace.gallery.supportedTypes')}
-                                                    </p>
-                                                    <input
-                                                        ref={fileInputRef}
-                                                        type="file"
-                                                        accept="image/*"
-                                                        multiple
-                                                        className="hidden"
-                                                        onChange={(e) => void handleImageFilesSelected(e.target.files)}
-                                                    />
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            openImagePicker();
-                                                        }}
-                                                        disabled={uploadingImages}
-                                                        className="bg-gray-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-red-600 transition-all shadow-lg active:scale-95 text-sm"
+                                            <div className="grid grid-cols-12 gap-8 min-h-[500px]">
+                                                {/* Left: Upload Area */}
+                                                <div className="col-span-12 lg:col-span-5 space-y-6">
+                                                    <div
+                                                        className="relative aspect-square border-2 border-dashed border-gray-200 rounded-[40px] p-8 text-center hover:bg-red-50/30 hover:border-red-300 transition-all duration-500 group flex flex-col items-center justify-center cursor-pointer overflow-hidden"
+                                                        onClick={openImagePicker}
                                                     >
-                                                        {uploadingImages ? 'Đang upload...' : t('common.browseFiles')}
-                                                    </button>
+                                                        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-gray-50/50 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                        
+                                                        <div className="relative w-28 h-28 bg-white rounded-[32px] flex items-center justify-center mb-6 shadow-2xl shadow-gray-200 group-hover:scale-110 group-hover:-rotate-3 transition-all duration-500">
+                                                            <div className="absolute inset-0 bg-red-500 rounded-[32px] opacity-0 group-hover:opacity-10 transition-opacity" />
+                                                            <Upload className="w-10 h-10 text-gray-400 group-hover:text-red-500 transition-colors" />
+                                                        </div>
+                                                        
+                                                        <div className="relative">
+                                                            <h4 className="text-xl font-black text-gray-900 mb-2 tracking-tight">
+                                                                {uploadingImages ? 'Vui lòng đợi...' : 'Tải ảnh phòng học'}
+                                                            </h4>
+                                                            <p className="text-gray-400 text-xs font-bold uppercase tracking-widest max-w-[200px] mx-auto leading-loose">
+                                                                {uploadingImages ? 'Đang xử lý dữ liệu Cloud' : 'PNG, JPG hoặc WebP (Tối đa 10MB/file)'}
+                                                            </p>
+                                                        </div>
+
+                                                        <input
+                                                            ref={fileInputRef}
+                                                            type="file"
+                                                            accept="image/*"
+                                                            multiple
+                                                            className="hidden"
+                                                            onChange={(e) => void handleImageFilesSelected(e.target.files)}
+                                                        />
+                                                        
+                                                        <div className="mt-8 flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest group-hover:bg-red-500 transition-all shadow-xl active:scale-95">
+                                                            {uploadingImages ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                                                            {uploadingImages ? 'ĐANG TẢI...' : 'CHỌN FILE'}
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="p-5 bg-blue-50/50 rounded-[32px] border border-blue-100/50 flex items-start gap-4">
+                                                        <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm shrink-0">
+                                                            <Info className="w-5 h-5 text-blue-500" />
+                                                        </div>
+                                                        <p className="text-[11px] text-blue-900/60 font-bold leading-relaxed">
+                                                            Mẹo: Đăng ít nhất 5 ảnh với ánh sáng tốt để tăng tỉ lệ đặt phòng lên tới <span className="text-blue-600 font-black">40%</span>.
+                                                        </p>
+                                                    </div>
                                                 </div>
 
-                                                <div className="space-y-4 bg-gray-50 p-4 rounded-2xl border border-gray-200">
+                                                {/* Right: Gallery & Main Image selector */}
+                                                <div className="col-span-12 lg:col-span-7 space-y-6">
                                                     <div
-                                                        className="aspect-[16/10] rounded-xl border-2 border-dashed border-red-300 bg-white overflow-hidden flex items-center justify-center"
+                                                        className={`relative aspect-[16/10] rounded-[40px] border-4 border-dashed transition-all duration-500 overflow-hidden flex items-center justify-center bg-gray-50 ${
+                                                            formData.mainImageUrl ? 'border-transparent shadow-2xl' : 'border-gray-200 hover:border-red-200'
+                                                        }`}
                                                         onDragOver={(e) => e.preventDefault()}
                                                         onDrop={(e) => {
                                                             e.preventDefault();
@@ -2119,45 +2140,57 @@ export function SpacePublishFlow({ isEdit, editId, onCancel, onSuccess }: SpaceP
                                                         }}
                                                     >
                                                         {formData.mainImageUrl ? (
-                                                            <img src={formData.mainImageUrl} className="w-full h-full object-cover" alt="Main space preview" />
+                                                            <>
+                                                                <img src={formData.mainImageUrl} className="w-full h-full object-cover animate-in fade-in zoom-in duration-700" alt="Main" />
+                                                                <div className="absolute top-6 left-6 px-4 py-2 bg-red-500 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-full shadow-xl">
+                                                                    Ảnh bìa hiển thị
+                                                                </div>
+                                                            </>
                                                         ) : (
-                                                            <div className="text-center opacity-30">
-                                                                <ImageIcon className="w-20 h-20 mx-auto mb-3" />
-                                                                <p className="font-black text-sm uppercase tracking-wide">Kéo ảnh vào đây để đặt ảnh chính</p>
+                                                            <div className="text-center group">
+                                                                <div className="w-20 h-20 bg-white rounded-[28px] flex items-center justify-center mx-auto mb-4 shadow-sm text-gray-200 group-hover:text-red-200 transition-colors">
+                                                                    <ImageIcon className="w-10 h-10" />
+                                                                </div>
+                                                                <p className="font-black text-xs text-gray-400 uppercase tracking-widest">Kéo ảnh vào đây để làm ảnh bìa</p>
                                                             </div>
                                                         )}
                                                     </div>
-                                                    <p className="text-xs font-bold text-gray-500">
-                                                        Giữ chuột trái và kéo ảnh từ thư viện bên dưới vào ô này để đặt ảnh chính.
-                                                    </p>
-                                                    <div className="grid grid-cols-2 gap-4">
-                                                    {formData.images.map((img, i) => (
-                                                        <div
-                                                            key={i}
-                                                            className={`aspect-square relative rounded-xl overflow-hidden group shadow-md border-2 ${
-                                                                formData.mainImageUrl === img ? 'border-red-500' : 'border-transparent'
-                                                            }`}
-                                                            draggable
-                                                            onDragStart={(e) => e.dataTransfer.setData('text/plain', img)}
-                                                        >
-                                                            <img src={img} className="w-full h-full object-cover group-hover:scale-110 transition-all duration-700" alt="Space" />
-                                                            {formData.mainImageUrl === img && (
-                                                                <span className="absolute left-2 top-2 text-[10px] font-black bg-red-500 text-white px-2 py-1 rounded-lg">
-                                                                    Ảnh chính
-                                                                </span>
-                                                            )}
-                                                            <button
-                                                                onClick={() => removeImage(i)}
-                                                                className="absolute top-4 right-4 w-10 h-10 bg-red-500 text-white rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all font-black shadow-xl"
-                                                            >×</button>
-                                                        </div>
-                                                    ))}
-                                                    {formData.images.length === 0 && (
-                                                        <div className="col-span-2 flex flex-col items-center justify-center opacity-20 py-8">
-                                                            <ImageIcon className="w-24 h-24 mb-4" />
-                                                            <p className="font-black text-xl italic tracking-tighter uppercase">{t('host.listSpace.gallery.spacePreview')}</p>
-                                                        </div>
-                                                    )}
+
+                                                    <div className="grid grid-cols-4 gap-4">
+                                                        {formData.images.map((img, i) => (
+                                                            <div
+                                                                key={i}
+                                                                className={`aspect-square relative rounded-[24px] overflow-hidden group cursor-grab active:cursor-grabbing transition-all duration-300 ${
+                                                                    formData.mainImageUrl === img ? 'ring-4 ring-red-500 ring-offset-4 shadow-xl scale-95' : 'hover:scale-105 shadow-md'
+                                                                }`}
+                                                                draggable
+                                                                onDragStart={(e) => e.dataTransfer.setData('text/plain', img)}
+                                                            >
+                                                                <img src={img} className="w-full h-full object-cover" alt="Space" />
+                                                                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                                
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => { e.stopPropagation(); removeImage(i); }}
+                                                                    className="absolute top-2 right-2 w-8 h-8 bg-white/90 backdrop-blur-md text-red-500 rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500 hover:text-white shadow-lg"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </button>
+
+                                                                {formData.mainImageUrl === img && (
+                                                                    <div className="absolute bottom-2 inset-x-2 bg-red-500/90 backdrop-blur-sm text-white text-[8px] font-black uppercase text-center py-1 rounded-lg">
+                                                                        Đang chọn
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                        
+                                                        {formData.images.length === 0 && (
+                                                            <div className="col-span-4 py-12 flex flex-col items-center justify-center opacity-10 grayscale">
+                                                                <ImageIcon className="w-20 h-20 mb-4" />
+                                                                <p className="font-black text-xs uppercase tracking-[0.3em]">Thư viện ảnh trống</p>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>

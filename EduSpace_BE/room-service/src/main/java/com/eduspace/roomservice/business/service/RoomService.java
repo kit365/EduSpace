@@ -42,4 +42,6 @@ public interface RoomService {
     RoomResponse rejectPendingEdit(Integer roomId, String rejectionNote);
 
     RoomPriceQuoteResponse quotePrice(Integer roomId, RoomPriceQuoteRequest request);
+
+    com.eduspace.roomservice.model.dto.response.RoomDashboardStatsResponse getDashboardStats();
 }

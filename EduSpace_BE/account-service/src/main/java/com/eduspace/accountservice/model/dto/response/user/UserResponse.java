@@ -1,5 +1,6 @@
 package com.eduspace.accountservice.model.dto.response.user;
 
+import com.eduspace.accountservice.common.enums.VerificationStatus;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -22,6 +23,7 @@ public class UserResponse {
     String avatarUrl;
     String studentId;
     String location;
+    String dateOfBirth;
     String shortBio;
     String cityState;
     String district;
@@ -31,8 +33,15 @@ public class UserResponse {
     String taxId;
     String hostType;
     String organizationName;
-    String verificationDocument;
-    String verificationStatus;
+    VerificationStatus verificationStatus;
+    
+    // Verified Identity Data (from eKYC)
+    String legalName;
+    String idCardNumber;
+    java.time.LocalDate dob;
+    String verifiedAddress;
+    String idCardFrontUrl;
+
     Boolean isActive;
     Boolean isEmailVerified;
     Boolean is2faEnabled;
@@ -42,4 +51,21 @@ public class UserResponse {
     Set<String> permissions;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
+    String createdBy;
+    String updatedBy;
+
+    // AI logic results
+    OcrData ocrData;
+    Double faceMatchPercentage;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class OcrData {
+        String name;
+        String idNumber;
+        String dob;
+        String address;
+    }
 }

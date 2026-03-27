@@ -8,6 +8,7 @@ import com.eduspace.accountservice.model.dto.response.user.UserResponse;
 import com.eduspace.accountservice.model.entity.HostStaffLinkEntity;
 import com.eduspace.accountservice.model.entity.UserEntity;
 import com.eduspace.accountservice.model.mapper.UserMapper;
+import com.eduspace.accountservice.common.enums.VerificationStatus;
 import com.eduspace.accountservice.business.service.KeycloakUserService;
 import com.eduspace.accountservice.business.service.SupportStaffPresenceService;
 import com.eduspace.accountservice.business.service.UserService;
@@ -146,6 +147,10 @@ public class UserServiceImpl implements UserService {
                     .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
             // Ensure we use the right ID
             keycloakId = user.getKeycloakId();
+        }
+
+        if (isHostUpdate(request) && user.getVerificationStatus() != VerificationStatus.VERIFIED) {
+            throw new AppException(ErrorCode.EKYC_REQUIRED);
         }
 
         userMapper.updateUserEntityFromRequest(request, user);
@@ -336,16 +341,15 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public PageResponse<UserResponse> getAllUsers(Pageable pageable, String search, List<String> roles, String status, String kyc, String identifier, boolean isEmail) {
-        UserEntity requester;
-        if (isEmail) {
-            requester = userRepository.findByEmail(identifier)
-                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        } else {
-            requester = userRepository.findByKeycloakId(identifier)
-                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        UserEntity requester = null;
+        if (identifier != null) {
+            requester = isEmail 
+                ? userRepository.findByEmail(identifier).orElse(null)
+                : userRepository.findByKeycloakId(identifier).orElse(null);
         }
 
-        boolean isSuperAdmin = requester.getRoles().stream().anyMatch(r -> "SUPER_ADMIN".equals(r.getName()));
+        boolean isSuperAdmin = requester != null && requester.getRoles() != null && 
+                               requester.getRoles().stream().anyMatch(r -> "SUPER_ADMIN".equals(r.getName()));
 
         List<String> mappedRoles = (roles != null && !roles.isEmpty())
                 ? roles.stream()
@@ -440,7 +444,7 @@ public class UserServiceImpl implements UserService {
     public void approveUserKyc(String userId) {
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        user.setVerificationStatus("VERIFIED");
+        user.setVerificationStatus(VerificationStatus.VERIFIED);
         userRepository.save(user);
     }
 
@@ -449,7 +453,34 @@ public class UserServiceImpl implements UserService {
     public void rejectUserKyc(String userId, String reason) {
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        user.setVerificationStatus("REJECTED");
+        user.setVerificationStatus(VerificationStatus.REJECTED);
         userRepository.save(user);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countTotalUsers() {
+        return userRepository.count();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countUsersByRole(String roleName) {
+        return userRepository.findByRoleName(roleName).size();
+    }
+
+    @Override
+    @Transactional
+    public void toggleUserStatus(String userId, boolean active) {
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        user.setIsActive(active);
+        userRepository.save(user);
+    }
+
+    private boolean isHostUpdate(UpdateProfileRequest request) {
+        return request.getTaxId() != null || 
+               request.getHostType() != null || 
+               request.getOrganizationName() != null;
     }
 }

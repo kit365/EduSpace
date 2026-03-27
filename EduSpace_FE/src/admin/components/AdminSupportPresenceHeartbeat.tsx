@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import apiClient from '../../lib/axios';
 import { useAuthStore } from '../../stores/authStore';
-import { canAccessAdminPortal, getRealmRolesFromAccessToken } from '../../utils/keycloakTokenRoles';
+import { canAccessAdminPortal, getRealmRolesFromAccessToken, isTokenExpired } from '../../utils/keycloakTokenRoles';
 import { ACCOUNT_API } from '../../config/api/account';
 
 const HEARTBEAT_INTERVAL_MS = 30_000;
@@ -15,13 +15,21 @@ export function AdminSupportPresenceHeartbeat() {
 
     useEffect(() => {
         const roles = getRealmRolesFromAccessToken(accessToken);
-        if (!accessToken || !canAccessAdminPortal(roles)) {
+        if (!accessToken || isTokenExpired(accessToken) || !canAccessAdminPortal(roles)) {
             return;
         }
 
         const ping = () => {
-            apiClient.post(ACCOUNT_API.ME_SUPPORT_PRESENCE, {}).catch(() => {
-                /* ignore — next interval retries */
+            if (isTokenExpired(accessToken)) return;
+            
+            apiClient.post(ACCOUNT_API.ME_SUPPORT_PRESENCE, {}).catch((err) => {
+                // If we get 401, token is definitely no longer valid
+                if (err?.response?.status === 401) {
+                    if (intervalRef.current) {
+                        clearInterval(intervalRef.current);
+                        intervalRef.current = null;
+                    }
+                }
             });
         };
 

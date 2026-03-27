@@ -49,4 +49,10 @@ public interface UserService {
 
     /** Active users with ADMIN or SUPER_ADMIN (same pool assignStaff draws from first). */
     long countEligibleSupportStaff();
+
+    long countTotalUsers();
+
+    long countUsersByRole(String roleName);
+
+    void toggleUserStatus(String userId, boolean active);
 }

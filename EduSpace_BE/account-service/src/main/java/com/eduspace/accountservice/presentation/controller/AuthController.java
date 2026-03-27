@@ -5,7 +5,6 @@ import com.eduspace.accountservice.model.dto.request.auth.RefreshTokenRequest;
 import com.eduspace.accountservice.model.dto.request.auth.RegisterRequest;
 import com.eduspace.accountservice.model.dto.response.ApiResponse;
 import com.eduspace.accountservice.model.dto.response.auth.LoginResponse;
-import com.eduspace.accountservice.model.dto.response.user.UserResponse;
 import com.eduspace.accountservice.business.service.AuthService;
 import com.eduspace.accountservice.presentation.constants.AuthPaths;
 import com.eduspace.accountservice.exception.SuccessCode;

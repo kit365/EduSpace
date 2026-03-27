@@ -39,6 +39,7 @@ class ProfileService {
             email: data.email,
             phone: data.phoneNumber || '',
             avatar: data.avatarUrl || '',
+            dateOfBirth: data.dateOfBirth,
             bio: data.shortBio || '',
             location: data.location || '',
             cityState: data.cityState ?? undefined,
@@ -52,7 +53,8 @@ class ProfileService {
             organizationName: data.organizationName || '',
             role: role as any,
             verified: data.isEmailVerified,
-            kycStatus: 'not_submitted', // Fallback, mock for now
+            kycStatus: (data.verificationStatus?.toLowerCase() as any) || 'not_submitted',
+            ocrData: data.ocrData,
             totalBookings: 0,
             totalReviews: 0,
             rating: 5.0,

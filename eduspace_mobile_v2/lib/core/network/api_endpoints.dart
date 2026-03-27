@@ -14,6 +14,8 @@ class ApiEndpoints {
   // Accounts
   static const String accountsBase = '$base/accounts';
   static const String me = '$accountsBase/me';
+  /// POST multipart: front, optional back, selfie — account-service → eduspace-ai (internal).
+  static const String ekycVerify = '$me/ekyc/verify';
 
   // Conversations
   static const String conversationsBase = '$base/conversations';

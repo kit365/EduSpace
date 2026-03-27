@@ -17,6 +17,19 @@ export function getRealmRolesFromAccessToken(token: string | null | undefined): 
     }
 }
 
+export function isTokenExpired(token: string | null | undefined): boolean {
+    if (!token) return true;
+    try {
+        const part = token.split('.')[1];
+        if (!part) return true;
+        const payload = JSON.parse(atob(part.replace(/-/g, '+').replace(/_/g, '/'))) as { exp?: number };
+        if (!payload.exp) return false;
+        return (payload.exp * 1000) < Date.now();
+    } catch {
+        return true;
+    }
+}
+
 type TokenPayload = {
     realm_access?: { roles?: string[] };
     permissions?: string[];
@@ -51,7 +64,6 @@ export function getPermissionsFromAccessToken(token: string | null | undefined):
         .filter(Boolean)
         .map(normalizePermissionName);
 }
-
 export function normalizeRoleName(r: string): string {
     return r.toUpperCase().replace(/^ROLE_/, '');
 }

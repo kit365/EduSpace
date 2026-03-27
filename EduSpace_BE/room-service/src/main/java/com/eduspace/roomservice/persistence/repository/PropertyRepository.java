@@ -7,4 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface PropertyRepository extends JpaRepository<PropertyEntity, Integer> {
 
     List<PropertyEntity> findAllByDeletedFalse();
+
+    List<PropertyEntity> findAllByStatusAndDeletedFalseOrderBySubmittedAtDesc(String status);
 }
