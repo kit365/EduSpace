@@ -33,6 +33,12 @@ const STAFF_ASSIGN_SUCCESS_HINTS = ['staff assigned', 'support assigned', 'đã 
 const LIST_FETCH_MIN_MS = 2000;
 const MATCHING_TIMEOUT_MS = 40000;
 
+function isStaffMatchingSystemNotice(message: ChatMessage): boolean {
+    if (message.messageType !== 'SYSTEM') return false;
+    const normalized = (message.content ?? '').trim().toLowerCase();
+    return normalized.includes('is looking for a specialist to help you');
+}
+
 function isAssignmentFailureText(text: string | null | undefined): boolean {
     if (!text) return false;
     const normalized = text.toLowerCase();
@@ -73,6 +79,16 @@ export function ChatWidget() {
 
     const authHydrated = useAuthHydrated();
     const { chatUserId: currentUserId, identityReady } = useResolvedChatUserId();
+    const isMessageFromCurrentUser = useCallback(
+        (message: ChatMessage): boolean => {
+            if (!currentUserId) return false;
+            const sender = message as ChatMessage & { senderId?: string | null };
+            const rawSenderId = message.sender?.userId ?? sender.senderId ?? null;
+            if (!rawSenderId) return false;
+            return rawSenderId.trim().toLowerCase() === currentUserId.trim().toLowerCase();
+        },
+        [currentUserId],
+    );
     const scrollRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     /** Avoid hammering GET /conversations on every CONVERSATION_ACTIVITY / reconnect. */
@@ -457,27 +473,6 @@ export function ChatWidget() {
         }
     };
 
-    const handleDeleteMessage = async (messageId: string) => {
-        if (!window.confirm('Delete this message?')) return;
-        try {
-            await messageService.deleteMessage(messageId);
-            setMessages((prev) => applyDeleteEvent(prev, { messageId }));
-        } catch (err) {
-            console.error(err);
-        }
-    };
-
-    const handleEditMessage = async (messageId: string, content: string) => {
-        const next = window.prompt('Edit message', content);
-        if (!next || next.trim() === '' || next === content) return;
-        try {
-            await messageService.editMessage(messageId, next);
-            setMessages((prev) => applyEditEvent(prev, { messageId, newContent: next }));
-        } catch (err) {
-            console.error(err);
-        }
-    };
-
     const handleAddReaction = async (messageId: string, emoji: string) => {
         try {
             await messageService.addReaction(messageId, emoji);
@@ -559,6 +554,9 @@ export function ChatWidget() {
 
                             {messages.map((msg, i) => {
                                 const rowKey = msg.messageId ?? `row-${i}-${msg.sentAt ?? ''}`;
+                                if (isStaffMatchingSystemNotice(msg)) {
+                                    return null;
+                                }
                                 if (msg.messageType === 'SYSTEM') {
                                     return (
                                         <div key={rowKey} className="flex justify-center my-2">
@@ -569,7 +567,7 @@ export function ChatWidget() {
                                     );
                                 }
 
-                                const isMe = !!currentUserId && msg.sender?.userId === currentUserId;
+                                const isMe = isMessageFromCurrentUser(msg);
                                 return (
                                     <div key={rowKey} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                                         <div
@@ -628,24 +626,6 @@ export function ChatWidget() {
                                                     >
                                                         ❤️
                                                     </button>
-                                                )}
-                                                {isMe && !msg.isDeleted && (
-                                                    <>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => void handleEditMessage(msg.messageId, msg.content)}
-                                                            className="text-[10px] opacity-80 hover:opacity-100"
-                                                        >
-                                                            Edit
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => void handleDeleteMessage(msg.messageId)}
-                                                            className="text-[10px] opacity-80 hover:opacity-100"
-                                                        >
-                                                            Delete
-                                                        </button>
-                                                    </>
                                                 )}
                                             </div>
                                         </div>

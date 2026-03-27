@@ -722,6 +722,15 @@ public class ChatServiceImpl implements ChatService {
             }
         }
         AccountClient.PublicUserProfile otherProfile = fetchProfileSafe(otherId);
+        if (Boolean.TRUE.equals(conversation.getIsAdminConversation())
+                && otherId != null
+                && otherId.startsWith("GUEST-")
+                && isAnonymousGuestProfile(otherProfile)) {
+            AccountClient.PublicUserProfile resolved = resolveRealParticipantProfileFromRecentMessages(conversation, currentUserId);
+            if (resolved != null) {
+                otherProfile = resolved;
+            }
+        }
 
         if (otherProfile == null && Boolean.TRUE.equals(conversation.getIsAdminConversation()) && otherId != null) {
             if (otherId.startsWith("GUEST-")) {
@@ -752,6 +761,43 @@ public class ChatServiceImpl implements ChatService {
 
         ConversationResponse.OtherUser otherUser = conversationMapper.mapOtherUser(otherProfile, Boolean.TRUE.equals(conversation.getIsAdminConversation()), supportAdminKeycloakId);
         return conversationMapper.toResponse(conversation, currentUserId, otherUser, unreadCount, preview);
+    }
+
+    private boolean isAnonymousGuestProfile(AccountClient.PublicUserProfile profile) {
+        if (profile == null || profile.fullName() == null) {
+            return true;
+        }
+        String name = profile.fullName().trim().toLowerCase(Locale.ROOT);
+        return name.isBlank() || "anonymous guest".equals(name) || "guest".equals(name);
+    }
+
+    private AccountClient.PublicUserProfile resolveRealParticipantProfileFromRecentMessages(
+            ConversationEntity conversation,
+            String currentUserId
+    ) {
+        List<ChatMessageEntity> recent = chatMessageRepository
+                .findByConversationAndIsDeletedFalseOrderBySentAtDesc(conversation, PageRequest.of(0, 30))
+                .getContent();
+        for (ChatMessageEntity message : recent) {
+            String senderId = message.getSenderId();
+            if (senderId == null || senderId.isBlank()) {
+                continue;
+            }
+            if (senderId.equals(currentUserId)) {
+                continue;
+            }
+            if ("admin-support".equals(senderId) || "admin-keycloak-id-0000".equals(senderId)) {
+                continue;
+            }
+            if (senderId.startsWith("GUEST-")) {
+                continue;
+            }
+            AccountClient.PublicUserProfile profile = fetchProfileSafe(senderId);
+            if (profile != null && profile.keycloakId() != null && !profile.keycloakId().isBlank()) {
+                return profile;
+            }
+        }
+        return null;
     }
 
     private ChatMessageResponse toMessageResponse(ChatMessageEntity message) {
@@ -879,15 +925,17 @@ public class ChatServiceImpl implements ChatService {
         if ("admin-support".equals(userId) || "admin-keycloak-id-0000".equals(userId)) {
             return new AccountClient.PublicUserProfile(userId, "Admin Support", null, null);
         }
-        if (userId.startsWith("GUEST-")) {
-            return new AccountClient.PublicUserProfile(userId, "Anonymous Guest", null, null);
-        }
 
         try {
             ApiResponse<AccountClient.PublicUserProfile> res = accountClient.getPublicProfileByIdentifier(userId);
-            if (res != null && res.success()) return res.data();
+            if (res != null && res.success() && res.data() != null) {
+                return res.data();
+            }
         } catch (Exception ex) {
             log.warn("Failed to fetch profile for user {}: {}", userId, ex.getMessage());
+        }
+        if (userId.startsWith("GUEST-")) {
+            return new AccountClient.PublicUserProfile(userId, "Anonymous Guest", null, null);
         }
         return null;
     }
@@ -901,8 +949,6 @@ public class ChatServiceImpl implements ChatService {
         for (String id : userIds) {
             if ("admin-support".equals(id) || "admin-keycloak-id-0000".equals(id)) {
                 result.put(id, new AccountClient.PublicUserProfile(id, "Admin Support", null, null));
-            } else if (id != null && id.startsWith("GUEST-")) {
-                result.put(id, new AccountClient.PublicUserProfile(id, "Anonymous Guest", null, null));
             } else {
                 realIds.add(id);
             }
@@ -916,6 +962,12 @@ public class ChatServiceImpl implements ChatService {
                 }
             } catch (Exception ex) {
                 log.warn("Failed to batch fetch profiles: {}", ex.getMessage());
+            }
+        }
+
+        for (String id : userIds) {
+            if (id != null && id.startsWith("GUEST-") && !result.containsKey(id)) {
+                result.put(id, new AccountClient.PublicUserProfile(id, "Anonymous Guest", null, null));
             }
         }
 

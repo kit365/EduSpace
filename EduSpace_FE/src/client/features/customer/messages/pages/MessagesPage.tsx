@@ -31,6 +31,12 @@ import { useVideoCall } from '../../../../../contexts/VideoCallContext';
 import { useAuthStore } from '@/stores/authStore';
 import { guestFeatureAllowed, guestPermissions } from '../../permissions/guestPermissions';
 
+function isStaffMatchingSystemNotice(message: ChatMessage): boolean {
+    if (message.messageType !== 'SYSTEM') return false;
+    const normalized = (message.content ?? '').trim().toLowerCase();
+    return normalized.includes('is looking for a specialist to help you');
+}
+
 export function MessagesPage() {
     const PAGE_SIZE = 50;
     const accessToken = useAuthStore((s) => s.accessToken);
@@ -63,6 +69,18 @@ export function MessagesPage() {
     const { chatUserId: currentUserId } = useResolvedChatUserId();
     const lastConversationEvent = useChatInboxStore((s) => s.lastInboxEvent);
     const { initiateCall, activeCall } = useVideoCall();
+
+    const isMessageFromCurrentUser = useCallback(
+        (msg: ChatMessage): boolean => {
+            if (!currentUserId) return false;
+            const sender = msg as ChatMessage & { senderId?: string | null };
+            const rawSenderId =
+                msg.sender?.userId ?? sender.senderId ?? null;
+            if (!rawSenderId) return false;
+            return rawSenderId.trim().toLowerCase() === currentUserId.trim().toLowerCase();
+        },
+        [currentUserId],
+    );
 
     // Query to fetch messages - persisted in QueryClient cache
     const {
@@ -474,7 +492,10 @@ export function MessagesPage() {
 
     return (
         <CustomerLayout>
-            <div className="h-[calc(100vh-64px)] w-full py-2 flex flex-col px-4">
+            <div
+                className="h-[calc(100vh-64px)] w-full py-2 flex flex-col px-4"
+                style={{ fontFamily: 'var(--font-sans)' }}
+            >
                 <div className="flex-1 bg-white rounded-2xl border border-slate-100 shadow-2xl shadow-slate-200/50 overflow-hidden flex min-h-0">
                                     {/* contacts sidebar */}
 
@@ -619,6 +640,9 @@ export function MessagesPage() {
                                                 </div>
                                             )}
                                             {messages.map((msg) => {
+                                        if (isStaffMatchingSystemNotice(msg)) {
+                                            return null;
+                                        }
                                         if (msg.messageType === 'SYSTEM') {
                                             return (
                                                 <div key={msg.messageId} className="flex justify-center my-4">
@@ -628,154 +652,68 @@ export function MessagesPage() {
                                                 </div>
                                             );
                                         }
-                                        const isMe =
-                                            !!msg.sender?.userId && !!currentUserId
-                                                ? msg.sender.userId === currentUserId
-                                                : false;
+                                        const isMe = isMessageFromCurrentUser(msg);
                                         
                                         const timestamp = msg.sentAt
                                             ? new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                                             : '';
                                         
                                         return (
-                                        <div
-                                            key={msg.messageId}
-                                            className={`w-full flex ${isMe ? 'justify-end' : 'justify-start'}`}
-                                        >
-                                            <div className={`flex max-w-[85%] gap-3 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-                                                {/* Consistent spacing spacer for alignment */}
-                                                {isMe && <div className="w-9 shrink-0" />}
+                                            <div key={msg.messageId} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                                                 {!isMe && (
-                                                    <img 
+                                                    <img
                                                         src={selectedConversation.otherUser?.avatarUrl ?? `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedConversation.otherUser?.fullName}`}
-                                                        className="w-9 h-9 rounded-xl object-cover shadow-sm self-end mb-1"
+                                                        className="w-8 h-8 rounded-lg mr-3 self-end shadow-sm"
                                                         alt=""
                                                     />
                                                 )}
-                                                
-                                                <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                                                <div className="max-w-[70%]">
                                                     <div
-                                                        className={`relative group px-6 py-4 rounded-[1.8rem] shadow-sm transition-all duration-300 ${isMe
-                                                        ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-br-none shadow-blue-100'
-                                                        : 'bg-white text-slate-700 rounded-bl-none border border-slate-100 shadow-slate-100/50'
+                                                        className={`p-4 rounded-2xl text-sm font-medium shadow-sm leading-relaxed ${
+                                                            isMe
+                                                                ? 'bg-blue-600 text-white rounded-br-none'
+                                                                : 'bg-white text-gray-700 border border-gray-100 rounded-bl-none'
                                                         }`}
                                                     >
                                                         {msg.messageType === 'IMAGE' ? (
-                                                            <div className="space-y-3">
-                                                                <div
-                                                                    className={`grid gap-2 ${
-                                                                        parseMediaUrls(msg.mediaUrl).length === 1
-                                                                            ? 'grid-cols-1'
-                                                                            : parseMediaUrls(msg.mediaUrl).length <= 4
-                                                                              ? 'grid-cols-2'
-                                                                              : 'grid-cols-3'
-                                                                    }`}
-                                                                >
+                                                            <div className="space-y-2">
+                                                                <div className="grid grid-cols-2 gap-1">
                                                                     {parseMediaUrls(msg.mediaUrl).map((url, index) => (
-                                                                        <div
+                                                                        <a
                                                                             key={`${msg.messageId}-image-${index}`}
-                                                                            className="relative group/img overflow-hidden rounded-2xl shadow-inner bg-slate-100 min-w-[120px]"
+                                                                            href={url}
+                                                                            target="_blank"
+                                                                            rel="noreferrer"
                                                                         >
                                                                             <img
                                                                                 src={url}
-                                                                                className="max-w-full h-auto object-cover transition-transform duration-700 group-hover/img:scale-105"
+                                                                                className="rounded-lg object-cover w-full h-24"
                                                                                 alt={`Media ${index + 1}`}
                                                                             />
-                                                                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-4">
-                                                                                <a
-                                                                                    href={url}
-                                                                                    target="_blank"
-                                                                                    rel="noreferrer"
-                                                                                    className="p-2.5 bg-white/90 rounded-xl hover:bg-white transition-all shadow-xl"
-                                                                                >
-                                                                                    <Download className="w-5 h-5 text-slate-900" />
-                                                                                </a>
-                                                                            </div>
-                                                                        </div>
+                                                                        </a>
                                                                     ))}
                                                                 </div>
-                                                                {msg.content && <p className="text-[13px] font-medium leading-relaxed">{msg.content}</p>}
-                                                            </div>
-                                                        ) : msg.messageType === 'AUDIO' ? (
-                                                            <div className={`flex items-center gap-4 min-w-[240px] p-1 ${isMe ? 'text-white' : 'text-slate-700'}`}>
-                                                                <button className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${isMe ? 'bg-white/20 hover:bg-white/30' : 'bg-slate-100 hover:bg-slate-200'}`}>
-                                                                    <div className={`w-0 h-0 border-t-[6px] border-t-transparent border-l-[10px] ${isMe ? 'border-l-white' : 'border-l-slate-700'} border-b-[6px] border-b-transparent ml-1`}></div>
-                                                                </button>
-                                                                <div className="flex-1 space-y-2">
-                                                                    <div className="flex items-end gap-0.5 h-6">
-                                                                        {[40, 70, 45, 90, 60, 30, 80, 50, 40, 70, 45, 90].map((h, i) => (
-                                                                            <div key={i} className={`flex-1 rounded-full ${isMe ? 'bg-white/40' : 'bg-slate-200'}`} style={{ height: `${h}%` }}></div>
-                                                                        ))}
-                                                                    </div>
-                                                                    <div className="flex justify-between items-center text-[10px] font-bold opacity-70">
-                                                                        <span>0:00</span>
-                                                                        <span>0:12</span>
-                                                                    </div>
-                                                                </div>
+                                                                {msg.content && <p>{msg.content}</p>}
                                                             </div>
                                                         ) : msg.isDeleted ? (
-                                                            <p className="text-[13px] italic opacity-70">Message deleted</p>
+                                                            <p className="italic opacity-70">Message deleted</p>
                                                         ) : (
-                                                            <p className="text-[14px] font-semibold leading-relaxed break-words">
-                                                                {msg.content}
-                                                            </p>
-                                                        )}
-
-                                                        {/* Action Hover Menu */}
-                                                        {isMe && (
-                                                            <div className="absolute -left-20 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center gap-2 pr-4">
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => handleEditMessage(msg.messageId, msg.content)}
-                                                                    className="p-1.5 bg-white shadow-md border border-slate-100 rounded-lg text-slate-400 hover:text-blue-500 transition-colors"
-                                                                >
-                                                                    <Clock className="w-3.5 h-3.5" />
-                                                                </button>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => handleDeleteMessage(msg.messageId)}
-                                                                    className="p-1.5 bg-white shadow-md border border-slate-100 rounded-lg text-slate-400 hover:text-red-500 transition-colors"
-                                                                >
-                                                                    <X className="w-3.5 h-3.5" />
-                                                                </button>
-                                                            </div>
+                                                            <p className="break-words">{msg.content}</p>
                                                         )}
                                                     </div>
-                                                    
-                                                    <div className={`flex items-center gap-2 mt-2 px-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-                                                        <span className="text-[10px] font-extrabold text-slate-300 uppercase tracking-tighter">
+
+                                                    <div className={`flex items-center gap-2 mt-1.5 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
                                                             {timestamp}
                                                         </span>
                                                         {msg.editedAt && (
-                                                            <span className="text-[10px] font-bold text-slate-300">edited</span>
+                                                            <span className="text-[10px] font-bold text-gray-300">edited</span>
                                                         )}
                                                         {isMe && <CheckCheck className="w-3 h-3 text-blue-400" />}
-                                                        {!isMe && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleAddReaction(msg.messageId, '❤️')}
-                                                                className="text-[10px] hover:scale-125 transition-transform"
-                                                            >
-                                                                ❤️
-                                                            </button>
-                                                        )}
                                                     </div>
-                                                    {msg.reactions && Object.keys(msg.reactions).length > 0 && (
-                                                        <div className={`mt-1 flex flex-wrap gap-1 px-2 ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                                            {Object.entries(msg.reactions).map(([emoji, users]) => (
-                                                                <span
-                                                                    key={`${msg.messageId}-${emoji}`}
-                                                                    className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] text-slate-600"
-                                                                >
-                                                                    {emoji} {users.length}
-                                                                </span>
-                                                            ))}
-                                                        </div>
-                                                    )}
                                                 </div>
                                             </div>
-                                        </div>
-                                    );
+                                        );
                                             })}
                                         </div>
                                     </div>
@@ -817,7 +755,7 @@ export function MessagesPage() {
                                             }}
                                             placeholder="Write your message here..."
                                             disabled={!canSendGuestMessages}
-                                            className="flex-1 bg-transparent outline-none text-[15px] font-semibold text-slate-700 placeholder:text-slate-300 disabled:opacity-50"
+                                            className="flex-1 bg-transparent outline-none text-[15px] font-medium text-slate-700 placeholder:text-slate-300 disabled:opacity-50"
                                         />
                                         <button
                                             type="button"

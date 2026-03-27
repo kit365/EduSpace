@@ -48,6 +48,16 @@ export function AdminMessagesPage() {
 
     const { chatUserId: currentUserId } = useResolvedChatUserId();
     const { initiateCall, activeCall } = useVideoCall();
+    const isMessageFromCurrentUser = useCallback(
+        (message: ChatMessage): boolean => {
+            if (!currentUserId) return false;
+            const sender = message as ChatMessage & { senderId?: string | null };
+            const rawSenderId = message.sender?.userId ?? sender.senderId ?? null;
+            if (!rawSenderId) return false;
+            return rawSenderId.trim().toLowerCase() === currentUserId.trim().toLowerCase();
+        },
+        [currentUserId],
+    );
 
     const pendingOffers = useChatInboxStore((s) => s.pendingAssignmentOffers);
     const clearPendingAssignmentOffer = useChatInboxStore((s) => s.clearPendingAssignmentOffer);
@@ -437,7 +447,7 @@ export function AdminMessagesPage() {
                                             </div>
                                         );
                                     }
-                                    const isMe = m.sender?.userId === currentUserId;
+                                    const isMe = isMessageFromCurrentUser(m);
                                     return (
                                         <div key={m.messageId} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                                             {!isMe && (

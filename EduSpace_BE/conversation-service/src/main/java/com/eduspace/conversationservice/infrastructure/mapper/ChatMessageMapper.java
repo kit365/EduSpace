@@ -52,22 +52,20 @@ public class ChatMessageMapper {
         if (senderId == null) {
             return null;
         }
+        ChatMessageResponse.Sender sender = new ChatMessageResponse.Sender();
+        sender.setUserId(senderId);
+        sender.setEmail(null);
+        sender.setAvatarUrl(null);
+
         if (senderId.startsWith("GUEST-")) {
-            ChatMessageResponse.Sender sender = new ChatMessageResponse.Sender();
-            sender.setUserId(senderId);
             sender.setFullName("Guest");
-            sender.setEmail(null);
-            sender.setAvatarUrl(null);
             return sender;
         }
         if ("admin-support".equals(senderId) || "admin-keycloak-id-0000".equals(senderId)) {
-            ChatMessageResponse.Sender sender = new ChatMessageResponse.Sender();
-            sender.setUserId(senderId);
             sender.setFullName("Support");
-            sender.setEmail(null);
-            sender.setAvatarUrl(null);
             return sender;
         }
-        return null;
+        sender.setFullName(null);
+        return sender;
     }
 }

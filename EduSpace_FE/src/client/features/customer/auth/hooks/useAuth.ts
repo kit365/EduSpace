@@ -3,6 +3,7 @@ import { authService } from '../services/authService';
 import { useAuthStore } from '../stores/authStore';
 import { messageService } from '../../messages/services/messageService';
 import { clearGuestId, getGuestIdFromStorageIfPresent } from '../../../../../utils/guest';
+import { emitSupportChatSync } from '../../messages/supportChatSync';
 import type { LoginRequest, RegisterRequest } from '../types';
 import { AxiosError } from 'axios';
 import { ApiResponse } from '@/types';
@@ -24,11 +25,13 @@ export const useLogin = () => {
                 queueMicrotask(() => {
                     messageService
                         .claimGuestSupportConversations(guestIdForClaim)
+                        .then(() => {
+                            // Sync both /messages page and ChatWidget right after claim success.
+                            emitSupportChatSync();
+                            clearGuestId();
+                        })
                         .catch((e) => {
                             console.warn('[useLogin] claim guest conversations:', e);
-                        })
-                        .finally(() => {
-                            clearGuestId();
                         });
                 });
             }
