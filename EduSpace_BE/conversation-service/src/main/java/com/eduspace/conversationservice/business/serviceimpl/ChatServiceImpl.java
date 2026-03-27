@@ -85,6 +85,9 @@ public class ChatServiceImpl implements ChatService {
         if (peerId.equals(userId) && !effectiveIsAdmin) {
             throw new AppException(ErrorCode.SELF_CHAT_NOT_ALLOWED);
         }
+        if (!effectiveIsAdmin && isInvalidNormalConversationPeer(peerId)) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
 
         if (effectiveIsAdmin) {
             Optional<ConversationEntity> existingSupport = conversationRepository
@@ -395,6 +398,23 @@ public class ChatServiceImpl implements ChatService {
             return "admin-keycloak-id-0000";
         }
         return supportAdminKeycloakId;
+    }
+
+    /**
+     * Scope guard for standard user-host DM: only real account ids are accepted.
+     * Guest/system placeholders are reserved for support workflows.
+     */
+    private boolean isInvalidNormalConversationPeer(String peerId) {
+        if (peerId == null || peerId.isBlank()) {
+            return true;
+        }
+        if (peerId.startsWith("GUEST-")) {
+            return true;
+        }
+        return "admin-keycloak-id-0000".equals(peerId)
+                || "admin-support".equals(peerId)
+                || "system-admin-placeholder".equals(peerId)
+                || "system-admin-self-support".equals(peerId);
     }
 
     private boolean isStaffJwt() {

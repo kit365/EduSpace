@@ -9,8 +9,8 @@ import { messageService } from '../../../../client/features/customer/messages/se
 import { useConversations } from '../../../../client/features/customer/messages/hooks/useMessages';
 import { useChatWebSocket } from '../../../../client/features/customer/messages/hooks/useChatWebSocket';
 import type { AssignmentOfferEvent, ChatMessage, Conversation } from '../../../../client/features/customer/messages/types';
-import { SUPPORT_PLACEHOLDER_USER_ID } from '../../../../config/chat';
 import { useResolvedChatUserId } from '../../../../hooks/useResolvedChatUserId';
+import { useChatInboxStore } from '../../../../stores/chatInboxStore';
 import {
     appendUniqueMessage,
     applyConversationActivity,
@@ -43,15 +43,14 @@ export function AdminMessagesPage() {
     const [selectedImages, setSelectedImages] = useState<File[]>([]);
     const [showImagePreview, setShowImagePreview] = useState(false);
     const [isSendingImages, setIsSendingImages] = useState(false);
-    const [pendingOffers, setPendingOffers] = useState<Record<string, AssignmentOfferEvent>>({});
     const scrollRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const { chatUserId: currentUserId } = useResolvedChatUserId();
     const { initiateCall, activeCall } = useVideoCall();
 
-    /** Unassigned support threads notify `/topic/user/{placeholder}/conversations` only. */
-    const adminInboxExtraTopics = useMemo(() => [SUPPORT_PLACEHOLDER_USER_ID] as const, []);
+    const pendingOffers = useChatInboxStore((s) => s.pendingAssignmentOffers);
+    const clearPendingAssignmentOffer = useChatInboxStore((s) => s.clearPendingAssignmentOffer);
 
     const reloadMessages = useCallback(async () => {
         if (!selectedConversation) return;
@@ -63,11 +62,13 @@ export function AdminMessagesPage() {
         }
     }, [selectedConversation]);
 
-    const { lastMessage, lastConversationEvent, lastReadReceipt, lastEdited, lastDeleted, lastReaction } = useChatWebSocket({
+    const lastConversationEvent = useChatInboxStore((s) => s.lastInboxEvent);
+
+    const { lastMessage, lastReadReceipt, lastEdited, lastDeleted, lastReaction } = useChatWebSocket({
         conversationId: selectedConversation?.conversationId ?? null,
         userId: currentUserId,
-        extraInboxUserIds: adminInboxExtraTopics,
         onReconnect: reloadMessages,
+        subscribeInbox: false,
     });
 
     const activeChatIdRef = useRef<string | null>(null);
@@ -124,14 +125,9 @@ export function AdminMessagesPage() {
         });
     }, [lastMessage, selectedConversation]);
 
-    // Real-time conversation list updates
+    // Real-time conversation list updates (inbox events from global ChatInboxNotificationBridge)
     useEffect(() => {
-        if (!lastConversationEvent) return;
-        if (lastConversationEvent.type === 'ASSIGNMENT_OFFER') {
-            const offer = lastConversationEvent as AssignmentOfferEvent;
-            setPendingOffers((prev) => ({ ...prev, [offer.conversationId]: offer }));
-            return;
-        }
+        if (!lastConversationEvent || lastConversationEvent.type !== 'CONVERSATION_ACTIVITY') return;
 
         setConversations((prev) => {
             const next = applyConversationActivity(prev, lastConversationEvent, {
@@ -144,6 +140,11 @@ export function AdminMessagesPage() {
         });
     }, [lastConversationEvent, currentUserId, setConversations]);
 
+    useEffect(() => {
+        if (!lastConversationEvent || lastConversationEvent.type !== 'ASSIGNMENT_OFFER') return;
+        void messageService.getAdminConversations().then(setConversations).catch(console.error);
+    }, [lastConversationEvent, setConversations]);
+
     const handleAcceptOffer = async (offer: AssignmentOfferEvent) => {
         try {
             const updated = await messageService.acceptAssignmentOffer(offer.conversationId, offer.offerId);
@@ -153,22 +154,14 @@ export function AdminMessagesPage() {
             if (selectedConversation?.conversationId === updated.conversationId) {
                 setSelectedConversation(updated);
             }
-            setPendingOffers((prev) => {
-                const next = { ...prev };
-                delete next[offer.conversationId];
-                return next;
-            });
+            clearPendingAssignmentOffer(offer.conversationId);
         } catch (err) {
             console.error('Failed to accept assignment offer', err);
         }
     };
 
     const handleDeclineOffer = (offer: AssignmentOfferEvent) => {
-        setPendingOffers((prev) => {
-            const next = { ...prev };
-            delete next[offer.conversationId];
-            return next;
-        });
+        clearPendingAssignmentOffer(offer.conversationId);
     };
 
     useEffect(() => {

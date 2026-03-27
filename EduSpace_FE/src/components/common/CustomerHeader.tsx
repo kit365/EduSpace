@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { NotificationDropdown } from '../../client/features/customer/notifications/components/NotificationDropdown';
 import { useAuthStore } from '../../stores/authStore';
+import { useChatInboxStore } from '../../stores/chatInboxStore';
 
 interface HeaderProps {
   variant?: 'home' | 'default';
@@ -17,6 +18,7 @@ export function CustomerHeader({ variant = 'default' }: HeaderProps) {
   // Đọc auth state từ global store
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const clearTokens = useAuthStore((s) => s.clearTokens);
+  const messageUnreadTotal = useChatInboxStore((s) => s.totalUnreadCount);
 
   const navItems = [
     { label: t('customer.nav.findSpace'), path: '/search', show: true },
@@ -98,7 +100,11 @@ export function CustomerHeader({ variant = 'default' }: HeaderProps) {
                   title="Messages"
                 >
                   <MessageCircle className="w-5 h-5" />
-                  <span className="absolute top-3 right-3 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                  {messageUnreadTotal > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 flex items-center justify-center bg-red-500 text-white text-[10px] font-black rounded-full border-2 border-white">
+                      {messageUnreadTotal > 99 ? '99+' : messageUnreadTotal}
+                    </span>
+                  )}
                 </button>
                 <button
                   onClick={() => navigate('/bookings')}

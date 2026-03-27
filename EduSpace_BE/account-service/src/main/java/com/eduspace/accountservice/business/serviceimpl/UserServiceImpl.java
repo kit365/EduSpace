@@ -5,21 +5,28 @@ import com.eduspace.accountservice.model.dto.response.PublicUserProfileResponse;
 import com.eduspace.accountservice.model.dto.response.user.TwoFactorResponse;
 import com.eduspace.accountservice.model.dto.response.PageResponse;
 import com.eduspace.accountservice.model.dto.response.user.UserResponse;
+import com.eduspace.accountservice.common.enums.ActivityLogEventType;
+import com.eduspace.accountservice.common.enums.ActivityLogStatus;
+import com.eduspace.accountservice.model.entity.HostStaffLinkEntity;
 import com.eduspace.accountservice.model.entity.UserEntity;
 import com.eduspace.accountservice.model.mapper.UserMapper;
+import com.eduspace.accountservice.business.service.ActivityLogService;
 import com.eduspace.accountservice.business.service.KeycloakUserService;
 import com.eduspace.accountservice.business.service.SupportStaffPresenceService;
 import com.eduspace.accountservice.business.service.UserService;
 import com.eduspace.accountservice.exception.AppException;
 import com.eduspace.accountservice.exception.ErrorCode;
 import com.eduspace.accountservice.persistence.repository.UserPermissionRepository;
+import com.eduspace.accountservice.persistence.repository.HostStaffLinkRepository;
 import com.eduspace.accountservice.persistence.repository.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import java.util.List;
 import java.util.Optional;
+import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.Arrays;
 import java.util.stream.Collectors;
 import dev.samstevens.totp.code.CodeVerifier;
 import dev.samstevens.totp.code.DefaultCodeGenerator;
@@ -42,10 +49,44 @@ public class UserServiceImpl implements UserService {
     private final UserMapper userMapper;
     private final KeycloakUserService keycloakUserService;
     private final SupportStaffPresenceService supportStaffPresenceService;
+    private final ActivityLogService activityLogService;
     private final UserPermissionRepository userPermissionRepository;
+    private final HostStaffLinkRepository hostStaffLinkRepository;
+
+    private static final Set<String> MANAGER_DEFAULT_PERMISSION_NAMES = Set.of(
+            "view_dashboard",
+            "branch.branch.view",
+            "branch.booking.view",
+            "branch.booking.manage",
+            "branch.room.view",
+            "branch.room.edit",
+            "branch.checkin.manage",
+            "branch.checkout.manage",
+            "branch.room_status.manage",
+            "branch.profile.view",
+            "view_messages",
+            "manage_messages");
 
     private UserResponse toUserResponseWithMergedPermissions(UserEntity user) {
-        return userMapper.toUserResponse(user, userPermissionRepository.findPermissionNamesByUserId(user.getId()));
+        UserResponse response = userMapper.toUserResponse(user, userPermissionRepository.findPermissionNamesByUserId(user.getId()));
+        boolean isManager = user.getRoles() != null
+                && user.getRoles().stream().anyMatch(r -> "MANAGER".equalsIgnoreCase(r.getName()));
+        if (!isManager) return response;
+        HostStaffLinkEntity link = hostStaffLinkRepository.findByStaffUserId(user.getId()).orElse(null);
+        Set<String> linkPermissions = parsePermissionCsv(link != null ? link.getManagerPermissionNames() : null);
+        if (linkPermissions.isEmpty()) {
+            linkPermissions = new LinkedHashSet<>(MANAGER_DEFAULT_PERMISSION_NAMES);
+        }
+        response.setPermissions(linkPermissions);
+        return response;
+    }
+
+    private static Set<String> parsePermissionCsv(String csv) {
+        if (csv == null || csv.trim().isEmpty()) return new LinkedHashSet<>();
+        return Arrays.stream(csv.split(","))
+                .map(s -> s == null ? "" : s.trim().toLowerCase())
+                .filter(s -> !s.isBlank())
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     @Override
@@ -86,81 +127,130 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void changePassword(String keycloakId, String email, String oldPassword, String newPassword) {
+        UserEntity user = null;
         if (keycloakId == null) {
-            UserEntity user = userRepository.findByEmail(email)
+            user = userRepository.findByEmail(email)
                     .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
             keycloakId = user.getKeycloakId();
+        } else {
+            user = userRepository.findByKeycloakId(keycloakId)
+                    .orElseGet(() -> email != null ? userRepository.findByEmail(email).orElse(null) : null);
         }
-        keycloakUserService.changePassword(keycloakId, email, oldPassword, newPassword);
+        try {
+            keycloakUserService.changePassword(keycloakId, email, oldPassword, newPassword);
+            activityLogService.log(ActivityLogEventType.CHANGE_PASSWORD, ActivityLogStatus.SUCCESS,
+                    user != null ? user.getId() : null,
+                    user != null ? user.getEmail() : email,
+                    "Password changed successfully", null);
+        } catch (RuntimeException ex) {
+            activityLogService.log(ActivityLogEventType.CHANGE_PASSWORD, ActivityLogStatus.FAILURE,
+                    user != null ? user.getId() : null,
+                    user != null ? user.getEmail() : email,
+                    "Password change failed: " + ex.getClass().getSimpleName(), null);
+            throw ex;
+        }
     }
 
     @Override
     @Transactional
     public TwoFactorResponse generate2faSecret(String email) {
-        UserEntity user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        UserEntity user = null;
+        try {
+            user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        SecretGenerator generator = new DefaultSecretGenerator();
-        String secret = generator.generate();
+            SecretGenerator generator = new DefaultSecretGenerator();
+            String secret = generator.generate();
 
-        // Save secret temporarily to the user
-        user.setTotpSecret(secret);
-        userRepository.save(user);
+            // Save secret temporarily to the user
+            user.setTotpSecret(secret);
+            userRepository.save(user);
 
-        QrData data = new QrData.Builder()
-                .label(user.getEmail())
-                .secret(secret)
-                .issuer("EduSpace")
-                .algorithm(dev.samstevens.totp.code.HashingAlgorithm.SHA1)
-                .digits(6)
-                .period(30)
-                .build();
+            QrData data = new QrData.Builder()
+                    .label(user.getEmail())
+                    .secret(secret)
+                    .issuer("EduSpace")
+                    .algorithm(dev.samstevens.totp.code.HashingAlgorithm.SHA1)
+                    .digits(6)
+                    .period(30)
+                    .build();
 
-        return TwoFactorResponse.builder()
-                .secret(secret)
-                .qrCodeUrl(data.getUri())
-                .build();
+            activityLogService.log(ActivityLogEventType.SETUP_2FA, ActivityLogStatus.SUCCESS,
+                    user.getId(), user.getEmail(), "2FA setup secret generated", null);
+            return TwoFactorResponse.builder()
+                    .secret(secret)
+                    .qrCodeUrl(data.getUri())
+                    .build();
+        } catch (RuntimeException ex) {
+            activityLogService.log(ActivityLogEventType.SETUP_2FA, ActivityLogStatus.FAILURE,
+                    user != null ? user.getId() : null,
+                    user != null ? user.getEmail() : email,
+                    "2FA setup failed: " + ex.getClass().getSimpleName(), null);
+            throw ex;
+        }
     }
 
     @Override
     @Transactional
     public void enable2fa(String email, String code) {
-        UserEntity user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        UserEntity user = null;
+        try {
+            user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        if (user.getTotpSecret() == null) {
-            throw new AppException(ErrorCode.INVALID_KEY);
+            if (user.getTotpSecret() == null) {
+                throw new AppException(ErrorCode.INVALID_KEY);
+            }
+
+            CodeVerifier verifier = new DefaultCodeVerifier(new DefaultCodeGenerator(), new SystemTimeProvider());
+            if (!verifier.isValidCode(user.getTotpSecret(), code)) {
+                throw new AppException(ErrorCode.INVALID_2FA_CODE);
+            }
+
+            user.setIs2faEnabled(true);
+            userRepository.save(user);
+            activityLogService.log(ActivityLogEventType.ENABLE_2FA, ActivityLogStatus.SUCCESS,
+                    user.getId(), user.getEmail(), "2FA enabled successfully", null);
+            log.info("2FA enabled successfully for user: {}", email);
+        } catch (RuntimeException ex) {
+            activityLogService.log(ActivityLogEventType.ENABLE_2FA, ActivityLogStatus.FAILURE,
+                    user != null ? user.getId() : null,
+                    user != null ? user.getEmail() : email,
+                    "Enable 2FA failed: " + ex.getClass().getSimpleName(), null);
+            throw ex;
         }
-
-        CodeVerifier verifier = new DefaultCodeVerifier(new DefaultCodeGenerator(), new SystemTimeProvider());
-        if (!verifier.isValidCode(user.getTotpSecret(), code)) {
-            throw new AppException(ErrorCode.INVALID_2FA_CODE);
-        }
-
-        user.setIs2faEnabled(true);
-        userRepository.save(user);
-        log.info("2FA enabled successfully for user: {}", email);
     }
 
     @Override
     @Transactional
     public void disable2fa(String email, String code) {
-        UserEntity user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        UserEntity user = null;
+        try {
+            user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        if (!Boolean.TRUE.equals(user.getIs2faEnabled())) {
-            return; // Already disabled
+            if (!Boolean.TRUE.equals(user.getIs2faEnabled())) {
+                return; // Already disabled
+            }
+
+            CodeVerifier verifier = new DefaultCodeVerifier(new DefaultCodeGenerator(), new SystemTimeProvider());
+            if (!verifier.isValidCode(user.getTotpSecret(), code)) {
+                throw new AppException(ErrorCode.INVALID_2FA_CODE);
+            }
+
+            user.setIs2faEnabled(false);
+            user.setTotpSecret(null);
+            userRepository.save(user);
+            activityLogService.log(ActivityLogEventType.DISABLE_2FA, ActivityLogStatus.SUCCESS,
+                    user.getId(), user.getEmail(), "2FA disabled successfully", null);
+            log.info("2FA disabled successfully for user: {}", email);
+        } catch (RuntimeException ex) {
+            activityLogService.log(ActivityLogEventType.DISABLE_2FA, ActivityLogStatus.FAILURE,
+                    user != null ? user.getId() : null,
+                    user != null ? user.getEmail() : email,
+                    "Disable 2FA failed: " + ex.getClass().getSimpleName(), null);
+            throw ex;
         }
-
-        CodeVerifier verifier = new DefaultCodeVerifier(new DefaultCodeGenerator(), new SystemTimeProvider());
-        if (!verifier.isValidCode(user.getTotpSecret(), code)) {
-            throw new AppException(ErrorCode.INVALID_2FA_CODE);
-        }
-
-        user.setIs2faEnabled(false);
-        user.setTotpSecret(null);
-        userRepository.save(user);
-        log.info("2FA disabled successfully for user: {}", email);
     }
 
     @Override

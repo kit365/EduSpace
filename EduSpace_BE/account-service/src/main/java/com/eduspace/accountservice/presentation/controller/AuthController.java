@@ -11,11 +11,13 @@ import com.eduspace.accountservice.presentation.constants.AuthPaths;
 import com.eduspace.accountservice.exception.SuccessCode;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+@Slf4j
 @RestController
 @RequestMapping(AuthPaths.BASE_PATH)
 @RequiredArgsConstructor
@@ -34,6 +36,7 @@ public class AuthController {
 
     @PostMapping(AuthPaths.LOGIN)
     public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+        log.info("[AUTH-DIAG][account] AuthController.login reached email={} (Spring Security đã cho qua)", maskEmail(request.getEmail()));
         LoginResponse response = authService.login(request);
         String message = messageSource.getMessage(SuccessCode.USER_LOGIN_SUCCESS.getMessageKey(), null,
                 SuccessCode.USER_LOGIN_SUCCESS.getMessageKey(), LocaleContextHolder.getLocale());
@@ -59,5 +62,17 @@ public class AuthController {
     public ApiResponse<Void> logout(@Valid @RequestBody RefreshTokenRequest request) {
         authService.logout(request.getRefreshToken());
         return ApiResponse.success(null, SuccessCode.USER_LOGOUT_SUCCESS, "Logged out");
+    }
+
+    /** Chỉ để log chẩn đoán — không in full email. */
+    private static String maskEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return "(empty)";
+        }
+        int at = email.indexOf('@');
+        if (at <= 1) {
+            return "***";
+        }
+        return email.charAt(0) + "***" + email.substring(at);
     }
 }

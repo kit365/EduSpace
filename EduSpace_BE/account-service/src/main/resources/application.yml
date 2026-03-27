@@ -74,6 +74,9 @@ eureka:
     prefer-ip-address: true
 
 app:
+  internal:
+    # Khóa gọi nội bộ (booking-service → mail xác nhận). Đặt qua INTERNAL_ACCOUNT_API_KEY trong .env
+    api-key: ${INTERNAL_ACCOUNT_API_KEY:dev-internal-key-change-me}
   mail:
     from: ${SPRING_MAIL_FROM:noreply@eduspace.id.vn}
     display-name: ${SPRING_MAIL_DISPLAY_NAME:EduSpace Support}
@@ -90,6 +93,11 @@ app:
     # Keep this slightly above FE heartbeat interval (30s) to avoid false offline,
     # while minimizing stale "online" assignments after admin disconnect/logout.
     window-ms: ${SUPPORT_PRESENCE_WINDOW_MS:35000}
+
+integration:
+  booking-service:
+    # Server-to-server lookup (by booking code). Dev: direct to booking-service port; prod: internal URL.
+    base-url: ${BOOKING_SERVICE_BASE_URL:http://localhost:8082}
 
 springdoc:
   swagger-ui:

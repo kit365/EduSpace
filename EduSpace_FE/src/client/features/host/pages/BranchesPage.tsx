@@ -49,8 +49,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuthStore } from '@/stores/authStore';
-import { hasHostPermission } from '@/utils/keycloakTokenRoles';
+import { getRealmRolesFromAccessToken, hasHostPermission, normalizeRoleName } from '@/utils/keycloakTokenRoles';
 import { hostPermissions } from '../permissions/hostPermissions';
+import { fetchMyManagerScope } from '../services/hostStaffService';
 
 const PROPERTY_TYPE_OPTIONS = [
     { value: 'COMMERCIAL_BUILDING', labelKey: 'common.propertyTypes.commercialBuilding' },
@@ -236,11 +237,37 @@ export function BranchesPage() {
     const loadBranches = useCallback(async () => {
         setLoadingBranches(true);
         try {
+            let ownerIds: string[] = [];
+            try {
+                const me = await profileService.getProfile();
+                ownerIds = Array.from(
+                    new Set(
+                        [me?.id, me?.keycloakId]
+                            .map((v) => (typeof v === 'string' ? v.trim() : ''))
+                            .filter((v) => v.length > 0)
+                    )
+                );
+            } catch {
+                ownerIds = [];
+            }
+
             const [list, pendingUpdates] = await Promise.all([
-                branchService.listAll(),
+                ownerIds.length > 0
+                    ? branchService.listByOwner(ownerIds[0], ownerIds.slice(1))
+                    : Promise.resolve([]),
                 hostPartnerApplicationService.getMyPendingBranchUpdates(),
             ]);
-            setBranches(list);
+            const roles = getRealmRolesFromAccessToken(accessToken).map(normalizeRoleName);
+            const isManager = roles.includes('MANAGER') && !roles.includes('HOST');
+            let scopedList = list;
+            if (isManager) {
+                const scope = await fetchMyManagerScope().catch(() => ({ managerScoped: true, branchPropertyId: null }));
+                scopedList =
+                    scope.managerScoped && scope.branchPropertyId != null
+                        ? list.filter((b) => b.id === scope.branchPropertyId)
+                        : [];
+            }
+            setBranches(scopedList);
             setPendingUpdatePropertyIds(new Set(pendingUpdates.map((item) => item.propertyId).filter((id) => Number.isFinite(id))));
         } catch (error) {
             setBranches([]);
@@ -249,7 +276,7 @@ export function BranchesPage() {
         } finally {
             setLoadingBranches(false);
         }
-    }, []);
+    }, [accessToken]);
 
     useEffect(() => {
         void loadBranches();

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
 import com.eduspace.roomservice.business.service.RoomScheduleService;
+import com.eduspace.roomservice.business.service.RoomTimeslotService;
 import com.eduspace.roomservice.model.dto.request.RoomPriceQuoteRequest;
 import com.eduspace.roomservice.model.dto.response.RoomPriceQuoteResponse;
 import com.eduspace.roomservice.model.entity.RoomEntity;
@@ -37,6 +38,7 @@ class RoomServiceImplQuotePriceTest {
     @Mock private AmenityRepository amenityRepository;
     @Mock private RoomPriceRuleRepository roomPriceRuleRepository;
     @Mock private RoomScheduleService roomScheduleService;
+    @Mock private RoomTimeslotService roomTimeslotService;
     @Mock private RoomMapper roomMapper;
     @Mock private RoomPolicyMapper roomPolicyMapper;
 
@@ -52,6 +54,7 @@ class RoomServiceImplQuotePriceTest {
                 roomPriceRuleRepository,
                 new ObjectMapper(),
                 roomScheduleService,
+                roomTimeslotService,
                 roomMapper,
                 roomPolicyMapper
         );
@@ -138,7 +141,6 @@ class RoomServiceImplQuotePriceTest {
                 .minHours(1)
                 .maxHours(4)
                 .pricePerHour(BigDecimal.valueOf(100_000))
-                .applicableDayOfWeeks(Set.of(2))
                 .build();
 
         when(roomRepository.findByIdAndDeletedAtIsNull(102)).thenReturn(Optional.of(room));
@@ -152,7 +154,7 @@ class RoomServiceImplQuotePriceTest {
 
         RoomPriceQuoteResponse response = roomService.quotePrice(102, request);
 
-        assertEquals("ROOM_DEFAULT_PER_UNIT", response.getPricingMode());
-        assertEquals(new BigDecimal("120000.00"), response.getSubtotal());
+        assertEquals("RULE_PRICE_PER_HOUR", response.getPricingMode());
+        assertEquals(new BigDecimal("200000.00"), response.getSubtotal());
     }
 }

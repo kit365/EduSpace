@@ -14,6 +14,7 @@ public final class AccountPaths {
     /** Host console (Partner Portal) — RBAC templates, etc. */
     public static final String HOST = "/host";
     public static final String USERS = "/users";
+    public static final String ACTIVITY_LOGS = "/activity-logs";
 
     public static final String PUBLIC_PROFILE = "/{userId}/public";
     public static final String PUBLIC_BATCH = "/public/batch";

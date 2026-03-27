@@ -4,13 +4,13 @@ import { SpaceDetailPage } from '../client/features/customer/spaces';
 import { adminRoutes } from '../admin/routes';
 import { RoleSwitcher, type UserRole } from '../components/common/RoleSwitcher';
 import { useMemo } from 'react';
-import { Toaster } from '../components/ui/sonner';
 import { useAuthStore } from '../stores/authStore';
 import {
     canAccessAdminPortal,
     canAccessHostConsole,
     getRealmRolesFromAccessToken,
 } from '../utils/keycloakTokenRoles';
+import { ChatInboxNotificationBridge } from '../components/chat/ChatInboxNotificationBridge';
 
 const RootLayout = () => {
     const navigate = useNavigate();
@@ -45,6 +45,7 @@ const RootLayout = () => {
 
     return (
         <>
+            <ChatInboxNotificationBridge />
             <Outlet />
             {pathname !== '/messages' && !pathname.startsWith('/rental') && (
                 <RoleSwitcher

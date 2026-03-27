@@ -59,7 +59,6 @@ export function RolePermissionsDetailView({ role, onBack, onRoleUpdated }: RoleP
     const BOOKING_MANAGE_LEGACY_KEYS = new Set(['manage_bookings', 'manage-bookings']);
     // Hide legacy keys that are not used as direct Host UI gates.
     const HIDDEN_LEGACY_PERMISSION_KEYS = new Set([
-        'manage_ads',
         'manage_kyc',
         'view_revenue',
         'view_transactions',

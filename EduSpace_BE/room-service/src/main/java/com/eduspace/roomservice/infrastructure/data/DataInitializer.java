@@ -128,7 +128,7 @@ public class DataInitializer implements CommandLineRunner {
                 .descriptionEn(descEn)
                 .imagesAltVi(ImageAltUtil.generateRoomAlt(nameVi, "vi"))
                 .imagesAltEn(ImageAltUtil.generateRoomAlt(nameEn, "en"))
-                .is24_7(true)
+                .is24_7(false)
                 .isActive(true)
                 .locationVi(property.getAddressDetailVi() + " · Phòng " + "R" + (int)(Math.random() * 900 + 100))
                 .locationEn(property.getAddressDetailEn() + " · Room " + "R" + (int)(Math.random() * 900 + 100))

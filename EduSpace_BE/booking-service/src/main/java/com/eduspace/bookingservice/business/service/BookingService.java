@@ -1,9 +1,8 @@
 package com.eduspace.bookingservice.business.service;
 
 import com.eduspace.bookingservice.model.dto.request.CreateBookingRequest;
-import com.eduspace.bookingservice.model.dto.response.BookingAvailabilityResponse;
+import com.eduspace.bookingservice.model.dto.response.BookingByCodeResponse;
 import com.eduspace.bookingservice.model.dto.response.BookingResponse;
-import java.time.LocalDate;
 import java.util.List;
 
 public interface BookingService {
@@ -13,7 +12,8 @@ public interface BookingService {
 
     BookingResponse getBookingById(Long id);
 
-    BookingResponse cancelBooking(Long id);
+    /** Lookup for account-service (bank information). */
+    BookingByCodeResponse getByBookingCode(String bookingCode);
 
-    BookingAvailabilityResponse getAvailability(Long roomId, LocalDate bookingDate);
+    BookingResponse cancelBooking(Long id);
 }

@@ -85,13 +85,24 @@ export interface BookingPriceCalculationResult {
     currency: string;
 }
 
+/** Tiện ích thêm khi đặt (theo catalog amenities + số lượng). */
+export interface BookingExtraAmenityLine {
+    amenityId: number;
+    quantity: number;
+}
+
 export interface CreateBookingReq {
     roomId: number;
     userId: string;
+    /** Email nhận xác nhận đặt phòng (bắt buộc phía BE). */
+    guestEmail: string;
     bookingDate: string;
-    slotId: number;
+    startDateTime: string;
+    endDateTime: string;
     durationValue: number;
     durationUnit: 'MINUTE' | 'HOUR';
+    /** Tùy chọn: tiện ích bổ sung cho booking (lưu ở `extra_booking_amenities`). */
+    extraAmenities?: BookingExtraAmenityLine[];
     paymentMethod?: 'card' | 'bank' | 'momo';
     contactInfo?: {
         fullName: string;

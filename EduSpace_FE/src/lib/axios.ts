@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '../stores/authStore';
 import { AUTH_API } from '../config/api';
 import i18n from '../i18n/config';
@@ -18,9 +18,57 @@ const apiClient = axios.create({
 
 let refreshPromise: Promise<string | null> | null = null;
 
+/** Full URL for matchers (axios may only set relative `url`). */
+function resolvedRequestUrl(config: InternalAxiosRequestConfig): string {
+    const u = config.url;
+    if (u == null) return '';
+    if (typeof u !== 'string') {
+        return String(u);
+    }
+    if (u.startsWith('http://') || u.startsWith('https://')) {
+        return u;
+    }
+    const base = (config.baseURL ?? '').replace(/\/$/, '');
+    const path = u.startsWith('/') ? u : `/${u}`;
+    return `${base}${path}`;
+}
+
+function stripAuthorizationHeaders(config: InternalAxiosRequestConfig): void {
+    const h = config.headers;
+    if (!h) return;
+    if (typeof (h as { delete?: (k: string) => void }).delete === 'function') {
+        (h as { delete: (k: string) => void }).delete('Authorization');
+        (h as { delete: (k: string) => void }).delete('authorization');
+    } else {
+        delete (h as { Authorization?: string }).Authorization;
+        delete (h as { authorization?: string }).authorization;
+    }
+}
+
+/**
+ * API Gateway dùng OAuth2 Resource Server: nếu gửi kèm Bearer (kể cả JWT hết hạn),
+ * filter JWT có thể trả 401 trước khi tới permitAll /api/v1/auth/** — login luôn thất bại.
+ * Các endpoint auth công khai chỉ dùng body (email/password, refresh_token, …), không cần Bearer.
+ */
+function shouldAttachBearerToken(config: InternalAxiosRequestConfig): boolean {
+    const url = resolvedRequestUrl(config);
+    if (!url) return true;
+    if (
+        url.includes('/auth/login') ||
+        url.includes('/auth/register') ||
+        url.includes('/auth/verify-email') ||
+        url.includes('/auth/refresh') ||
+        url.includes('/auth/logout')
+    ) {
+        return false;
+    }
+    return true;
+}
+
 /** POST login/refresh/register — never clear session on 401 */
-function isAuthEndpointUrl(url: string): boolean {
-    return url.includes('/auth/') || url.includes('/login') || url.includes('/refresh');
+function isAuthEndpointUrl(path: string): boolean {
+    if (typeof path !== 'string') return false;
+    return path.includes('/auth/') || path.includes('/login') || path.includes('/refresh');
 }
 
 /**
@@ -28,8 +76,9 @@ function isAuthEndpointUrl(url: string): boolean {
  * a session that was just established — interceptor used to call clearTokens() and left
  * eduspace-auth null in localStorage.
  */
-function isSessionClearExemptUrl(url: string): boolean {
-    return url.includes('/claim-guest');
+function isSessionClearExemptUrl(path: string): boolean {
+    if (typeof path !== 'string') return false;
+    return path.includes('/claim-guest');
 }
 
 let authRedirectScheduled = false;
@@ -56,8 +105,13 @@ apiClient.interceptors.request.use(
             delete config.headers['Content-Type'];
         }
 
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
+        if (shouldAttachBearerToken(config)) {
+            if (token) {
+                config.headers.Authorization = `Bearer ${token}`;
+            }
+        } else {
+            // Tránh header Authorization cũ (axios merge / plugin) làm Gateway validate JWT trước login.
+            stripAuthorizationHeaders(config);
         }
         return config;
     },
@@ -76,7 +130,7 @@ apiClient.interceptors.response.use(
         const originalRequest = error.config;
         if (!originalRequest) return Promise.reject(error);
 
-        const url = originalRequest.url || '';
+        const url = resolvedRequestUrl(originalRequest);
 
         if (error.response?.status !== 401) {
             return Promise.reject(error);

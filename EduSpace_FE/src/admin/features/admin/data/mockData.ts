@@ -1,5 +1,5 @@
 import { User, Shield, CreditCard, Activity, AlertTriangle, CheckCircle } from 'lucide-react';
-import type { User as UserType } from '../../../../shared/types';
+import type { User as UserType } from '@/types/user';
 import type { Transaction, SystemWallet, PayoutRequest } from '../../../../types/finance';
 import type { Dispute } from '../../../../types/dispute';
 

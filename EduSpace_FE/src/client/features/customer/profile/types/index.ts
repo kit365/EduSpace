@@ -52,6 +52,8 @@ export interface UpdateProfileRequest {
 
 export interface UserProfile {
   id: string; // From BE
+  /** JWT `sub` / Keycloak user id — useful for legacy ownerId matching. */
+  keycloakId?: string;
   name: string; // Mapped from BE fullName
   email: string;
   phone?: string; // Mapped from BE phoneNumber

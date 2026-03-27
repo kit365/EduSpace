@@ -18,6 +18,7 @@ import { SUPPORT_CHAT_SYNC_EVENT, emitSupportChatSync } from '../supportChatSync
 import { setStoredSupportConversationId } from '../supportConversationStorage';
 import {
     appendUniqueMessage,
+    applyConversationActivity,
     applyDeleteEvent,
     applyEditEvent,
     applyReactionEvent,
@@ -25,6 +26,7 @@ import {
     buildChatMessageFromWs,
     parseMediaUrls,
 } from '../utils/chatSyncUtils';
+import { useChatInboxStore } from '@/stores/chatInboxStore';
 import { useVideoCall } from '../../../../../contexts/VideoCallContext';
 import { useAuthStore } from '@/stores/authStore';
 import { guestFeatureAllowed, guestPermissions } from '../../permissions/guestPermissions';
@@ -55,9 +57,11 @@ export function MessagesPage() {
     const isPrependingRef = useRef(false);
     const queryClient = useQueryClient();
     const handledRecipientIdRef = useRef<string | null>(null);
+    const activeChatIdRef = useRef<string | null>(null);
     const { t } = useTranslation();
 
     const { chatUserId: currentUserId } = useResolvedChatUserId();
+    const lastConversationEvent = useChatInboxStore((s) => s.lastInboxEvent);
     const { initiateCall, activeCall } = useVideoCall();
 
     // Query to fetch messages - persisted in QueryClient cache
@@ -158,11 +162,30 @@ export function MessagesPage() {
         await refetchMessages();
     }, [selectedConversation, refetchMessages]);
 
-    const { lastMessage, lastConversationEvent, lastReadReceipt, lastEdited, lastDeleted, lastReaction } = useChatWebSocket({
+    const { lastMessage, lastReadReceipt, lastEdited, lastDeleted, lastReaction } = useChatWebSocket({
         conversationId: selectedConversation?.conversationId ?? null,
         userId: currentUserId,
         onReconnect: reloadMessages,
+        subscribeInbox: false,
     });
+
+    useEffect(() => {
+        activeChatIdRef.current = selectedConversation?.conversationId ?? null;
+    }, [selectedConversation?.conversationId]);
+
+    useEffect(() => {
+        if (!lastConversationEvent || lastConversationEvent.type !== 'CONVERSATION_ACTIVITY') return;
+        setConversations((prev) => {
+            const next = applyConversationActivity(prev, lastConversationEvent, {
+                activeConversationId: activeChatIdRef.current,
+                currentUserId,
+            });
+            if (next === prev) {
+                void refetch();
+            }
+            return next;
+        });
+    }, [lastConversationEvent, currentUserId, setConversations, refetch]);
 
     useEffect(() => {
         if (!selectedConversation && conversations.length > 0) {
@@ -257,7 +280,8 @@ export function MessagesPage() {
     }, [lastMessage, selectedConversation, queryClient]);
 
     useEffect(() => {
-        if (!lastConversationEvent || !selectedConversation) return;
+        if (!lastConversationEvent || lastConversationEvent.type !== 'CONVERSATION_ACTIVITY') return;
+        if (!selectedConversation) return;
         if (lastConversationEvent.conversationId !== selectedConversation.conversationId) return;
         // Recover from websocket timing races by reloading persisted history on conversation-level events.
         void refetchMessages();

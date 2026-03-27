@@ -9,10 +9,8 @@ export const ROOM_API = {
   AMENITIES: `${API_PREFIX}/amenities`,
   ROOM_AMENITIES: `${API_PREFIX}/room-amenities`,
   REVIEWS: `${API_PREFIX}/reviews`,
-  ROOM_ADS: `${API_PREFIX}/room-ads`,
   ROOM_BLOCKS: `${API_PREFIX}/room-blocks`,
   EXTRA_SERVICES: `${API_PREFIX}/extra-services`,
-  ADS_PACKAGES: `${API_PREFIX}/ads-packages`,
   SYSTEM_CALENDAR_RULES: `${API_PREFIX}/system-calendar-rules`,
   ROOM_CATEGORIES: `${API_PREFIX}/room-categories`,
 

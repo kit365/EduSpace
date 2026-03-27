@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, Search, Send, CheckCheck } from 'lucide-react';
-import type { ChatMessage, Conversation, WebSocketMessagePayload } from '../../customer/messages/types';
+import type { ChatMessage, Conversation, SearchUserResult, WebSocketMessagePayload } from '../../customer/messages/types';
 import { messageService } from '../../customer/messages/services/messageService';
 import { useConversations } from '../../customer/messages/hooks/useMessages';
 import { useChatWebSocket } from '../../customer/messages/hooks/useChatWebSocket';
 import { RentalLayout } from '../../../layouts/RentalLayout';
 import { useResolvedChatUserId } from '@/hooks/useResolvedChatUserId';
 import { useAuthStore } from '@/stores/authStore';
+import { useChatInboxStore } from '@/stores/chatInboxStore';
 import { hasHostPermission } from '@/utils/keycloakTokenRoles';
 import { hostPermissions } from '../permissions/hostPermissions';
 
@@ -43,6 +44,10 @@ export function HostMessagesPage() {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [messageInput, setMessageInput] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
+    const [newChatQuery, setNewChatQuery] = useState('');
+    const [searchingUsers, setSearchingUsers] = useState(false);
+    const [startingConversation, setStartingConversation] = useState(false);
+    const [searchResults, setSearchResults] = useState<SearchUserResult[]>([]);
 
     const accessToken = useAuthStore((s) => s.accessToken);
     const hostPermissionsFromAccount = useAuthStore((s) => s.hostPermissionsFromAccount);
@@ -69,10 +74,13 @@ export function HostMessagesPage() {
         }
     }, [selectedConversation]);
 
-    const { lastMessage, lastConversationEvent, lastReadReceipt } = useChatWebSocket({
+    const lastConversationEvent = useChatInboxStore((s) => s.lastInboxEvent);
+
+    const { lastMessage, lastReadReceipt } = useChatWebSocket({
         conversationId: selectedConversation?.conversationId ?? null,
         userId: currentUserId,
         onReconnect: reloadMessages,
+        subscribeInbox: false,
     });
 
     useEffect(() => {
@@ -127,7 +135,7 @@ export function HostMessagesPage() {
 
     // Update conversation list order + unread counts.
     useEffect(() => {
-        if (!lastConversationEvent) return;
+        if (!lastConversationEvent || lastConversationEvent.type !== 'CONVERSATION_ACTIVITY') return;
 
         setConversations((prev) => {
             const existingIndex = prev.findIndex((c) => c.conversationId === lastConversationEvent.conversationId);
@@ -172,6 +180,81 @@ export function HostMessagesPage() {
             return name.includes(q) || last.includes(q);
         });
     }, [conversations, searchTerm]);
+
+    const canStartConversation = canManageMessages;
+
+    useEffect(() => {
+        const query = newChatQuery.trim();
+        if (!canStartConversation || query.length < 2) {
+            setSearchResults([]);
+            return;
+        }
+
+        let cancelled = false;
+        const debounce = window.setTimeout(async () => {
+            setSearchingUsers(true);
+            try {
+                const found = await messageService.searchUsers(query, 8);
+                if (!cancelled) {
+                    setSearchResults(
+                        found.filter((u) => u.keycloakId && u.keycloakId !== currentUserId).slice(0, 8),
+                    );
+                }
+            } catch (err) {
+                console.error(err);
+                if (!cancelled) {
+                    setSearchResults([]);
+                }
+            } finally {
+                if (!cancelled) {
+                    setSearchingUsers(false);
+                }
+            }
+        }, 250);
+
+        return () => {
+            cancelled = true;
+            window.clearTimeout(debounce);
+        };
+    }, [newChatQuery, canStartConversation, currentUserId]);
+
+    const upsertConversation = useCallback(
+        (conversation: Conversation) => {
+            setConversations((prev) => {
+                const existingIndex = prev.findIndex((c) => c.conversationId === conversation.conversationId);
+                if (existingIndex < 0) {
+                    return [conversation, ...prev];
+                }
+                const next = [...prev];
+                const existing = next[existingIndex];
+                next.splice(existingIndex, 1);
+                next.unshift({ ...existing, ...conversation });
+                return next;
+            });
+            setSelectedConversation(conversation);
+        },
+        [setConversations],
+    );
+
+    const handleStartConversation = useCallback(
+        async (candidate: SearchUserResult) => {
+            if (!canStartConversation || startingConversation) return;
+            if (!candidate?.keycloakId) return;
+
+            setStartingConversation(true);
+            try {
+                const created = await messageService.createConversation(candidate.keycloakId, false);
+                upsertConversation(created);
+                setSearchResults([]);
+                setNewChatQuery('');
+            } catch (err) {
+                console.error(err);
+            } finally {
+                setStartingConversation(false);
+            }
+        },
+        [canStartConversation, startingConversation, upsertConversation],
+    );
 
     const handleSend = async () => {
         if (!canManageMessages) return;
@@ -218,6 +301,40 @@ export function HostMessagesPage() {
                                 placeholder="Search conversations..."
                                 className="w-full pl-11 pr-4 py-3 bg-gray-50 rounded-2xl outline-none text-sm font-medium focus:ring-2 focus:ring-blue-100 transition-all"
                             />
+                        </div>
+                        <div className="mt-3">
+                            <input
+                                type="text"
+                                value={newChatQuery}
+                                onChange={(e) => setNewChatQuery(e.target.value)}
+                                placeholder={canStartConversation ? 'Start new conversation...' : 'Bạn không có quyền tạo hội thoại'}
+                                disabled={!canStartConversation || startingConversation}
+                                className="w-full px-4 py-3 bg-gray-50 rounded-2xl outline-none text-sm font-medium focus:ring-2 focus:ring-blue-100 transition-all disabled:opacity-60"
+                            />
+                            {canStartConversation && newChatQuery.trim().length >= 2 && (
+                                <div className="mt-2 max-h-44 overflow-y-auto rounded-xl border border-gray-100 bg-white">
+                                    {searchingUsers ? (
+                                        <div className="text-xs text-gray-500 px-3 py-2">Searching...</div>
+                                    ) : searchResults.length === 0 ? (
+                                        <div className="text-xs text-gray-500 px-3 py-2">No users found.</div>
+                                    ) : (
+                                        searchResults.map((user) => (
+                                            <button
+                                                type="button"
+                                                key={user.keycloakId}
+                                                onClick={() => void handleStartConversation(user)}
+                                                className="w-full text-left px-3 py-2 hover:bg-gray-50 border-b border-gray-50 last:border-b-0 disabled:opacity-60"
+                                                disabled={startingConversation}
+                                            >
+                                                <div className="text-sm font-semibold text-gray-800 truncate">
+                                                    {user.fullName ?? user.email ?? user.keycloakId}
+                                                </div>
+                                                <div className="text-[11px] text-gray-400 truncate">{user.email ?? user.keycloakId}</div>
+                                            </button>
+                                        ))
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
 

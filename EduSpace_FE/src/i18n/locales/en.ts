@@ -302,7 +302,19 @@ export const en = {
             contactHostDesc: "Need more information about amenities, schedule, or booking support? Message the host directly.",
             contactHostBtn: "Message host",
             contactHostUnavailable: "This space does not have host contact information yet.",
-            verifiedHost: "Verified Host"
+            verifiedHost: "Verified Host",
+            pricing: {
+                open24Hours: "Open 24/7",
+                perHour: "/ hour",
+                total: "Total"
+            },
+            status: {
+                open: "Open Now",
+                closed: "Closed",
+                opensAt: "Opens at {{time}}",
+                closesAt: "Closes at {{time}}",
+                open24_7: "Active 24/7"
+            }
         },
         search: {
             title: "Search Spaces",
@@ -589,6 +601,7 @@ export const en = {
         hosts: "Host Management",
         users: "User Management",
         roles: "Role & Perms",
+        logs: "Audit Logs",
         settings: "System Settings",
         points: "Points & Rewards",
         depositPolicies: "Deposits & Refunds",

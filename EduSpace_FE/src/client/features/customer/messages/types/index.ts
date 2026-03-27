@@ -80,6 +80,7 @@ export interface WebSocketMessagePayload {
     messageType: MessageType;
     sentAt: string;
     mediaUrl?: string | null;
+    mediaType?: string | null;
     conversationId: string;
 }
 

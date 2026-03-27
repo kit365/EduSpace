@@ -14,6 +14,7 @@ export type RoomBlockType = 'MAINTENANCE' | 'BOOKED' | 'PRIVATE_EVENT' | 'HOLIDA
 export interface RoomBlockDto {
     id: number;
     propertyId: number;
+    roomId?: number | null;
     startDatetime: string;
     endDatetime: string;
     reason: string | null;
@@ -23,6 +24,7 @@ export interface RoomBlockDto {
 
 export interface RoomBlockCreatePayload {
     propertyId: number;
+    roomId?: number | null;
     startDatetime: string;
     endDatetime: string;
     reason?: string | null;

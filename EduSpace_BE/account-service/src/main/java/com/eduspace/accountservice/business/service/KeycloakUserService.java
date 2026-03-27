@@ -24,4 +24,7 @@ public interface KeycloakUserService {
     java.util.Optional<String> findUserIdByEmail(String email);
 
     void changePassword(String keycloakUserId, String email, String oldPassword, String newPassword);
+
+    /** Reset mật khẩu trực tiếp (không cần oldPassword). */
+    void resetPassword(String keycloakUserId, String newPassword, boolean temporary);
 }

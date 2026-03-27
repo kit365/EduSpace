@@ -4,6 +4,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { messageService } from '../../client/features/customer/messages/services/messageService';
 import type { ChatMessage, Conversation } from '../../client/features/customer/messages/types';
 import { useChatWebSocket } from '../../client/features/customer/messages/hooks/useChatWebSocket';
+import { useChatInboxStore } from '../../stores/chatInboxStore';
 import { isSupportPlaceholderUserId, SUPPORT_PLACEHOLDER_USER_ID } from '../../config/chat';
 import { useResolvedChatUserId } from '../../hooks/useResolvedChatUserId';
 import { useAuthHydrated } from '../../hooks/useAuthHydrated';
@@ -105,10 +106,13 @@ export function ChatWidget() {
         pane.scrollTop = pane.scrollHeight;
     }, []);
 
-    const { lastMessage, lastConversationEvent, lastEdited, lastDeleted, lastReaction } = useChatWebSocket({
+    const lastConversationEvent = useChatInboxStore((s) => s.lastInboxEvent);
+
+    const { lastMessage, lastEdited, lastDeleted, lastReaction } = useChatWebSocket({
         conversationId: conversation?.conversationId ?? null,
         userId: currentUserId,
         onReconnect: reloadMessages,
+        subscribeInbox: false,
     });
 
     useLayoutEffect(() => {

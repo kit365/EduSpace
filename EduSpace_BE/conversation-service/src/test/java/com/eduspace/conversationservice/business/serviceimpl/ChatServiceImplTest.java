@@ -181,6 +181,15 @@ class ChatServiceImplTest {
 
             verifyNoInteractions(sagaService);
         }
+
+        @Test
+        @DisplayName("Rejects guest/system ids for normal conversation")
+        void rejectsReservedPeerForNormalConversation() {
+            assertThatThrownBy(() -> chatService.getOrCreateConversation(USER_A, "GUEST-1234", false))
+                    .isInstanceOf(AppException.class)
+                    .extracting(ex -> ((AppException) ex).getErrorCode())
+                    .isEqualTo(ErrorCode.INVALID_REQUEST);
+        }
     }
 
     @Nested

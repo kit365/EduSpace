@@ -13,7 +13,6 @@ import { RoomStatusPage } from "../features/host/pages/RoomStatusPage";
 import { RoomLockPage } from "../features/host/pages/RoomLockPage";
 import { SchedulePage } from "../features/host/pages/SchedulePage";
 import { StaffCheckoutPage } from "../features/host/pages/StaffCheckoutPage";
-import { AdsPage } from "../features/host/pages/AdsPage";
 import { HostRegistrationPage } from "../features/host/pages/HostRegistrationPage";
 import { HostMessagesPage } from "../features/host/pages/HostMessagesPage";
 import { HostProfilePage } from "../features/host/profile/pages/HostProfilePage";
@@ -21,6 +20,8 @@ import { HostSettingsPage } from "../features/host/settings/pages/HostSettingsPa
 import { RoomTypesPage } from "../features/host/pages/RoomTypesPage";
 import { RoomTypeFormPage } from "../features/host/pages/RoomTypeFormPage";
 import { HostSpaceDetailsPage } from "../features/host/pages/HostSpaceDetailsPage";
+import { UtilityPriceManagementPage } from "../features/host/pages/UtilityPriceManagementPage";
+import { DepositRefundPolicyManagementPage } from "../features/host/pages/DepositRefundPolicyManagementPage";
 import { useAuthStore } from "@/stores/authStore";
 import { canAccessHostConsole, getRealmRolesFromAccessToken, hasHostPermission } from "@/utils/keycloakTokenRoles";
 import { refreshHostPermissionsFromAccount } from "@/utils/refreshHostPermissionsFromAccount";
@@ -42,8 +43,6 @@ function resolveHostHomePath(accessToken: string | null, hostPermissionsFromAcco
         }
     }
     const roles = getRealmRolesFromAccessToken(accessToken);
-    // Đã có vai trò host/manager trong JWT nhưng chưa có permission claim (mapper Keycloak / token cũ):
-    // tránh đẩy về /rental/register — vào profile (route không PermissionGate).
     if (canAccessHostConsole(roles)) {
         return '/rental/profile';
     }
@@ -59,7 +58,6 @@ function PermissionGate({
 }) {
     const accessToken = useAuthStore((s) => s.accessToken);
     const hostPermissionsFromAccount = useAuthStore((s) => s.hostPermissionsFromAccount);
-    // Luôn chờ refresh /me khi có token — tránh một frame hiển thị UI với cache quyền cũ (sau khi Admin đổi role).
     const [ready, setReady] = useState(() => !useAuthStore.getState().accessToken);
 
     useEffect(() => {
@@ -180,7 +178,22 @@ export const rentalRoutes: RouteObject[] = [
                     />
                 ),
             },
-            // FR-01: KYC & Staff
+            {
+                path: 'utility-prices',
+                element: (
+                    <HostConsoleGate
+                        element={<PermissionGate permission={hostMenuPermissions.finance} element={<UtilityPriceManagementPage />} />}
+                    />
+                ),
+            },
+            {
+                path: 'deposit-policy',
+                element: (
+                    <HostConsoleGate
+                        element={<PermissionGate permission={hostMenuPermissions.finance} element={<DepositRefundPolicyManagementPage />} />}
+                    />
+                ),
+            },
             {
                 path: 'kyc',
                 element: <HostConsoleGate element={<PermissionGate permission={hostMenuPermissions.kyc} element={<KycPage />} />} />,
@@ -189,12 +202,10 @@ export const rentalRoutes: RouteObject[] = [
                 path: 'staff',
                 element: <HostConsoleGate element={<PermissionGate permission={hostMenuPermissions.staff} element={<StaffManagementPage />} />} />,
             },
-            // FR-03: Smart Scheduling
             {
                 path: 'schedule',
                 element: <HostConsoleGate element={<PermissionGate permission={hostMenuPermissions.schedule} element={<SchedulePage />} />} />,
             },
-            // FR-04: Staff Checkout
             {
                 path: 'checkout',
                 element: (
@@ -203,20 +214,12 @@ export const rentalRoutes: RouteObject[] = [
                     />
                 ),
             },
-            // FR-05: Ads
-            {
-                path: 'ads',
-                element: <HostConsoleGate element={<PermissionGate permission={hostMenuPermissions.ads} element={<AdsPage />} />} />,
-            },
-            // FR-15: Room Status
             {
                 path: 'room-status',
                 element: <HostConsoleGate element={<PermissionGate permission={hostMenuPermissions.roomStatus} element={<RoomStatusPage />} />} />,
             },
             { path: 'room-lock', element: <HostConsoleGate element={<RoomLockPage />} /> },
-            // Host Profile
             { path: 'profile', element: <HostConsoleGate element={<HostProfilePage />} /> },
-            // Host Settings
             { path: 'settings', element: <HostConsoleGate element={<HostSettingsPage />} /> },
         ]
     }

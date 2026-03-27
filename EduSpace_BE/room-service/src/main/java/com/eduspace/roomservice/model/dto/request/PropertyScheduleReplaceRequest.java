@@ -20,10 +20,17 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class PropertyScheduleReplaceRequest {
 
-    @NotNull
     @Min(0)
     @Max(1440)
     Integer bufferMinutes;
+
+    /**
+     * Alias cho {@link #bufferMinutes}.
+     * Chỉ cần 1 trong 2 field: `bufferMinutes` hoặc `bufferTime` là đủ.
+     */
+    @Min(0)
+    @Max(1440)
+    Integer bufferTime;
 
     @NotNull
     Boolean isOverDay;

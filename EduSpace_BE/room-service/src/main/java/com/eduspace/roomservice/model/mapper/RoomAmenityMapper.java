@@ -17,6 +17,7 @@ public interface RoomAmenityMapper {
     @Mapping(target = "amenityId", expression = "java(entity.getId() != null ? entity.getId().getAmenityId() : null)")
     @Mapping(target = "amenityName", expression = "java(TranslationUtil.translate(entity.getAmenity().getNameVi(), entity.getAmenity().getNameEn()))")
     @Mapping(target = "amenityIcon", source = "amenity.icon")
+    @Mapping(target = "type", source = "type")
     RoomAmenityResponse toResponse(RoomAmenityEntity entity);
 
     List<RoomAmenityResponse> toResponseList(List<RoomAmenityEntity> entities);

@@ -166,6 +166,7 @@ export function RoomLockPage() {
     try {
       await roomBlockService.create({
         propertyId,
+        roomId,
         startDatetime: toLocalDateTimeIso(startDt),
         endDatetime: toLocalDateTimeIso(endDt),
         reason: reason.trim() || null,

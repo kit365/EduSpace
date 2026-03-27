@@ -44,4 +44,8 @@ public class AmenityEntity extends BaseEntity {
     @Builder.Default
     @Column(name = "position")
     Integer position = 0;
+
+    @Builder.Default
+    @Column(name = "price", nullable = false)
+    Long price = 0L;
 }

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="vi">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Xác nhận đặt phòng</title>
+</head>
+<body style="font-family: system-ui, sans-serif; line-height: 1.5; color: #222;">
+<p>Xin chào <span th:text="${recipientName}">Khách</span>,</p>
+<p>Đặt phòng của bạn đã được ghi nhận.</p>
+<ul>
+    <li><strong>Mã đặt phòng:</strong> <span th:text="${bookingCode}">BK-</span></li>
+    <li><strong>Phòng:</strong> <span th:text="${roomTitle}">Phòng</span></li>
+    <li><strong>Ngày:</strong> <span th:text="${bookingDate}">-</span></li>
+    <li><strong>Bắt đầu:</strong> <span th:text="${startDateTime}">-</span></li>
+    <li><strong>Kết thúc:</strong> <span th:text="${endDateTime}">-</span></li>
+</ul>
+<p>Trân trọng,<br/>EduSpace</p>
+</body>
+</html>

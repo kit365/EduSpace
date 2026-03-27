@@ -36,14 +36,14 @@ public class BookingEntity {
     @Column(name = "user_id", nullable = false, length = 100)
     private String userId;
 
+    @Column(name = "guest_email", nullable = false, length = 255)
+    private String guestEmail;
+
     @Column(name = "check_in_date", nullable = false)
     private LocalDate checkInDate;
 
     @Column(name = "check_out_date", nullable = false)
     private LocalDate checkOutDate;
-
-    @Column(name = "slot_id")
-    private Long slotId;
 
     @Column(name = "booking_date")
     private LocalDate bookingDate;
@@ -63,6 +63,15 @@ public class BookingEntity {
 
     @Column(name = "total_price")
     private java.math.BigDecimal totalPrice;
+
+    @Column(name = "voucher_code", length = 50)
+    private String voucherCode;
+
+    @Column(name = "discount_amount")
+    private java.math.BigDecimal discountAmount;
+
+    @Column(name = "final_price")
+    private java.math.BigDecimal finalPrice;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
