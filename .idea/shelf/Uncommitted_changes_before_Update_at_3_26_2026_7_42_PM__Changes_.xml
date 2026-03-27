@@ -1,0 +1,49 @@
+<changelist name="Uncommitted_changes_before_Update_at_3_26_2026_7_42_PM_[Changes]" date="1774529081975" recycled="true" deleted="true">
+  <option name="PATH" value="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Update_at_3_26_2026_7_42_PM_[Changes]/shelved.patch" />
+  <option name="DESCRIPTION" value="Uncommitted changes before Update at 3/26/2026 7:42 PM [Changes]" />
+  <binary>
+    <option name="BEFORE_PATH" value="EduSpace_BE/conversation-service/target/classes/com/eduspace/conversationservice/presentation/controller/ChatController.class" />
+    <option name="AFTER_PATH" value="EduSpace_BE/conversation-service/target/classes/com/eduspace/conversationservice/presentation/controller/ChatController.class" />
+    <option name="SHELVED_PATH" value="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Update_at_3_26_2026_7_42_PM_[Changes]/ChatController.class" />
+  </binary>
+  <binary>
+    <option name="BEFORE_PATH" value="EduSpace_BE/conversation-service/target/classes/com/eduspace/conversationservice/model/dto/response/ChatMessageResponse.class" />
+    <option name="AFTER_PATH" value="EduSpace_BE/conversation-service/target/classes/com/eduspace/conversationservice/model/dto/response/ChatMessageResponse.class" />
+    <option name="SHELVED_PATH" value="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Update_at_3_26_2026_7_42_PM_[Changes]/ChatMessageResponse.class" />
+  </binary>
+  <binary>
+    <option name="BEFORE_PATH" value="EduSpace_BE/conversation-service/target/classes/com/eduspace/conversationservice/model/dto/response/ConversationResponse$OtherUser.class" />
+    <option name="AFTER_PATH" value="EduSpace_BE/conversation-service/target/classes/com/eduspace/conversationservice/model/dto/response/ConversationResponse$OtherUser.class" />
+    <option name="SHELVED_PATH" value="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Update_at_3_26_2026_7_42_PM_[Changes]/ConversationResponse$OtherUser.class" />
+  </binary>
+  <binary>
+    <option name="BEFORE_PATH" value="EduSpace_BE/conversation-service/target/classes/com/eduspace/conversationservice/model/dto/response/ConversationResponse.class" />
+    <option name="AFTER_PATH" value="EduSpace_BE/conversation-service/target/classes/com/eduspace/conversationservice/model/dto/response/ConversationResponse.class" />
+    <option name="SHELVED_PATH" value="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Update_at_3_26_2026_7_42_PM_[Changes]/ConversationResponse.class" />
+  </binary>
+  <binary>
+    <option name="BEFORE_PATH" value="EduSpace_BE/conversation-service/target/classes/com/eduspace/conversationservice/model/dto/response/ConversationResponse$OtherUser$OtherUserBuilder.class" />
+    <option name="AFTER_PATH" value="EduSpace_BE/conversation-service/target/classes/com/eduspace/conversationservice/model/dto/response/ConversationResponse$OtherUser$OtherUserBuilder.class" />
+    <option name="SHELVED_PATH" value="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Update_at_3_26_2026_7_42_PM_[Changes]/ConversationResponse$OtherUser$OtherUserBuilder.class" />
+  </binary>
+  <binary>
+    <option name="BEFORE_PATH" value="EduSpace_BE/conversation-service/target/classes/com/eduspace/conversationservice/model/dto/response/ChatMessageResponse$Sender$SenderBuilder.class" />
+    <option name="AFTER_PATH" value="EduSpace_BE/conversation-service/target/classes/com/eduspace/conversationservice/model/dto/response/ChatMessageResponse$Sender$SenderBuilder.class" />
+    <option name="SHELVED_PATH" value="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Update_at_3_26_2026_7_42_PM_[Changes]/ChatMessageResponse$Sender$SenderBuilder.class" />
+  </binary>
+  <binary>
+    <option name="BEFORE_PATH" value="EduSpace_BE/conversation-service/target/classes/com/eduspace/conversationservice/model/dto/response/ConversationResponse$ConversationResponseBuilder.class" />
+    <option name="AFTER_PATH" value="EduSpace_BE/conversation-service/target/classes/com/eduspace/conversationservice/model/dto/response/ConversationResponse$ConversationResponseBuilder.class" />
+    <option name="SHELVED_PATH" value="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Update_at_3_26_2026_7_42_PM_[Changes]/ConversationResponse$ConversationResponseBuilder.class" />
+  </binary>
+  <binary>
+    <option name="BEFORE_PATH" value="EduSpace_BE/conversation-service/target/classes/com/eduspace/conversationservice/model/dto/response/ChatMessageResponse$Sender.class" />
+    <option name="AFTER_PATH" value="EduSpace_BE/conversation-service/target/classes/com/eduspace/conversationservice/model/dto/response/ChatMessageResponse$Sender.class" />
+    <option name="SHELVED_PATH" value="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Update_at_3_26_2026_7_42_PM_[Changes]/ChatMessageResponse$Sender.class" />
+  </binary>
+  <binary>
+    <option name="BEFORE_PATH" value="EduSpace_BE/conversation-service/target/classes/com/eduspace/conversationservice/model/dto/response/ChatMessageResponse$ChatMessageResponseBuilder.class" />
+    <option name="AFTER_PATH" value="EduSpace_BE/conversation-service/target/classes/com/eduspace/conversationservice/model/dto/response/ChatMessageResponse$ChatMessageResponseBuilder.class" />
+    <option name="SHELVED_PATH" value="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Update_at_3_26_2026_7_42_PM_[Changes]/ChatMessageResponse$ChatMessageResponseBuilder.class" />
+  </binary>
+</changelist>
