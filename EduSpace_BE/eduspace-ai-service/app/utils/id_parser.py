@@ -13,6 +13,11 @@ EXCLUDE_KEYWORDS = [
     "C06", "AN NINH", "CANH SAT", "CHÍNH PHỦ", "NGÖN TRÖ", "INDEX FINGER", "PHẠM CÔNG NGUYÊN"
 ]
 
+ADDRESS_STOP_KEYWORDS = [
+    "nhan dang", "dđnd", "date of expiry", "date ot expiry", "expiry",
+    "gia tri den", "co gia tri den", "có giá trị đến", "ngay het han", "ngày hết hạn",
+]
+
 def parse_id_fields(full_text: str, lines: list[tuple[str, float]]) -> dict[str, Any]:
     out: dict[str, Any] = {
         "name": None,
@@ -84,7 +89,18 @@ def parse_id_fields(full_text: str, lines: list[tuple[str, float]]) -> dict[str,
                 if tail: address_parts.append(tail)
             continue
         if is_reading_address:
-            if any(kw in low for kw in ["nhan dang", "dđnd"]): break
+            if any(kw in low for kw in ADDRESS_STOP_KEYWORDS):
+                # If expiry marker appears in same line with address content, keep only prefix.
+                cut_at = len(line)
+                low_line = line.lower()
+                for marker in ADDRESS_STOP_KEYWORDS:
+                    idx = low_line.find(marker)
+                    if idx >= 0:
+                        cut_at = min(cut_at, idx)
+                prefix = line[:cut_at].strip(" ,.-")
+                if prefix:
+                    address_parts.append(prefix)
+                break
             if re.search(r'\d{2}[/-]\d{2}[/-]\d{4}', line): continue
             address_parts.append(line)
 
@@ -108,7 +124,7 @@ def parse_id_fields(full_text: str, lines: list[tuple[str, float]]) -> dict[str,
         addr = re.sub(r'(?i)\bTP\.\s*', 'TP. ', addr)
         
         # Làm sạch rác (từ khóa kẹt lại)
-        addr = re.sub(r'(?i)Date of expiry|Date ot expiry|Gia tri den|Gia tri', '', addr)
+        addr = re.sub(r'(?i)Date of expiry|Date ot expiry|Gia tri den|Co gia tri den|Ngay het han|Gia tri', '', addr)
         
         # Xóa dấu phẩy thừa
         addr = re.sub(r',\s*,', ',', addr)

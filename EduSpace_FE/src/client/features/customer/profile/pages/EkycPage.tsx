@@ -9,6 +9,23 @@ import { profileService } from '../services/profileService';
 
 type EkycStep = 'intro' | 'info' | 'front' | 'back' | 'selfie' | 'processing' | 'result';
 
+async function getImageMeta(file: File): Promise<{ width: number; height: number } | null> {
+    return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+            const meta = { width: img.naturalWidth, height: img.naturalHeight };
+            URL.revokeObjectURL(url);
+            resolve(meta);
+        };
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            resolve(null);
+        };
+        img.src = url;
+    });
+}
+
 export function EkycPage() {
     const { t } = useTranslation();
     const navigate = useNavigate();
@@ -80,6 +97,42 @@ export function EkycPage() {
         setStep('processing');
         setErrorMessage(null);
         try {
+            if (import.meta.env.DEV) {
+                try {
+                    const [frontMeta, selfieMeta, backMeta] = await Promise.all([
+                        getImageMeta(frontFile),
+                        getImageMeta(selfie),
+                        backFile ? getImageMeta(backFile) : Promise.resolve(null),
+                    ]);
+                    console.info('[eKYC debug] upload files', {
+                        front: {
+                            name: frontFile.name,
+                            type: frontFile.type,
+                            size: frontFile.size,
+                            width: frontMeta?.width ?? null,
+                            height: frontMeta?.height ?? null,
+                        },
+                        selfie: {
+                            name: selfie.name,
+                            type: selfie.type,
+                            size: selfie.size,
+                            width: selfieMeta?.width ?? null,
+                            height: selfieMeta?.height ?? null,
+                        },
+                        back: backFile
+                            ? {
+                                  name: backFile.name,
+                                  type: backFile.type,
+                                  size: backFile.size,
+                                  width: backMeta?.width ?? null,
+                                  height: backMeta?.height ?? null,
+                              }
+                            : null,
+                    });
+                } catch {
+                    // Debug log only; never block eKYC flow.
+                }
+            }
             const data = await submitEkycVerification({
                 ...basicInfo,
                 front: frontFile,
@@ -114,12 +167,11 @@ export function EkycPage() {
     };
 
     const stepLabels = [
-        t('customer.ekyc.steps.info') || 'Basic Info',
         t('customer.ekyc.steps.front') || 'ID Upload',
         t('customer.ekyc.steps.selfie') || 'Face Match',
         t('customer.ekyc.steps.result') || 'Result'
     ];
-    const stepIndex = step === 'info' ? 0 : (step === 'front' || step === 'back') ? 1 : step === 'selfie' ? 2 : (step === 'result' || step === 'processing') ? 3 : -1;
+    const stepIndex = (step === 'front' || step === 'back') ? 0 : step === 'selfie' ? 1 : (step === 'result' || step === 'processing') ? 2 : -1;
 
     return (
         <CustomerLayout>
@@ -199,7 +251,7 @@ export function EkycPage() {
 
                                 <button
                                     type="button"
-                                    onClick={() => setStep('info')}
+                                    onClick={() => setStep('front')}
                                     className="bg-gray-900 text-white px-12 py-5 rounded-3xl font-black text-lg shadow-2xl shadow-gray-200 hover:scale-105 active:scale-95 transition-all flex items-center gap-4 mx-auto"
                                 >
                                     {t('customer.ekyc.start')}
@@ -473,7 +525,7 @@ export function EkycPage() {
                                                     <button
                                                         type="button"
                                                         onClick={() => {
-                                                            setStep('info');
+                                                            setStep('front');
                                                             setFrontFile(null);
                                                             setBackFile(null);
                                                             setSelfieFile(null);
