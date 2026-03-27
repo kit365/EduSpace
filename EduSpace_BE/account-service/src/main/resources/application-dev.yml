@@ -37,7 +37,7 @@ spring:
 
 logging:
   level:
-    com.eduspace.accountservice.business.serviceimpl.EmailServiceImpl: INFO
+    "[com.eduspace.accountservice.business.serviceimpl.EmailServiceImpl]": INFO
     # Bật khi cần log SMTP chi tiết: SPRING_MAIL_DEBUG=true hoặc thêm org.springframework.mail: DEBUG
 
 keycloak:

@@ -1,5 +1,7 @@
 package com.eduspace.accountservice.business.serviceimpl;
 
+import com.eduspace.accountservice.common.enums.VerificationStatus;
+import com.eduspace.accountservice.model.dto.request.ekyc.EkycCommitRequest;
 import com.eduspace.accountservice.model.dto.request.user.UpdateProfileRequest;
 import com.eduspace.accountservice.model.mapper.UserMapper;
 import com.eduspace.accountservice.business.service.EkycVerificationService;
@@ -33,9 +35,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class EkycVerificationServiceImpl implements EkycVerificationService {
 
-    private static final String STATUS_VERIFIED = "VERIFIED";
-    private static final String STATUS_FAILED = "FAILED";
-
     private final UserRepository userRepository;
     private final EkycVerificationRepository ekycVerificationRepository;
     private final KycAiClient kycAiClient;
@@ -44,8 +43,7 @@ public class EkycVerificationServiceImpl implements EkycVerificationService {
 
     @Override
     @Transactional
-    public EkycVerifyResponse verify(String keycloakId, 
-                                     String fullName, String dob, String phone, String address,
+    public EkycVerifyResponse verify(String keycloakId, String email,
                                      MultipartFile front, MultipartFile back, MultipartFile selfie) {
         if (front == null || front.isEmpty() || selfie == null || selfie.isEmpty()) {
             throw new AppException(ErrorCode.EKYC_INVALID_DOCUMENTS);
@@ -76,7 +74,7 @@ public class EkycVerificationServiceImpl implements EkycVerificationService {
 
         if (!livenessPass || !facePass || !ocrPass) {
             String reason = buildFailureReason(livenessPass, facePass, ocrPass);
-            persistFailure(user.getId(), fullName, dob, phone, address, face, live, livenessPass, facePass, reason);
+            persistFailure(user, user.getFullName(), user.getDateOfBirth(), user.getPhoneNumber(), user.getLocation(), face, live, livenessPass, facePass, reason);
             return new EkycVerifyResponse(
                     "failed",
                     ocrPass ? ocrPayload : null,
@@ -85,33 +83,83 @@ public class EkycVerificationServiceImpl implements EkycVerificationService {
         }
 
         String idHash = sha256Hex(ocrPayload.idNumber());
-        if (ekycVerificationRepository.existsByIdNumberHashAndStatus(idHash, STATUS_VERIFIED)) {
-            // Check if it belongs to the same user or different
+        if (ekycVerificationRepository.existsByIdNumberHashAndStatus(idHash, VerificationStatus.VERIFIED)) {
             Optional<EkycVerificationEntity> existing = ekycVerificationRepository.findAll().stream()
-                    .filter(e -> e.getIdNumberHash().equals(idHash) && STATUS_VERIFIED.equals(e.getStatus()))
+                    .filter(e -> e.getIdNumberHash().equals(idHash) && VerificationStatus.VERIFIED.equals(e.getStatus()))
                     .findFirst();
-            if (existing.isPresent() && !existing.get().getUserId().equals(user.getId())) {
+            if (existing.isPresent() && !existing.get().getUser().getId().equals(user.getId())) {
                 throw new AppException(ErrorCode.EKYC_DUPLICATE_ID);
             }
         }
 
-        // Use Mapper for Supplemental & Overwrite Logic
+        // Auto-fill/Update Profile from OCR
         UpdateProfileRequest updateReq = new UpdateProfileRequest();
         updateReq.setFullName(ocrPayload.name());
         updateReq.setDateOfBirth(ocrPayload.dob());
         updateReq.setStreetAddress(ocrPayload.address());
-        updateReq.setPhoneNumber(phone);
-
         userMapper.updateUserEntityFromRequest(updateReq, user);
 
-        persistSuccess(user.getId(), idHash, fullName, dob, phone, address, face, live, ocrPayload);
-        user.setVerificationStatus(STATUS_VERIFIED);
+        persistSuccess(user, idHash, user.getFullName(), user.getDateOfBirth(), user.getPhoneNumber(), user.getLocation(), face, live, ocrPayload);
+        user.setVerificationStatus(VerificationStatus.VERIFIED);
         userRepository.save(user);
 
         return new EkycVerifyResponse(
                 "success",
                 ocrPayload,
                 faceMatchingScore(face),
+                null);
+    }
+
+    @Override
+    @Transactional
+    public EkycVerifyResponse commitFromClient(String keycloakId, String email, EkycCommitRequest request) {
+        UserEntity user = userRepository.findByKeycloakId(keycloakId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        OcrPayload ocr = request.ocrData();
+        if (ocr == null || !StringUtils.hasText(ocr.idNumber())) {
+            throw new AppException(ErrorCode.EKYC_INVALID_DOCUMENTS);
+        }
+
+        String idHash = sha256Hex(ocr.idNumber());
+        if (ekycVerificationRepository.existsByIdNumberHashAndStatus(idHash, VerificationStatus.VERIFIED)) {
+             Optional<EkycVerificationEntity> existing = ekycVerificationRepository.findAll().stream()
+                    .filter(e -> e.getIdNumberHash().equals(idHash) && VerificationStatus.VERIFIED.equals(e.getStatus()))
+                    .findFirst();
+            if (existing.isPresent() && !existing.get().getUser().getId().equals(user.getId())) {
+                throw new AppException(ErrorCode.EKYC_DUPLICATE_ID);
+            }
+        }
+
+        // Auto-fill/Update Profile from OCR
+        UpdateProfileRequest updateReq = new UpdateProfileRequest();
+        updateReq.setFullName(ocr.name());
+        updateReq.setDateOfBirth(ocr.dob());
+        updateReq.setStreetAddress(ocr.address());
+        userMapper.updateUserEntityFromRequest(updateReq, user);
+
+        EkycVerificationEntity e = EkycVerificationEntity.builder()
+                .id(UUID.randomUUID().toString())
+                .user(user)
+                .status(VerificationStatus.VERIFIED)
+                .idNumberHash(idHash)
+                .faceDistance(request.faceDistance())
+                .faceVerified(request.faceVerified())
+                .livenessPassed(true) // Assumed passed if client commits successful result
+                .ocrName(ocr.name())
+                .ocrIdNumber(ocr.idNumber())
+                .ocrDob(ocr.dob())
+                .ocrAddress(ocr.address())
+                .build();
+        ekycVerificationRepository.save(e);
+
+        user.setVerificationStatus(VerificationStatus.VERIFIED);
+        userRepository.save(user);
+
+        return new EkycVerifyResponse(
+                "success",
+                ocr,
+                request.faceMatchingScore(),
                 null);
     }
 
@@ -171,13 +219,13 @@ public class EkycVerificationServiceImpl implements EkycVerificationService {
         return "Verification failed.";
     }
 
-    private void persistFailure(String userId, String providedName, String providedDob, String providedPhone, String providedAddress,
+    private void persistFailure(UserEntity user, String providedName, String providedDob, String providedPhone, String providedAddress,
                                 JsonNode face, JsonNode live, boolean livenessPass,
                                 boolean facePass, String reason) {
         EkycVerificationEntity e = EkycVerificationEntity.builder()
                 .id(UUID.randomUUID().toString())
-                .userId(userId)
-                .status(STATUS_FAILED)
+                .user(user)
+                .status(VerificationStatus.FAILED)
                 .providedName(providedName)
                 .providedDob(providedDob)
                 .providedPhone(providedPhone)
@@ -191,13 +239,13 @@ public class EkycVerificationServiceImpl implements EkycVerificationService {
         ekycVerificationRepository.save(e);
     }
 
-    private void persistSuccess(String userId, String idNumberHash, 
+    private void persistSuccess(UserEntity user, String idNumberHash, 
                                 String providedName, String providedDob, String providedPhone, String providedAddress,
                                 JsonNode face, JsonNode live, OcrPayload ocr) {
         EkycVerificationEntity e = EkycVerificationEntity.builder()
                 .id(UUID.randomUUID().toString())
-                .userId(userId)
-                .status(STATUS_VERIFIED)
+                .user(user)
+                .status(VerificationStatus.VERIFIED)
                 .idNumberHash(idNumberHash)
                 .providedName(providedName)
                 .providedDob(providedDob)
@@ -218,7 +266,7 @@ public class EkycVerificationServiceImpl implements EkycVerificationService {
 
     @Override
     public Optional<OcrPayload> getLatestVerifiedOcrData(String userId) {
-        return ekycVerificationRepository.findFirstByUserIdAndStatusOrderByCreatedAtDesc(userId, STATUS_VERIFIED)
+        return ekycVerificationRepository.findFirstByUserIdAndStatusOrderByCreatedAtDesc(userId, VerificationStatus.VERIFIED)
                 .map(e -> new OcrPayload(
                         e.getOcrName(),
                         e.getOcrIdNumber(),

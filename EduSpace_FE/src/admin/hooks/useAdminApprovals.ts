@@ -111,7 +111,7 @@ export function useAdminApprovals() {
     const rejectPartner = async (id: string, note?: string) => {
         setActingId(id);
         try {
-            await hostPartnerApplicationService.adminReject(id, note);
+            await hostPartnerApplicationService.adminReject(id, note || '');
             showToast.success('Đã từ chối đơn đăng ký.');
             await fetchPartners();
         } catch (e) {

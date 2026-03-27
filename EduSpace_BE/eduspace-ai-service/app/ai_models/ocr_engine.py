@@ -61,6 +61,20 @@ def _downscale_for_ocr(img: np.ndarray, max_side: int) -> np.ndarray:
     return cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
 
+def is_valid_cccd(full_text: str) -> bool:
+    """Check if the document contains keywords indicating a Vietnamese ID card."""
+    keywords = [
+        "CĂN CƯỚC CÔNG DÂN",
+        "CHỨNG MINH NHÂN DÂN",
+        "SOCIALIST REPUBLIC",
+        "ĐỘC LẬP - TỰ DO",
+        "IDENTIFICATION",
+        "CANCUOCCONGDAN",
+    ]
+    text_upper = full_text.upper()
+    return any(kw in text_upper for kw in keywords)
+
+
 def run_ocr(image_bytes: bytes) -> dict[str, Any]:
     t_total = time.perf_counter()
     _log.info("OCR trace: step1 decode_bgr start, input_bytes=%d", len(image_bytes))
@@ -114,6 +128,16 @@ def run_ocr(image_bytes: bytes) -> dict[str, Any]:
 
     t = time.perf_counter()
     full_text = "\n".join(t for t, _ in lines)
+    
+    # Validate if it's an ID card
+    if not is_valid_cccd(full_text):
+        _log.warning("OCR Validation: Document does not appear to be a valid ID card.")
+        return {
+            "error": "Not a valid ID card",
+            "message": "Vui lòng tải lên ảnh mặt trước Căn cước công dân hoặc Chứng minh nhân dân hợp lệ.",
+            "full_text": full_text
+        }
+
     confs = [c for _, c in lines]
     avg_conf = sum(confs) / len(confs) if confs else 0.0
     fields = parse_id_fields(full_text, lines)

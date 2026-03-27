@@ -16,9 +16,11 @@ export function ProfilePage() {
   const [activeTab, setActiveTab] = useState('personal');
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(NOTIFICATION_SETTINGS);
 
+  const hasHostPrivileges = ['ADMIN', 'SUPER_ADMIN', 'HOST'].includes(profile.role?.toString().toUpperCase() || '');
+
   const tabs = [
     { id: 'personal', label: t('customer.profile.sidebar.myProfile'), icon: User },
-    { id: 'hostPartner', label: t('customer.profile.sidebar.hostApplication', 'Đơn đối tác'), icon: ClipboardList },
+    ...(!hasHostPrivileges ? [{ id: 'hostPartner', label: t('customer.profile.sidebar.hostApplication', 'Đơn đối tác'), icon: ClipboardList }] : []),
     { id: 'security', label: t('customer.profile.sidebar.security'), icon: Lock },
     { id: 'teams', label: t('customer.profile.sidebar.teams'), icon: Users },
     { id: 'teamMember', label: t('customer.profile.sidebar.teamMember'), icon: UserPlus },

@@ -28,7 +28,7 @@ pillow-heif==0.21.0
 paddlepaddle==2.6.2
 paddleocr==2.8.1
 
-# Face verification (TensorFlow CPU; DeepFace downloads models on first verify)
-tensorflow==2.15.1
-tf-keras==2.15.1
-deepface==0.0.93
+# Face verification & Liveness (LightweightDeep Learning)
+# face_recognition==1.3.0 # Removed to avoid dlib/cmake dependency
+onnxruntime==1.19.2
+insightface==0.7.3

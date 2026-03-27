@@ -1,9 +1,7 @@
 package com.eduspace.accountservice.persistence.specification;
 
 import com.eduspace.accountservice.model.entity.RoleEntity;
-import com.eduspace.accountservice.model.entity.RoleEntity_;
 import com.eduspace.accountservice.model.entity.UserEntity;
-import com.eduspace.accountservice.model.entity.UserEntity_;
 import jakarta.persistence.criteria.*;
 import org.springframework.data.jpa.domain.Specification;
 

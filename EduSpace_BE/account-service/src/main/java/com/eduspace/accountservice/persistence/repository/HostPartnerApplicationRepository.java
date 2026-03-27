@@ -1,6 +1,5 @@
 package com.eduspace.accountservice.persistence.repository;
 
-import com.eduspace.accountservice.common.enums.PartnerAppStatus;
 import com.eduspace.accountservice.model.entity.HostPartnerApplicationEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;

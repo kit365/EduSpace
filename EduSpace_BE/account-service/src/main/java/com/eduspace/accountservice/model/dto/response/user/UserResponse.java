@@ -51,6 +51,8 @@ public class UserResponse {
     Set<String> permissions;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
+    String createdBy;
+    String updatedBy;
 
     // AI logic results
     OcrData ocrData;

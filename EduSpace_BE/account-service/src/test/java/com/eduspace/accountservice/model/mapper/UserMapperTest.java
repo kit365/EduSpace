@@ -2,7 +2,6 @@ package com.eduspace.accountservice.model.mapper;
 
 import com.eduspace.accountservice.model.dto.response.user.UserResponse;
 import com.eduspace.accountservice.model.entity.UserEntity;
-import com.eduspace.accountservice.persistence.repository.EkycVerificationRepository;
 import com.eduspace.accountservice.persistence.repository.PermissionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -11,15 +10,13 @@ import static org.mockito.Mockito.mock;
 
 class UserMapperTest {
 
-    private EkycVerificationRepository ekycVerificationRepository;
     private PermissionRepository permissionRepository;
     private UserMapper userMapper;
 
     @BeforeEach
     void setUp() {
-        ekycVerificationRepository = mock(EkycVerificationRepository.class);
         permissionRepository = mock(PermissionRepository.class);
-        userMapper = new UserMapper(ekycVerificationRepository, permissionRepository);
+        userMapper = new UserMapper(permissionRepository);
     }
 
     @Test

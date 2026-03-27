@@ -29,7 +29,6 @@ export interface UserResponse {
   taxId?: string;
   organizationName?: string;
   verificationStatus?: KycStatus;
-  verificationStatus?: string;
   ocrData?: {
     name: string;
     idNumber: string;

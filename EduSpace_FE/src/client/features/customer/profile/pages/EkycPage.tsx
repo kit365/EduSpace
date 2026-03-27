@@ -1,8 +1,9 @@
 import { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { CustomerLayout } from '../../../../layouts/CustomerLayout';
-import { Camera, Upload, CheckCircle2, XCircle, Loader2, ShieldCheck, ScanFace, CreditCard, ArrowRight, AlertTriangle } from 'lucide-react';
+import { Camera, Upload, CheckCircle2, XCircle, Loader2, ShieldCheck, ScanFace, CreditCard, ArrowRight, AlertTriangle, ChevronLeft } from 'lucide-react';
 import { submitEkycVerification } from '../services/ekycService';
 import { profileService } from '../services/profileService';
 
@@ -10,6 +11,7 @@ type EkycStep = 'intro' | 'info' | 'front' | 'back' | 'selfie' | 'processing' | 
 
 export function EkycPage() {
     const { t } = useTranslation();
+    const navigate = useNavigate();
     const [step, setStep] = useState<EkycStep>('intro');
     const [frontFile, setFrontFile] = useState<File | null>(null);
     const [backFile, setBackFile] = useState<File | null>(null);
@@ -37,11 +39,12 @@ export function EkycPage() {
         const loadProfile = async () => {
             try {
                 const profile = await profileService.getProfile();
+                // Prioritize existing profile info, fallback to ocrData for auto-fill
                 setBasicInfo({
-                    fullName: profile.name || '',
-                    dob: profile.dateOfBirth || '',
+                    fullName: profile.name || profile.ocrData?.name || '',
+                    dob: profile.dateOfBirth || profile.ocrData?.dob || '',
                     phone: profile.phone || '',
-                    address: profile.streetAddress || profile.location || ''
+                    address: profile.streetAddress || profile.location || profile.ocrData?.address || ''
                 });
             } catch (err) {
                 console.error('Failed to pre-fill eKYC info:', err);
@@ -426,26 +429,39 @@ export function EkycPage() {
                                                 </div>
 
                                                 {ocrData && verifyResult === 'success' && (
-                                                    <div className="bg-gray-50/50 border border-gray-100 rounded-[40px] p-10 backdrop-blur-sm">
-                                                        <h3 className="font-black text-gray-900 mb-8 flex items-center gap-3 text-lg">
-                                                            <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
-                                                                <ShieldCheck className="w-6 h-6 text-emerald-600" />
-                                                            </div>
-                                                            Verified Identity Profile
-                                                        </h3>
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                                            {[
-                                                                { label: 'Verified Name', value: ocrData.name ?? '—' },
-                                                                { label: 'Document Number', value: ocrData.idNumber ?? '—' },
-                                                                { label: 'Date of Birth', value: ocrData.dob ?? '—' },
-                                                                { label: 'Registered Address', value: ocrData.address ?? '—' },
-                                                            ].map((field, i) => (
-                                                                <div key={i}>
-                                                                    <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3">{field.label}</div>
-                                                                    <div className="text-sm font-black text-gray-900 bg-white border border-gray-100 px-6 py-4 rounded-2xl shadow-sm leading-relaxed">{field.value}</div>
+                                                    <div className="space-y-8">
+                                                        <div className="bg-gray-50/50 border border-gray-100 rounded-[40px] p-10 backdrop-blur-sm">
+                                                            <h3 className="font-black text-gray-900 mb-8 flex items-center gap-3 text-lg">
+                                                                <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+                                                                    <ShieldCheck className="w-6 h-6 text-emerald-600" />
                                                                 </div>
-                                                            ))}
+                                                                Verified Identity Profile
+                                                            </h3>
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                                {[
+                                                                    { label: 'Verified Name', value: ocrData.name ?? '—' },
+                                                                    { label: 'Document Number', value: ocrData.idNumber ?? '—' },
+                                                                    { label: 'Date of Birth', value: ocrData.dob ?? '—' },
+                                                                    { label: 'Registered Address', value: ocrData.address ?? '—' },
+                                                                ].map((field, i) => (
+                                                                    <div key={i}>
+                                                                        <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3">{field.label}</div>
+                                                                        <div className="text-sm font-black text-gray-900 bg-white border border-gray-100 px-6 py-4 rounded-2xl shadow-sm leading-relaxed">{field.value}</div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
                                                         </div>
+
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => navigate('/host-registration')}
+                                                            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-6 rounded-[32px] font-black text-lg shadow-2xl shadow-blue-200 hover:scale-[1.02] active:scale-98 transition-all flex items-center justify-center gap-4"
+                                                        >
+                                                            Continue to Registration
+                                                            <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
+                                                                <ArrowRight className="w-6 h-6" />
+                                                            </div>
+                                                        </button>
                                                     </div>
                                                 )}
 

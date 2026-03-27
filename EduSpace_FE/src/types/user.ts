@@ -1,6 +1,5 @@
 export type UserRole = 'admin' | 'super_admin' | 'host' | 'manager' | 'guest' | 'staff' | 'renter';
-export type KycStatus = 'not_submitted' | 'pending' | 'verified' | 'rejected';
-export type KycStatus = 'not_submitted' | 'PENDING' | 'VERIFIED' | 'REJECTED' | 'FAILED';
+export type KycStatus = 'not_submitted' | 'PENDING' | 'VERIFIED' | 'REJECTED' | 'FAILED' | 'verified' | 'rejected' | 'pending';
 export type AccountStatus = 'active' | 'pending' | 'suspended' | 'banned' | 'blocked';
 
 export interface User {

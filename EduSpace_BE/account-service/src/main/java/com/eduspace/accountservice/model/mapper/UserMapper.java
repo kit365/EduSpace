@@ -88,6 +88,8 @@ public class UserMapper {
             permissions.addAll(extraPermissionNames);
         }
 
+        EkycVerificationEntity latestKyc = findLatestVerified(entity.getEkycVerifications());
+
         return UserResponse.builder()
                 .id(entity.getId())
                 .keycloakId(entity.getKeycloakId())
@@ -99,7 +101,6 @@ public class UserMapper {
                 .dateOfBirth(entity.getDateOfBirth())
                 .hostType(entity.getHostType())
                 .organizationName(entity.getOrganizationName())
-                .verificationDocument(entity.getVerificationDocument())
                 .verificationStatus(entity.getVerificationStatus())
                 .shortBio(entity.getShortBio())
                 .cityState(entity.getCityState())
@@ -116,14 +117,34 @@ public class UserMapper {
                 .permissions(permissions)
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
-                .ocrData(mapOcrData(entity.getId()))
-                .faceMatchPercentage(mapFaceMatch(entity.getId()))
+                .createdBy(entity.getCreatedBy())
+                .updatedBy(entity.getUpdatedBy())
+                .legalName(latestKyc != null ? latestKyc.getLegalName() : null)
+                .idCardNumber(latestKyc != null ? latestKyc.getIdCardNumber() : null)
+                .dob(latestKyc != null ? latestKyc.getDob() : null)
+                .verifiedAddress(latestKyc != null ? latestKyc.getAddress() : null)
+                .idCardFrontUrl(latestKyc != null ? latestKyc.getIdCardFrontUrl() : null)
+                .ocrData(mapOcrData(entity.getEkycVerifications()))
+                .faceMatchPercentage(mapFaceMatch(entity.getEkycVerifications()))
                 .build();
     }
 
-    private UserResponse.OcrData mapOcrData(String userId) {
-        return ekycVerificationRepository.findAll().stream()
-                .filter(e -> e.getUserId().equals(userId))
+    private EkycVerificationEntity findLatestVerified(java.util.List<EkycVerificationEntity> verifications) {
+        if (verifications == null || verifications.isEmpty()) {
+            return null;
+        }
+        return verifications.stream()
+                .filter(e -> com.eduspace.accountservice.common.enums.VerificationStatus.VERIFIED.equals(e.getStatus()))
+                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private UserResponse.OcrData mapOcrData(java.util.List<EkycVerificationEntity> verifications) {
+        if (verifications == null || verifications.isEmpty()) {
+            return null;
+        }
+        return verifications.stream()
                 .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
                 .findFirst()
                 .map(e -> UserResponse.OcrData.builder()
@@ -135,9 +156,11 @@ public class UserMapper {
                 .orElse(null);
     }
 
-    private Double mapFaceMatch(String userId) {
-        return ekycVerificationRepository.findAll().stream()
-                .filter(e -> e.getUserId().equals(userId))
+    private Double mapFaceMatch(java.util.List<EkycVerificationEntity> verifications) {
+        if (verifications == null || verifications.isEmpty()) {
+            return null;
+        }
+        return verifications.stream()
                 .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
                 .findFirst()
                 .map(EkycVerificationEntity::getFaceDistance)

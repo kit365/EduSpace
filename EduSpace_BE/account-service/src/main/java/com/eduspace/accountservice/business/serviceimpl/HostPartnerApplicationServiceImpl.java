@@ -4,6 +4,7 @@ import com.eduspace.accountservice.business.service.HostPartnerApplicationServic
 import com.eduspace.accountservice.business.service.KeycloakUserService;
 import com.eduspace.accountservice.common.enums.PartnerAppStatus;
 import com.eduspace.accountservice.common.enums.HostPartnerApplicationUserStatus;
+import com.eduspace.accountservice.common.enums.VerificationStatus;
 import com.eduspace.accountservice.common.enums.Role;
 import com.eduspace.accountservice.exception.AppException;
 import com.eduspace.accountservice.exception.ErrorCode;
@@ -184,7 +185,7 @@ public class HostPartnerApplicationServiceImpl implements HostPartnerApplication
         }
 
         // Enforce KYC requirement
-        if (!"VERIFIED".equalsIgnoreCase(user.getVerificationStatus())) {
+        if (user.getVerificationStatus() != VerificationStatus.VERIFIED) {
             throw new AppException(ErrorCode.EKYC_REQUIRED);
         }
 
@@ -392,31 +393,10 @@ public class HostPartnerApplicationServiceImpl implements HostPartnerApplication
         if (StringUtils.hasText(applicantType)) {
             user.setHostType(applicantType.trim());
         }
-        String doc = firstNonBlank(documentFrontUrl, documentBackUrl, businessLicenseUrl);
-        if (StringUtils.hasText(doc)) {
-            user.setVerificationDocument(doc);
-        }
-        if (phase == PartnerAppStatus.PENDING) {
-            user.setVerificationStatus("PENDING");
-        } else if (phase == PartnerAppStatus.APPROVED) {
-            user.setVerificationStatus("VERIFIED");
-        }
         if (StringUtils.hasText(applicantType) && "BUSINESS".equalsIgnoreCase(applicantType.trim())
                 && StringUtils.hasText(fullName)) {
             user.setOrganizationName(fullName.trim());
         }
-    }
-
-    private static String firstNonBlank(String... values) {
-        if (values == null) {
-            return null;
-        }
-        for (String v : values) {
-            if (StringUtils.hasText(v)) {
-                return v.trim();
-            }
-        }
-        return null;
     }
 
     private static String trimToNull(String s) {
